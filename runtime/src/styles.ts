@@ -286,7 +286,7 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
 
     // Bar layout: spans the bottom edge, content in a centred row.
     `${r} .cc-banner--bar{left:0;right:0;bottom:0;width:100%;max-width:none;border-radius:0;border-width:1px 0 0 0;box-shadow:0 -6px 20px rgba(23,28,45,.12);padding:16px 24px}`,
-    `${r} .cc-banner--bar .cc-banner__inner{display:flex;align-items:center;gap:24px;max-width:1120px;margin:0 auto}`,
+    `${r} .cc-banner--bar .cc-banner__inner{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;max-width:1120px;margin:0 auto}`,
     `${r} .cc-banner--bar .cc-banner__text{flex:1;min-width:0}`,
     `${r} .cc-banner--bar .cc-banner__message{display:none}`,
     `${r} .cc-banner--bar .cc-banner__actions{margin-top:0;flex:0 0 auto}`,
