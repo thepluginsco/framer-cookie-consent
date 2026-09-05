@@ -35,7 +35,7 @@ const LOGO_PATH = '/plugin/public/logo.png';
  * runtime's own origin can't be derived. Bump alongside a runtime re-tag.
  */
 const LOGO_FALLBACK =
-  'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.4/plugin/public/logo.png';
+  'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.5/plugin/public/logo.png';
 
 /**
  * The full brand-logo image URL, matched to whatever tag served this runtime.

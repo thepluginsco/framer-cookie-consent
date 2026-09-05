@@ -200,13 +200,14 @@ test('basicBannerConfig: preserves all compliance-relevant content', () => {
 /* DOM: licensed → full white-label banner                                     */
 /* -------------------------------------------------------------------------- */
 
-test('DOM: a licensed Pro site renders the full banner with NO "powered by" credit', () => {
+test('DOM: a licensed Pro site renders the full banner AND the "powered by" credit', () => {
   setupDom();
   const cfg = resolveBannerConfig(proLicensed);
   const ctrl = mountBanner(cfg, { api: noopApi() });
 
   assert.ok(ctrl.root.querySelector('.cc-banner--card'), 'premium card layout rendered');
-  assert.equal(ctrl.root.querySelector('.cc-powered'), null, 'white-label hides the credit');
+  // The credit now shows on every tier (white-label no longer hides it).
+  assert.ok(ctrl.root.querySelector('.cc-powered'), 'the credit shows on all versions');
   ctrl.destroy();
 });
 

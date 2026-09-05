@@ -295,9 +295,9 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
 
   const bannerInner = el('div', { class: 'cc-banner__inner' }, [text, actions]);
 
-  // White-label: the "Powered by" credit shows UNLESS entitled to hide it.
-  // The license is authoritative; `poweredByHidden` is an author convenience.
-  if (!config.license.whiteLabel && !config.strings.poweredByHidden) {
+  // The "Powered by" credit is shown on EVERY tier — white-label no longer hides
+  // it. Only the author-config `poweredByHidden` flag can suppress it.
+  if (!config.strings.poweredByHidden) {
     bannerInner.append(
       el('div', { class: 'cc-powered' }, [
         el(

@@ -415,10 +415,11 @@ describe('License gate', () => {
     expect(ran('analytics')).toBe(false);
   });
 
-  test('custom domain, licensed Pro → full card banner, white-label hides the credit', async () => {
+  test('custom domain, licensed Pro → full card banner AND the credit (shown on every tier)', async () => {
     const { controller } = await bootOn('https://www.acme.com/', { tier: 'pro', key: REAL_KEY, whiteLabel: true });
     expect(controller.root.querySelector('.cc-banner--card')).toBeTruthy();
-    expect(controller.root.querySelector('.cc-powered')).toBeNull();
+    // The "powered by" credit now shows on all versions — white-label no longer hides it.
+    expect(controller.root.querySelector('.cc-powered')).toBeTruthy();
     expect(ran('analytics')).toBe(false); // still blocked until consent
   });
 });
