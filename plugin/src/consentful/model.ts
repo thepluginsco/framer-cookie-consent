@@ -228,7 +228,11 @@ export function toCfg(c: CookieConsentConfig): Cfg {
     googleTagId: c.advanced.googleTagId ?? "",
     customCss: c.advanced.customCss,
     licenseKey: c.license.key ?? "",
-    plan: c.license.tier === "trial" ? "free" : "pro",
+    // TEMPORARY — licensing disabled for full-feature testing: force "pro" so every
+    // Pro-gated control (custom CSS, geo endpoint, insights, multi-language) is
+    // usable. Restore `c.license.tier === "trial" ? "free" : "pro"` to re-enable
+    // gating (pairs with LICENSING_DISABLED in lib/customCode.ts).
+    plan: "pro",
     categories: c.categories.map((cat) => ({
       id: cat.id,
       name: cat.label,

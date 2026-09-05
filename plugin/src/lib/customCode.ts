@@ -178,6 +178,36 @@ export function stripBlock(existingHtml: string): string | null {
 }
 
 /* -------------------------------------------------------------------------- */
+/* TEMPORARY — licensing disabled for full-feature testing                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * While the team tests every feature end-to-end, licensing caps are OFF. Flip
+ * this to `false` to restore real licensing.
+ *
+ * Pairs with the `plan` override in `consentful/model.ts` (which unlocks the Pro
+ * UI controls). The runtime's license gate is UNCHANGED and still fully tested —
+ * we simply hand it a paid-tier config so the published banner renders the FULL
+ * configured design (real layout, theme, floating button, custom CSS,
+ * white-label) instead of the unlicensed basic bar.
+ */
+export const LICENSING_DISABLED = true
+
+/**
+ * Stamp a paid-tier license onto the config we inject when {@link LICENSING_DISABLED}.
+ * Defers to an already-present real license; a no-op once licensing is re-enabled.
+ */
+function withTestingLicense(config: CookieConsentConfig): CookieConsentConfig {
+  if (!LICENSING_DISABLED) return config
+  // A real paid license is already present → leave it untouched.
+  if (config.license.tier !== "trial" && (config.license.key ?? "").length >= 8) return config
+  return {
+    ...config,
+    license: { tier: "pro", key: "TESTING-LICENSE-UNGATED", whiteLabel: true },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Framer wiring                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -200,7 +230,7 @@ export function stripBlock(existingHtml: string): string | null {
  * @param config - The configuration to embed and publish.
  */
 export async function injectLoader(config: CookieConsentConfig): Promise<void> {
-  const block = buildLoaderHtml(config)
+  const block = buildLoaderHtml(withTestingLicense(config))
   const existing = await getCustomCode()
   const currentHtml = existing[LOADER_LOCATION].html ?? ""
   const nextHtml = upsertBlock(currentHtml, block)
