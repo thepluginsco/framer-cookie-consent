@@ -139,7 +139,7 @@ export function ConsentfulShell() {
           <img
             src={logoUrl}
             alt="Consentful by The Plugins Company"
-            style={{ height: 28, width: "auto", display: "block" }}
+            style={{ height: 38, width: "auto", display: "block" }}
           />
         </div>
 

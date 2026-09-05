@@ -23,6 +23,7 @@ import { installConsentApi, type CookieConsentApi, type ConsentState } from './c
 import { needsReconsent, shouldShowFloatingButton } from './geo.ts';
 import { injectStyles, ROOT_CLASS, assertThemeContrast } from './styles.ts';
 import { localizeStrings, detectLanguages } from './i18n.ts';
+import { brandMarkUrl } from './brand-mark.ts';
 
 /**
  * Build-time flag, replaced by a literal via esbuild `define`. `false` in the
@@ -32,10 +33,12 @@ import { localizeStrings, detectLanguages } from './i18n.ts';
  */
 declare const __CC_DEV__: boolean | undefined;
 
-/** Vendor credit URL rendered in the (non-white-label) "Powered by" link. */
-const POWERED_BY_URL = 'https://www.framer.com/';
-/** Vendor credit label. */
-const POWERED_BY_LABEL = 'Powered by Cookie Consent';
+/** Where the (non-white-label) "Powered by" credit links. TODO: confirm brand URL. */
+const POWERED_BY_URL = 'https://thepluginsco.com';
+/** Brand name shown in the credit, beside the mark. */
+const POWERED_BY_NAME = 'Consentful';
+/** Accessible label for the whole credit link. */
+const POWERED_BY_LABEL = 'Powered by Consentful';
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helper                                                           */
@@ -297,7 +300,22 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   if (!config.license.whiteLabel && !config.strings.poweredByHidden) {
     bannerInner.append(
       el('div', { class: 'cc-powered' }, [
-        el('a', { href: POWERED_BY_URL, text: POWERED_BY_LABEL, attrs: { rel: 'noopener', target: '_blank' } }),
+        el(
+          'a',
+          {
+            class: 'cc-powered__link',
+            href: POWERED_BY_URL,
+            attrs: { rel: 'noopener', target: '_blank', 'aria-label': POWERED_BY_LABEL },
+          },
+          [
+            el('span', { class: 'cc-powered__by', text: 'Powered by' }),
+            el('img', {
+              class: 'cc-powered__mark',
+              attrs: { src: brandMarkUrl(), alt: '', width: '16', height: '16', loading: 'lazy', decoding: 'async' },
+            }),
+            el('span', { class: 'cc-powered__name', text: POWERED_BY_NAME }),
+          ],
+        ),
       ]),
     );
   }
