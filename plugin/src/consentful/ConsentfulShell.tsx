@@ -7,12 +7,10 @@
  * of the window. All persistent edits flow through the model.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 
-import { injectLoader } from "../lib/customCode"
-import { canSetCustomCode, canSetPluginData, getPluginData, setPluginData } from "../lib/framer"
+import { canSetPluginData, getPluginData, setPluginData } from "../lib/framer"
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
-import { useSettingsContext } from "../state/settings-context"
 import { useCustomCodeDisabled } from "../hooks/useCustomCodeStatus"
 import { T, focusRing } from "./tokens"
 import { Icon, HoverButton, Button, Spinner } from "./ui"
@@ -29,17 +27,16 @@ import {
   TextPanel,
 } from "./panels"
 import { PreviewPane, type PreviewMode } from "./preview"
-import { AddCategoryModal, AddScriptModal, Onboarding, PublishSuccess } from "./modals"
+import { AddCategoryModal, AddScriptModal, Onboarding } from "./modals"
 
-type TabId = "categories" | "behavior" | "consent" | "scripts" | "style" | "text" | "insights" | "license" | "preview"
+type TabId = "categories" | "behavior" | "consent" | "scripts" | "theme" | "insights" | "license" | "preview"
 
 const TABS: Array<[TabId, string, string]> = [
   ["categories", "Categories", "category"],
   ["behavior", "Behavior", "tune"],
   ["consent", "Consent Mode", "verified_user"],
   ["scripts", "Scripts", "code"],
-  ["style", "Style", "palette"],
-  ["text", "Text", "text_fields"],
+  ["theme", "Theme", "palette"],
   ["insights", "Insights", "query_stats"],
   ["license", "License", "workspace_premium"],
   ["preview", "Publish", "rocket_launch"],
@@ -50,25 +47,22 @@ const TITLES: Record<TabId, [string, string]> = {
   behavior: ["Behavior", "Control when the banner appears and how long a choice is remembered."],
   consent: ["Consent Mode", "Configure the Google Consent Mode v2 signals broadcast to your tags."],
   scripts: ["Scripts", "Manage third-party tags that stay blocked until consent is given."],
-  style: ["Style", "Match the banner to your brand — theme, colour, layout and shape."],
-  text: ["Text", "Write the copy shown in the banner and preferences dialog."],
+  theme: ["Theme", "Match the banner to your brand — colour, layout and shape — and write its copy."],
   insights: ["Insights", "See how visitors respond to your banner — accept, reject and grant rates."],
   license: ["License", "Activate your key to unlock Pro features across all your sites."],
-  preview: ["Publish", "Review what will be added to your site, then go live."],
+  preview: ["Publish", "Review what's added to your site — it stays in sync automatically."],
 }
 
 const ONBOARDING_KEY = "consentful.onboarded"
 
 export function ConsentfulShell() {
   const m = useConsentful()
-  const { config } = useSettingsContext()
   const codeDisabled = useCustomCodeDisabled()
 
   const [tab, setTab] = useState<TabId>("categories")
   const [previewMode, setPreviewMode] = useState<PreviewMode>("banner")
   const [previewOpen, setPreviewOpen] = useState(false)
   const [modal, setModal] = useState<null | "category" | "script">(null)
-  const [publishState, setPublishState] = useState<"idle" | "publishing" | "done">("idle")
 
   const [onboarding, setOnboarding] = useState(false)
   const [onbStep, setOnbStep] = useState(0)
@@ -101,42 +95,10 @@ export function ConsentfulShell() {
     if (canSetPluginData()) setPluginData(ONBOARDING_KEY, "1").catch(() => {})
   }
 
-  const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (publishTimer.current) clearTimeout(publishTimer.current) }, [])
-
-  // Auto-sync the loader into the site's custom code whenever the config changes
-  // (debounced). A plugin CANNOT trigger Framer's own site Publish — that stays a
-  // manual click in Framer — but this removes the separate "Publish to site" step:
-  // the custom code is always current, so the designer only ever hits Framer's
-  // Publish to go live. A no-op without Site-Settings permission, and injectLoader
-  // skips the write when the resulting HTML is unchanged, so idle renders are free.
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    if (!canSetCustomCode()) return
-    if (syncTimer.current) clearTimeout(syncTimer.current)
-    syncTimer.current = setTimeout(() => {
-      injectLoader(config).catch(() => {
-        /* transient/permission error — the Publish tab still offers a manual retry */
-      })
-    }, 800)
-    return () => {
-      if (syncTimer.current) clearTimeout(syncTimer.current)
-    }
-  }, [config])
-
-  const doPublish = () => {
-    if (publishState === "publishing") return
-    setPublishState("publishing")
-    const settle = () => setPublishState("done")
-    const start = () => {
-      publishTimer.current = setTimeout(settle, 700)
-    }
-    if (canSetCustomCode()) {
-      injectLoader(config).then(start).catch(start)
-    } else {
-      start()
-    }
-  }
+  // Note: saving IS syncing. `useSettings` persists the config AND re-injects the
+  // site loader in the same debounced step (see hooks/useSettings.ts), so there is
+  // no separate publish/sync action — editing keeps the site's custom code current.
+  // Going live still needs Framer's own Publish (a plugin can't trigger that).
 
   const isPro = m.cfg.plan === "pro"
   const saving = m.status === "saving" || m.status === "dirty" || m.status === "loading"
@@ -261,11 +223,15 @@ export function ConsentfulShell() {
             {tab === "behavior" && <BehaviorPanel m={m} />}
             {tab === "consent" && <ConsentPanel m={m} />}
             {tab === "scripts" && <ScriptsPanel m={m} onAddScript={() => setModal("script")} />}
-            {tab === "style" && <StylePanel m={m} />}
-            {tab === "text" && <TextPanel m={m} />}
+            {tab === "theme" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                <StylePanel m={m} />
+                <TextPanel m={m} />
+              </div>
+            )}
             {tab === "insights" && <InsightsPanel m={m} />}
             {tab === "license" && <LicensePanel m={m} />}
-            {tab === "preview" && <PublishPanel m={m} publishing={publishState === "publishing"} onPublish={doPublish} />}
+            {tab === "preview" && <PublishPanel m={m} />}
           </div>
         </main>
 
@@ -375,7 +341,6 @@ export function ConsentfulShell() {
       )}
       {modal === "category" && <AddCategoryModal m={m} onClose={() => setModal(null)} />}
       {modal === "script" && <AddScriptModal m={m} onClose={() => setModal(null)} />}
-      {publishState === "done" && <PublishSuccess m={m} onClose={() => setPublishState("idle")} />}
     </div>
   )
 }

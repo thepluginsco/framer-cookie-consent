@@ -1335,7 +1335,7 @@ function InsightsDashboard({ m, totals, onRefresh }: { m: ConsentfulModel; total
 /* Publish                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export function PublishPanel({ m, publishing, onPublish }: { m: ConsentfulModel; publishing: boolean; onPublish: () => void }) {
+export function PublishPanel({ m }: { m: ConsentfulModel }) {
   void m
   const checklist = ["Configuration is valid", `Runtime pinned to ${RUNTIME_VERSION}`, "Consent Mode signals default to denied"]
   const injectList = [
@@ -1361,10 +1361,11 @@ export function PublishPanel({ m, publishing, onPublish }: { m: ConsentfulModel;
       <Card style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <Icon name="sync" size={18} color={T.accent} style={{ marginTop: 1 }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>Your banner auto-syncs to this site</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>Saved &amp; synced automatically</div>
           <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2, lineHeight: 1.5 }}>
-            Every change here is written into the site's custom code automatically. To make it live for
-            visitors, click <strong>Publish</strong> in Framer (top-right) — a plugin can't do that step for you.
+            Every change is saved and written into the site's custom code in the same step — there's nothing to
+            publish here. To make it live for visitors, click <strong>Publish</strong> in Framer (top-right); a
+            plugin can't trigger that step for you.
           </div>
         </div>
       </Card>
@@ -1381,39 +1382,6 @@ export function PublishPanel({ m, publishing, onPublish }: { m: ConsentfulModel;
           </div>
         ))}
       </Card>
-
-      <HoverButton
-        onClick={publishing ? undefined : onPublish}
-        base={{
-          height: T.control,
-          border: "none",
-          borderRadius: T.rXl,
-          background: "linear-gradient(155deg,#5b9bff,#2f6fed)",
-          color: "#fff",
-          fontSize: 13.5,
-          fontWeight: 700,
-          cursor: publishing ? "default" : "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          boxShadow: `0 6px 16px ${T.accent}44`,
-          opacity: publishing ? 0.9 : 1,
-          width: "100%",
-          transition: "filter .15s",
-        }}
-        hover={publishing ? undefined : { filter: "brightness(1.06)" }}
-      >
-        {publishing ? (
-          <span style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,.5)", borderTopColor: "#fff", display: "inline-block", animation: "cfspin .7s linear infinite" }} />
-        ) : (
-          <Icon name="rocket_launch" size={19} />
-        )}
-        {publishing ? "Syncing…" : "Re-sync to site now"}
-      </HoverButton>
-      <div style={{ fontSize: 11, color: T.ink4, marginTop: 8, textAlign: "center", lineHeight: 1.5 }}>
-        Optional — changes already sync automatically. Then hit <strong>Publish</strong> in Framer to go live.
-      </div>
     </div>
   )
 }
