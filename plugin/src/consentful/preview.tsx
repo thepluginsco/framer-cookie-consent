@@ -7,6 +7,7 @@
 
 import type { CSSProperties } from "react"
 
+import logoUrl from "./assets/logo.png"
 import { T } from "./tokens"
 import { Icon, Segmented, Toggle } from "./ui"
 import type { Cfg } from "./model"
@@ -57,10 +58,15 @@ export function PreviewPane({
     boxShadow: isBar ? "0 -6px 20px rgba(23,28,45,.12)" : "0 18px 44px rgba(23,28,45,.24)",
     padding: 15,
     maxWidth: isBar || spanning ? "none" : 232,
+    // The banner renders in the Consentful brand font — Plus Jakarta Sans — the
+    // same face the runtime applies on the live site (self-hosted in the plugin).
+    fontFamily: T.sans,
   }
   const innerStyle: CSSProperties = isBar ? { display: "flex", alignItems: "center", gap: 16 } : { display: "block" }
   const textColStyle: CSSProperties = isBar ? { flex: 1, minWidth: 0 } : {}
-  const headingStyle: CSSProperties = { fontSize: 13.5, fontWeight: 800, color: bText, letterSpacing: "-.01em" }
+  // Bar keeps the credit pinned top-right, so reserve a little room on that
+  // layout's title; card/modal show the credit as a footer and need none.
+  const headingStyle: CSSProperties = { fontSize: 13.5, fontWeight: 800, color: bText, letterSpacing: "-.01em", paddingRight: isBar ? 44 : 0 }
   const bodyStyle: CSSProperties = { fontSize: 11, color: bSub, marginTop: 5, lineHeight: 1.5, display: isBar ? "none" : "block" }
   const manageStyle: CSSProperties = { display: "inline-block", marginTop: isBar ? 4 : 9, fontSize: 11, fontWeight: 700, color: A, cursor: "pointer" }
   const btnBase: CSSProperties = { padding: "8px 13px", borderRadius: Math.min(cfg.radius, 10), fontSize: 11.5, fontWeight: 700, cursor: "pointer", border: "none", whiteSpace: "nowrap" }
@@ -81,6 +87,7 @@ export function PreviewPane({
     boxShadow: "0 18px 54px rgba(23,28,45,.3)",
     border: "1px solid #eceef2",
     padding: 16,
+    fontFamily: T.sans,
   }
   const prefsAcceptStyle: CSSProperties = { flex: 1, padding: 9, borderRadius: 8, background: A, color: "#fff", fontSize: 11.5, fontWeight: 700, cursor: "pointer", border: "none" }
 
@@ -171,6 +178,13 @@ export function PreviewPane({
 
           {mode === "banner" ? (
             <div style={bannerStyle}>
+              {/* Bar layout keeps the credit pinned in the corner, out of the row. */}
+              {isBar ? (
+                <div style={{ position: "absolute", top: 9, right: 12, display: "inline-flex", alignItems: "center", gap: 4, lineHeight: 1, zIndex: 1 }}>
+                  <span style={{ fontSize: 7, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: bSub }}>Powered by</span>
+                  <img src={logoUrl} alt="Consentful" style={{ height: 14, width: "auto", display: "block" }} />
+                </div>
+              ) : null}
               <div style={innerStyle}>
                 <div style={textColStyle}>
                   <div style={headingStyle}>{cfg.heading}</div>
@@ -182,6 +196,15 @@ export function PreviewPane({
                   <button type="button" style={acceptStyle}>{cfg.acceptLabel}</button>
                 </div>
               </div>
+              {/* Card / modal: the credit is a right-aligned footer under the actions. */}
+              {!isBar ? (
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: 12 }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}>
+                    <span style={{ fontSize: 7.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: bSub }}>Powered by</span>
+                    <img src={logoUrl} alt="Consentful" style={{ height: 15, width: "auto", display: "block" }} />
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div style={prefsPanelStyle}>

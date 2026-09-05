@@ -439,8 +439,8 @@ export function Onboarding({
         </div>
 
         <div style={{ padding: "12px 34px 12px", textAlign: "center", overflowY: "auto", flex: "1 1 auto", minHeight: 0 }}>
-          <div style={{ width: 58, height: 58, margin: "2px auto 16px", borderRadius: 17, background: "linear-gradient(155deg,#5b9bff,#2f6fed)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 24px rgba(47,111,237,.34)" }}>
-            <Icon name={ob.icon} size={28} color="#fff" />
+          <div style={{ width: 58, height: 58, margin: "2px auto 16px", borderRadius: 17, background: T.iris, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 24px rgba(42,14,110,.28), inset 0 0 0 1px rgba(0,0,0,.05)" }}>
+            <Icon name={ob.icon} size={28} color={T.indigo} />
           </div>
           <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.02em", color: T.ink }}>{ob.title}</div>
           <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.55, margin: "7px auto 0", maxWidth: 340 }}>{ob.sub}</div>

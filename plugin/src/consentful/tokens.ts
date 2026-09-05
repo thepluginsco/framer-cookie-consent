@@ -1,21 +1,33 @@
 /**
  * Consentful design tokens — the single source of truth for the redesigned
- * plugin UI. "Framer-native, refined": a crisp light surface, a disciplined
- * neutral ramp, one confident brand blue for the plugin's own chrome, and a
- * 4px spacing grid. The banner's own accent (`cfg.accent`) is a separate,
- * user-owned colour used only where the UI represents the banner (preview,
- * accent picker); the plugin chrome never adopts it, so choosing an orange
- * banner never turns the editor orange.
+ * plugin UI. The palette is drawn straight from the Consentful logo: a deep
+ * indigo-violet wordmark, an iridescent pastel "cookie" mark, and a green
+ * "by The Plugins Company" credit. So the plugin's own chrome speaks
+ * indigo-violet (never the old generic blue), the iridescent gradient is
+ * reserved for signature brand moments (upgrade / Pro / onboarding), and the
+ * neutral ramp + 4px grid keep it Framer-native. The banner's own accent
+ * (`cfg.accent`) is a separate, user-owned colour used only where the UI
+ * represents the banner (preview, accent picker); the plugin chrome never
+ * adopts it, so choosing an orange banner never turns the editor orange.
  */
 
 export const T = {
-  /* Brand — the plugin's own chrome accent (fixed, not the banner accent). */
-  accent: "#2f6fed",
-  accentHover: "#2861d8",
-  accentActive: "#1f52c4",
-  accentText: "#1d5bd6", // accent used as small text on white (≥4.5:1)
-  accentSoft: "#eef3fe", // tinted fill behind active nav / info
-  accentBorder: "#cfe0fd",
+  /* Brand — the plugin's own chrome accent (indigo-violet, from the wordmark).
+     Fixed; never the banner accent. */
+  accent: "#4b23d3",
+  accentHover: "#3f1cb8",
+  accentActive: "#341596",
+  accentText: "#4b23d3", // accent used as small text on white (≥4.5:1 → ~9:1)
+  accentSoft: "#efeafe", // tinted fill behind active nav / info
+  accentBorder: "#dcd1fb",
+
+  /* Signature — the logo's iridescent cookie, kept for brand moments only.
+     `indigo` is the deep wordmark ink used for text/marks on iris or dark. */
+  iris: "linear-gradient(118deg,#f7cbe4 0%,#fbdcc4 22%,#fdf3cf 46%,#c9edd6 72%,#d9d2f6 100%)",
+  irisSoft: "linear-gradient(118deg,#fae8f2,#fdf1e6,#fdf9e8,#e6f6ec,#eee9fb)",
+  indigo: "#2a0e6e",
+  indigoSurface: "#2b1178", // deep card ground (upgrade hero)
+  brandGreen: "#0fae66", // the "Plugins Company" green, for brand credits
 
   /* Ink — text ramp, all ≥4.5:1 on white except `ink4` (icons/decoration). */
   ink: "#17191e",

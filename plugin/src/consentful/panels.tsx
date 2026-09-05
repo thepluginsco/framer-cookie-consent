@@ -983,8 +983,8 @@ function LanguageBar({
 
 function ProChip() {
   return (
-    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, letterSpacing: ".04em", color: "#c9932a", background: T.warnSoft, padding: "3px 8px", borderRadius: T.rPill }}>
-      <Icon name="lock" size={12} color="#c9932a" />
+    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, letterSpacing: ".04em", color: T.accentText, background: T.accentSoft, padding: "3px 8px", borderRadius: T.rPill }}>
+      <Icon name="lock" size={12} color={T.accentText} />
       PRO
     </span>
   )
@@ -1123,7 +1123,7 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
           href={PRODUCT_URL}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: "linear-gradient(155deg,#5b9bff,#2f6fed)", color: "#fff", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: `0 6px 16px ${T.accent}44` }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: "linear-gradient(150deg,#6a3cf0,#4b23d3)", color: "#fff", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: `0 6px 16px ${T.accent}44` }}
         >
           <Icon name="shopping_bag" size={18} />
           Buy a license

@@ -13,25 +13,26 @@ import { mergeConfig } from '@framer-cookie-consent/shared';
 import { buildStyleSheet } from '../runtime/src/styles.ts';
 
 /**
- * The "Powered by" credit is pinned to the banner's upper-right corner
- * (`position:absolute`), so it is OUT of the bar's flex row and can never collapse
- * the text to width 0 the way an in-flow `flex:1 0 100%` credit once did. Guard
- * that it stays absolutely positioned (a jsdom DOM test can't catch this — it does
- * no layout), and that the bar inner remains a flex row.
+ * The "Powered by" credit is a right-aligned footer beneath the actions in the
+ * card/modal layouts, but in the BAR layout it is pinned to the corner
+ * (`position:absolute`) so it stays OUT of the bar's single flex row and can never
+ * collapse the text to width 0 the way an in-flow `flex:1 0 100%` credit once did.
+ * Guard the bar override (a jsdom DOM test can't catch this — it does no layout),
+ * and that the bar inner remains a flex row.
  */
-test('powered-by credit is pinned (absolute), out of the bar flex row', () => {
+test('powered-by credit is pinned (absolute) out of the bar flex row', () => {
   const css = buildStyleSheet(mergeConfig());
 
   const inner = /\.cc-banner--bar \.cc-banner__inner\{([^}]*)\}/.exec(css);
   assert.ok(inner, 'bar inner rule should exist');
   assert.match(inner![1]!, /display:\s*flex/, 'bar inner must be a flex row');
 
-  const powered = /(?<![-\w])\.cc-powered\{([^}]*)\}/.exec(css);
-  assert.ok(powered, 'powered rule should exist');
+  const poweredBar = /\.cc-banner--bar \.cc-powered\{([^}]*)\}/.exec(css);
+  assert.ok(poweredBar, 'bar-scoped powered rule should exist');
   assert.match(
-    powered![1]!,
+    poweredBar![1]!,
     /position:\s*absolute/,
-    'the credit must be absolutely positioned so it never participates in the flex row',
+    'in the bar, the credit must be absolutely positioned so it never participates in the flex row',
   );
 });
 

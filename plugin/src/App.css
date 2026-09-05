@@ -52,7 +52,7 @@ body {
 /* Reset Framer's aggressive bare-element styles inside our app. */
 .cf-app a,
 .cf-app a:hover {
-  color: #2f6fed;
+  color: #4b23d3;
 }
 .cf-app input,
 .cf-app textarea,
@@ -77,12 +77,12 @@ body {
 /* Browser surfaces, themed from the palette (the cheapest built-not-assembled
    signal). Selection, caret and focus all speak the brand blue. */
 .cf-app ::selection {
-  background: rgba(47, 111, 237, 0.16);
+  background: rgba(75, 35, 211, 0.16);
   color: #17191e;
 }
 .cf-app input,
 .cf-app textarea {
-  caret-color: #2f6fed;
+  caret-color: #4b23d3;
 }
 .cf-app :focus-visible {
   outline: none;
@@ -90,7 +90,7 @@ body {
 .cf-app input:focus-visible,
 .cf-app textarea:focus-visible {
   /* Inputs manage their own accent ring in JS; this is the keyboard fallback. */
-  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.2);
+  box-shadow: 0 0 0 3px rgba(75, 35, 211, 0.2);
 }
 
 /* Custom scrollbars — slim, palette-tinted, only where content scrolls. */
@@ -164,6 +164,41 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* A status pill (e.g. "Saved") popping in when its state changes. */
+@keyframes cfPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The active nav indicator bar growing in. */
+@keyframes cfBarIn {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* A one-shot sheen sweeping across a brand surface (Upgrade card). */
+@keyframes cfSheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
   }
 }
 

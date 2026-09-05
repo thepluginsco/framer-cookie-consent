@@ -19,6 +19,18 @@ export const ROOT_CLASS = 'cc-root';
 /** `id` of the single injected `<style>` element (kept unique + idempotent). */
 export const STYLE_ELEMENT_ID = 'cc-consent-styles';
 
+/**
+ * The banner's default typeface — the Consentful brand font, Plus Jakarta Sans,
+ * backed by a system fallback stack. Used whenever the author hasn't set an
+ * explicit `fontFamily` (the default `'inherit'`). No external font is fetched:
+ * the face renders wherever the page already provides it (Framer sites that use
+ * Plus Jakarta Sans, and the plugin's own preview, which self-hosts it) and
+ * falls back cleanly to the system UI font elsewhere — so the banner keeps its
+ * promise of never loading a third-party resource.
+ */
+export const DEFAULT_FONT_STACK =
+  "'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
 /* -------------------------------------------------------------------------- */
 /* Derived palette                                                            */
 /* -------------------------------------------------------------------------- */
@@ -248,7 +260,9 @@ function paletteVars(p: Palette, theme: ThemeConfig): string {
     `--cc-act:${p.accentText}`,
     `--cc-rd:${px(radius)}`,
     `--cc-rdb:${px(Math.min(radius, 14))}`,
-    `--cc-ft:${theme.fontFamily}`,
+    // Default (`inherit`) resolves to the Consentful brand stack; an explicit
+    // author font is honoured verbatim.
+    `--cc-ft:${theme.fontFamily && theme.fontFamily !== 'inherit' ? theme.fontFamily : DEFAULT_FONT_STACK}`,
   ].join(';');
 }
 
@@ -312,13 +326,16 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-btn--secondary{background:transparent;color:var(--cc-tx);border-color:var(--cc-rjb)}`,
     `${r} .cc-btn--secondary:hover{background:rgba(127,131,138,.08)}`,
 
-    // Powered-by credit — pinned to the banner's upper-right corner, "Powered by"
-    // stacked above the full logo and right-aligned.
-    `${r} .cc-powered{position:absolute;top:12px;right:14px;margin:0;z-index:1}`,
-    `${r} .cc-powered__link{display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-decoration:none;line-height:1}`,
-    `${r} .cc-powered__by{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--cc-sub)}`,
-    `${r} .cc-powered__logo{height:18px;width:auto;display:block}`,
+    // Powered-by credit — a right-aligned footer line beneath the actions:
+    // "Powered by" set inline before the full logo, so it reads as a credit and
+    // never crowds the title. In the BAR layout it's instead pinned to the
+    // corner, out of the single flex row (which the text region depends on).
+    `${r} .cc-powered{display:flex;justify-content:flex-end;align-items:center;margin:14px 0 0;z-index:1}`,
+    `${r} .cc-powered__link{display:inline-flex;flex-direction:row;align-items:center;gap:6px;text-decoration:none;line-height:1}`,
+    `${r} .cc-powered__by{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--cc-sub)}`,
+    `${r} .cc-powered__logo{height:20px;width:auto;display:block}`,
     `${r} .cc-powered__link:hover .cc-powered__logo{opacity:.82}`,
+    `${r} .cc-banner--bar .cc-powered{position:absolute;top:10px;right:16px;margin:0}`,
 
     // Preferences modal.
     `${r} .cc-modal{position:fixed;z-index:2147483647;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 16px 50px rgba(23,28,45,.3);width:calc(100% - 32px);max-width:460px;max-height:calc(100vh - 48px);display:flex;flex-direction:column;padding:18px}`,
