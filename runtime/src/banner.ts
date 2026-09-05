@@ -23,7 +23,7 @@ import { installConsentApi, type CookieConsentApi, type ConsentState } from './c
 import { needsReconsent, shouldShowFloatingButton } from './geo.ts';
 import { injectStyles, ROOT_CLASS, assertThemeContrast } from './styles.ts';
 import { localizeStrings, detectLanguages } from './i18n.ts';
-import { brandMarkUrl } from './brand-mark.ts';
+import { brandLogoUrl } from './brand-mark.ts';
 
 /**
  * Build-time flag, replaced by a literal via esbuild `define`. `false` in the
@@ -310,10 +310,9 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
           [
             el('span', { class: 'cc-powered__by', text: 'Powered by' }),
             el('img', {
-              class: 'cc-powered__mark',
-              attrs: { src: brandMarkUrl(), alt: '', width: '16', height: '16', loading: 'lazy', decoding: 'async' },
+              class: 'cc-powered__logo',
+              attrs: { src: brandLogoUrl(), alt: POWERED_BY_NAME, loading: 'lazy', decoding: 'async' },
             }),
-            el('span', { class: 'cc-powered__name', text: POWERED_BY_NAME }),
           ],
         ),
       ]),

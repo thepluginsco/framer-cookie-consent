@@ -13,31 +13,25 @@ import { mergeConfig } from '@framer-cookie-consent/shared';
 import { buildStyleSheet } from '../runtime/src/styles.ts';
 
 /**
- * The bottom-BAR layout lays its inner row out with flexbox AND makes the
- * "Powered by" credit break onto its own line via `flex:1 0 100%`. That basis of
- * 100% only wraps — instead of stealing the whole row and collapsing the text to
- * width 0 (overlapping the buttons) — when the inner container is `flex-wrap:wrap`.
- * This pairing is what the unlicensed basic banner (bar + visible credit) relies
- * on, so assert both halves stay together.
+ * The "Powered by" credit is pinned to the banner's upper-right corner
+ * (`position:absolute`), so it is OUT of the bar's flex row and can never collapse
+ * the text to width 0 the way an in-flow `flex:1 0 100%` credit once did. Guard
+ * that it stays absolutely positioned (a jsdom DOM test can't catch this — it does
+ * no layout), and that the bar inner remains a flex row.
  */
-test('bar layout: inner row wraps so the "Powered by" credit does not collapse the text', () => {
+test('powered-by credit is pinned (absolute), out of the bar flex row', () => {
   const css = buildStyleSheet(mergeConfig());
 
   const inner = /\.cc-banner--bar \.cc-banner__inner\{([^}]*)\}/.exec(css);
   assert.ok(inner, 'bar inner rule should exist');
   assert.match(inner![1]!, /display:\s*flex/, 'bar inner must be a flex row');
-  assert.match(
-    inner![1]!,
-    /flex-wrap:\s*wrap/,
-    'bar inner MUST wrap, or the full-width "Powered by" credit collapses the text to 0',
-  );
 
-  const powered = /\.cc-banner--bar \.cc-powered\{([^}]*)\}/.exec(css);
-  assert.ok(powered, 'bar powered rule should exist');
+  const powered = /(?<![-\w])\.cc-powered\{([^}]*)\}/.exec(css);
+  assert.ok(powered, 'powered rule should exist');
   assert.match(
     powered![1]!,
-    /flex:\s*1 0 100%/,
-    'the credit uses a 100% basis to occupy its own line (depends on the wrap above)',
+    /position:\s*absolute/,
+    'the credit must be absolutely positioned so it never participates in the flex row',
   );
 });
 

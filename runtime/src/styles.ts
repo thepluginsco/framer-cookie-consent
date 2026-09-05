@@ -312,13 +312,13 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-btn--secondary{background:transparent;color:var(--cc-tx);border-color:var(--cc-rjb)}`,
     `${r} .cc-btn--secondary:hover{background:rgba(127,131,138,.08)}`,
 
-    // Powered-by credit.
-    `${r} .cc-powered{margin-top:12px;font-size:11px;color:var(--cc-sub)}`,
-    `${r} .cc-banner--bar .cc-powered{margin-top:0;flex:1 0 100%}`,
-    `${r} .cc-powered__link{display:inline-flex;align-items:center;gap:5px;color:var(--cc-sub);text-decoration:none;line-height:1}`,
-    `${r} .cc-powered__mark{width:16px;height:16px;display:block;border-radius:4px;flex:0 0 auto}`,
-    `${r} .cc-powered__name{font-weight:700;color:var(--cc-tx)}`,
-    `${r} .cc-powered__link:hover .cc-powered__name{text-decoration:underline}`,
+    // Powered-by credit — pinned to the banner's upper-right corner, "Powered by"
+    // stacked above the full logo and right-aligned.
+    `${r} .cc-powered{position:absolute;top:12px;right:14px;margin:0;z-index:1}`,
+    `${r} .cc-powered__link{display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-decoration:none;line-height:1}`,
+    `${r} .cc-powered__by{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--cc-sub)}`,
+    `${r} .cc-powered__logo{height:18px;width:auto;display:block}`,
+    `${r} .cc-powered__link:hover .cc-powered__logo{opacity:.82}`,
 
     // Preferences modal.
     `${r} .cc-modal{position:fixed;z-index:2147483647;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 16px 50px rgba(23,28,45,.3);width:calc(100% - 32px);max-width:460px;max-height:calc(100vh - 48px);display:flex;flex-direction:column;padding:18px}`,

@@ -25,26 +25,26 @@ const SELF_SRC: string = (() => {
   }
 })();
 
-/** Path of the runtime bundle within the repo — swapped for the mark's path. */
+/** Path of the runtime bundle within the repo — swapped for the logo's path. */
 const RUNTIME_PATH = '/runtime/dist/consent.min.js';
-/** Path of the brand mark within the repo (committed under the plugin's public dir). */
-const MARK_PATH = '/plugin/public/logo-mark.png';
+/** Path of the full brand logo within the repo (committed under the plugin's public dir). */
+const LOGO_PATH = '/plugin/public/logo.png';
 
 /**
- * A stable fallback pinned to a tag known to contain the mark, used only when the
+ * A stable fallback pinned to a tag known to contain the logo, used only when the
  * runtime's own origin can't be derived. Bump alongside a runtime re-tag.
  */
-const MARK_FALLBACK =
-  'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.3/plugin/public/logo-mark.png';
+const LOGO_FALLBACK =
+  'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.4/plugin/public/logo.png';
 
 /**
- * The brand-mark image URL, matched to whatever tag served this runtime.
+ * The full brand-logo image URL, matched to whatever tag served this runtime.
  *
- * @returns An absolute URL to the 86×86 mark PNG (rendered small in the credit).
+ * @returns An absolute URL to the wordmark PNG shown in the "powered by" credit.
  */
-export function brandMarkUrl(): string {
+export function brandLogoUrl(): string {
   if (SELF_SRC.includes(RUNTIME_PATH)) {
-    return SELF_SRC.replace(RUNTIME_PATH, MARK_PATH);
+    return SELF_SRC.replace(RUNTIME_PATH, LOGO_PATH);
   }
-  return MARK_FALLBACK;
+  return LOGO_FALLBACK;
 }
