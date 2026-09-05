@@ -18,7 +18,7 @@
  * ⚠️ Set this to the account that actually hosts `runtime/dist/consent.min.js`
  * on GitHub before publishing the plugin — jsDelivr serves straight from it.
  */
-export const RUNTIME_GH_USER = "mhr-hue"
+export const RUNTIME_GH_USER = "thepluginsco"
 
 /** Repository name (under {@link RUNTIME_GH_USER}) containing the runtime bundle. */
 export const RUNTIME_GH_REPO = "framer-cookie-consent"
