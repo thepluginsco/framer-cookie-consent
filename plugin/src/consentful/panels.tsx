@@ -1358,6 +1358,17 @@ export function PublishPanel({ m, publishing, onPublish }: { m: ConsentfulModel;
         ))}
       </div>
 
+      <Card style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <Icon name="sync" size={18} color={T.accent} style={{ marginTop: 1 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>Your banner auto-syncs to this site</div>
+          <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2, lineHeight: 1.5 }}>
+            Every change here is written into the site's custom code automatically. To make it live for
+            visitors, click <strong>Publish</strong> in Framer (top-right) — a plugin can't do that step for you.
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <Eyebrow style={{ marginBottom: 8 }}>What gets added to your site</Eyebrow>
         {injectList.map((i, idx) => (
@@ -1398,8 +1409,11 @@ export function PublishPanel({ m, publishing, onPublish }: { m: ConsentfulModel;
         ) : (
           <Icon name="rocket_launch" size={19} />
         )}
-        {publishing ? "Publishing…" : "Publish to site"}
+        {publishing ? "Syncing…" : "Re-sync to site now"}
       </HoverButton>
+      <div style={{ fontSize: 11, color: T.ink4, marginTop: 8, textAlign: "center", lineHeight: 1.5 }}>
+        Optional — changes already sync automatically. Then hit <strong>Publish</strong> in Framer to go live.
+      </div>
     </div>
   )
 }

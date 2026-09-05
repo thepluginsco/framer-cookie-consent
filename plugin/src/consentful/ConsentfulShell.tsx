@@ -104,6 +104,26 @@ export function ConsentfulShell() {
   const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (publishTimer.current) clearTimeout(publishTimer.current) }, [])
 
+  // Auto-sync the loader into the site's custom code whenever the config changes
+  // (debounced). A plugin CANNOT trigger Framer's own site Publish — that stays a
+  // manual click in Framer — but this removes the separate "Publish to site" step:
+  // the custom code is always current, so the designer only ever hits Framer's
+  // Publish to go live. A no-op without Site-Settings permission, and injectLoader
+  // skips the write when the resulting HTML is unchanged, so idle renders are free.
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!canSetCustomCode()) return
+    if (syncTimer.current) clearTimeout(syncTimer.current)
+    syncTimer.current = setTimeout(() => {
+      injectLoader(config).catch(() => {
+        /* transient/permission error — the Publish tab still offers a manual retry */
+      })
+    }, 800)
+    return () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current)
+    }
+  }, [config])
+
   const doPublish = () => {
     if (publishState === "publishing") return
     setPublishState("publishing")
