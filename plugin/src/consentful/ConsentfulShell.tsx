@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react"
 
+import logoUrl from "./assets/logo.png"
 import { canSetPluginData, getPluginData, setPluginData } from "../lib/framer"
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
 import { useCustomCodeDisabled } from "../hooks/useCustomCodeStatus"
@@ -134,28 +135,12 @@ export function ConsentfulShell() {
           zIndex: 30,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              flex: "0 0 auto",
-              borderRadius: 9,
-              background: "linear-gradient(155deg,#5b9bff,#2f6fed)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 6px rgba(47,111,237,.4), inset 0 0 0 1px rgba(47,111,237,.28)",
-            }}
-          >
-            <Icon name="cookie" size={18} color="#fff" />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.15, color: T.ink }}>
-              Consentful
-            </div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontWeight: 600, lineHeight: 1.2 }}>GDPR &amp; Cookie Consent</div>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+          <img
+            src={logoUrl}
+            alt="Consentful by The Plugins Company"
+            style={{ height: 28, width: "auto", display: "block" }}
+          />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>

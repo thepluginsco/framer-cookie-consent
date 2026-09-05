@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
 
+import logoMark from "./assets/logo-mark.png"
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
 import { getLiveSiteUrl } from "../lib/framer"
 import type { ScriptType } from "../types"
@@ -424,9 +425,7 @@ export function Onboarding({
         {/* top bar */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 14px 0", flex: "0 0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <div style={{ width: 20, height: 20, borderRadius: 6, background: "linear-gradient(155deg,#5b9bff,#2f6fed)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="cookie" size={13} color="#fff" />
-            </div>
+            <img src={logoMark} alt="" style={{ width: 20, height: 20, display: "block", borderRadius: 6 }} />
             <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".05em", color: T.ink4 }}>SETUP</span>
           </div>
           <HoverButton
