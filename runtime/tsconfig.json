@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    /* Browser-only: DOM available, no Node types. Keep the runtime lean. */
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": [],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    /* Intra-runtime imports use explicit .ts extensions so the same specifier
+       resolves under both tsc (bundler resolution) and Node's type-stripping
+       loader used by the test runner. Permitted because we never emit via tsc
+       (noEmit); the real bundle is produced by esbuild in a later step. */
+    "allowImportingTsExtensions": true
+  },
+  "references": [{ "path": "../shared" }],
+  "include": ["src/**/*.ts"]
+}

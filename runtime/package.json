@@ -1,0 +1,18 @@
+{
+  "name": "@framer-cookie-consent/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tiny, dependency-free vanilla-TS consent runtime. Compiled to a single consent.min.js served from jsDelivr and loaded on the published site.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@framer-cookie-consent/shared": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

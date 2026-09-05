@@ -1,0 +1,26 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    /* Editor iframe target: modern browser + React JSX. Mirrors the official
+       Framer plugin scaffold, but inherits the repo-wide strictness from
+       tsconfig.base.json rather than redefining it. */
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    /* Vite bundles the output; tsc is type-check-only here (noEmit comes from
+       the base config). `allowImportingTsExtensions` lets us import
+       "./App.tsx" the way the scaffold does. */
+    "allowImportingTsExtensions": true,
+
+    /* Only ambient types we rely on come from Vite's client + explicit imports
+       (React), so we don't auto-include @types/node etc. */
+    "types": []
+  },
+  /* Project reference to the shared config schema keeps the two in one
+     type-checked graph and lets `@framer-cookie-consent/shared` resolve. */
+  "references": [{ "path": "../shared" }],
+  "include": ["src"]
+}

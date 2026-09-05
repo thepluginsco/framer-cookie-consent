@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "plugin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "plugin", "dev"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "design-ref",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", "design", "-l", "4599"],
+      "port": 4599
+    },
+    {
+      "name": "plugin-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", "plugin/dist", "-l", "4610"],
+      "port": 4610
+    },
+    {
+      "name": "plugin-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "plugin", "preview:standalone"],
+      "port": 5273
+    }
+  ]
+}

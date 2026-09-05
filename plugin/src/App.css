@@ -1,0 +1,178 @@
+/* Consentful — Framer plugin UI (global shell styles).
+
+   The plugin renders inside the Framer editor iframe. The UI is styled with
+   inline styles drawn from consentful/tokens.ts; this sheet owns the page-level
+   frame, fonts, the icon-font helper, and the browser surfaces a design system
+   is judged on — selection, caret, scrollbars, focus rings — themed from the
+   same palette. Framer's framer.css styles bare button/input, so a few resets
+   here are scoped defensively under the app root. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden; /* panels scroll internally; the shell never scrolls */
+}
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #17191e;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: #f4f5f8;
+}
+
+#root {
+  height: 100%;
+}
+
+/* The icon font. Symbols are set as text (the ligature name) on a span. */
+.cf-icon {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  flex: 0 0 auto;
+}
+
+/* Reset Framer's aggressive bare-element styles inside our app. */
+.cf-app a,
+.cf-app a:hover {
+  color: #2f6fed;
+}
+.cf-app input,
+.cf-app textarea,
+.cf-app button {
+  font-family: inherit;
+}
+.cf-app textarea {
+  resize: none;
+}
+
+/* Framer's framer.css forces every bare <button> to width:100% and
+   justify-content:center. That stretches action buttons past their row and
+   centers the nav labels. Neutralise it so our inline styles are the authority;
+   buttons that want full width or centering set it explicitly. */
+.cf-app button {
+  width: auto;
+}
+.cf-app nav button {
+  justify-content: flex-start;
+}
+
+/* Browser surfaces, themed from the palette (the cheapest built-not-assembled
+   signal). Selection, caret and focus all speak the brand blue. */
+.cf-app ::selection {
+  background: rgba(47, 111, 237, 0.16);
+  color: #17191e;
+}
+.cf-app input,
+.cf-app textarea {
+  caret-color: #2f6fed;
+}
+.cf-app :focus-visible {
+  outline: none;
+}
+.cf-app input:focus-visible,
+.cf-app textarea:focus-visible {
+  /* Inputs manage their own accent ring in JS; this is the keyboard fallback. */
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.2);
+}
+
+/* Custom scrollbars — slim, palette-tinted, only where content scrolls. */
+.cf-app ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.cf-app ::-webkit-scrollbar-thumb {
+  background: #d4d8e0;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.cf-app ::-webkit-scrollbar-thumb:hover {
+  background: #bfc4ce;
+  background-clip: padding-box;
+}
+.cf-app * {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d8e0 transparent;
+}
+
+/* ---- Motion --------------------------------------------------------------- */
+
+@keyframes cfspin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Overlay backdrop fade. */
+@keyframes cfBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal / dialog rise — exponential ease-out from an already-composed default. */
+@keyframes cfDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Preview drawer slide-in from the right. */
+@keyframes cfDrawerIn {
+  from {
+    opacity: 0.4;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Panel content settling when switching tabs. */
+@keyframes cfPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-app *,
+  .cf-app *::before,
+  .cf-app *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,13 @@
+# Wrangler config for the Consentful consent-analytics Worker.
+# Deploy:
+#   1. wrangler kv namespace create CONSENT_STATS   # copy the returned id below
+#   2. place analytics-worker.js at src/index.js
+#   3. wrangler deploy --config wrangler.analytics.toml
+name = "consent-analytics"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# KV holds the daily aggregate counters (no PII). Paste your namespace id here.
+[[kv_namespaces]]
+binding = "CONSENT_STATS"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

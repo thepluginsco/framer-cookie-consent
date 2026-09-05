@@ -1,0 +1,38 @@
+{
+  "name": "@framer-cookie-consent/plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framer editor plugin (React + Vite, built on the official Framer plugin tooling). The designer configures the banner here; the plugin writes the loader into the site's custom code.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "preview:standalone": "vite --config vite.preview.config.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pack": "npx framer-plugin-tools@latest pack"
+  },
+  "dependencies": {
+    "@framer-cookie-consent/shared": "*",
+    "@framer-cookie-consent/runtime": "*",
+    "@framer/plugin": "^4",
+    "react": "^18",
+    "react-dom": "^18",
+    "vite-plugin-mkcert": "^1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6",
+    "eslint": "^9.9.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.9",
+    "globals": "^15.9.0",
+    "typescript": "^5.9",
+    "typescript-eslint": "^8.0.1",
+    "vite": "^8",
+    "vite-plugin-framer": "^1.1.0"
+  }
+}

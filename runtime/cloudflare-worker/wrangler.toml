@@ -1,0 +1,8 @@
+# Wrangler config for the Consentful accurate-geo Worker.
+# Deploy: place geo-worker.js at src/index.js, then `wrangler deploy`.
+name = "consent-geo"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Free tier is plenty (100k requests/day). No KV / D1 / secrets needed —
+# the Worker only echoes Cloudflare's edge geo signals and stores nothing.

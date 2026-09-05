@@ -1,0 +1,32 @@
+{
+  "name": "framer-cookie-consent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cookie Consent / GDPR + EAA banner plugin for Framer, with a tiny CDN-hosted runtime.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "runtime",
+    "plugin"
+  ],
+  "scripts": {
+    "build": "npm run build:runtime && npm run build:plugin",
+    "build:shared": "npm run build --workspace=shared",
+    "build:runtime": "npm run build --workspace=runtime",
+    "build:plugin": "npm run build --workspace=plugin",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --build --dry"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
