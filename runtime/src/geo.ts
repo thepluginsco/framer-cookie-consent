@@ -16,7 +16,7 @@
  * {@link module:consent-state} (reused, never duplicated) and erased types.
  */
 
-import type { CookieConsentConfig } from '@framer-cookie-consent/shared';
+import type { CookieConsentConfig, ConsentCategory } from '@framer-cookie-consent/shared';
 import { isConsentCurrent, isConsentExpired, type ConsentState } from './consent-state.ts';
 
 /* -------------------------------------------------------------------------- */
@@ -348,6 +348,145 @@ export function isDoNotTrackEnabled(): boolean {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Global Privacy Control (opt-out of sale/sharing)                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whether the browser is asserting Global Privacy Control. Reads the standard
+ * `navigator.globalPrivacyControl` boolean (set by Firefox, Brave, DuckDuckGo,
+ * the Privacy Badger / OptMeowt extensions, …). Guarded and SSR-safe.
+ *
+ * GPC is legally recognised as a valid opt-out of the "sale"/"sharing" of
+ * personal information under the CCPA/CPRA (California) and Colorado's CPA. It
+ * is NOT a blanket rejection: see {@link gpcGrantedCategories}.
+ *
+ * @returns `true` when the GPC signal is present and set.
+ */
+export function isGpcEnabled(): boolean {
+  try {
+    const nav = typeof navigator !== 'undefined'
+      ? (navigator as Navigator & { globalPrivacyControl?: boolean })
+      : undefined;
+    return nav?.globalPrivacyControl === true;
+  } catch {
+    return false;
+  }
+}
+
+/** The three Consent Mode signals that constitute "sale/sharing" for GPC. */
+const SALE_SIGNALS: readonly string[] = ['ad_storage', 'ad_user_data', 'ad_personalization'];
+
+/**
+ * Whether a category counts as advertising/"sale of data" for GPC purposes —
+ * i.e. it maps to any of {@link SALE_SIGNALS}. These are the ONLY categories a
+ * GPC signal forces off; everything else keeps the author's default.
+ *
+ * @param category - The category to classify.
+ * @returns `true` when the category carries an ad/marketing signal.
+ */
+export function isSaleCategory(category: ConsentCategory): boolean {
+  return category.signals.some((s) => SALE_SIGNALS.includes(s));
+}
+
+/**
+ * The category ids to GRANT when honouring a GPC opt-out. This is deliberately
+ * NOT `rejectAll()`: GPC opts the visitor out of the *sale/sharing* of data, so
+ * we deny only the advertising categories (see {@link isSaleCategory}) and keep
+ * every other category at the author's chosen default (`required` categories are
+ * always granted; other non-ad categories are granted iff `defaultEnabled`).
+ *
+ * The returned list is fed straight to {@link CookieConsentApi.accept}, which
+ * grants exactly these plus the required categories and denies the rest — so the
+ * ad categories end up denied even if their `defaultEnabled` was `true`.
+ *
+ * @param config - The active configuration.
+ * @returns The category ids to grant under a GPC opt-out.
+ */
+export function gpcGrantedCategories(config: CookieConsentConfig): string[] {
+  return config.categories
+    .filter((c) => !isSaleCategory(c) && (c.required || c.defaultEnabled))
+    .map((c) => c.id);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Consent model (opt-in vs opt-out, region-aware)                             */
+/* -------------------------------------------------------------------------- */
+
+/** A resolved consent model — `auto` collapsed to a concrete stance. */
+export type ResolvedConsentModel = 'opt-in' | 'opt-out';
+
+/**
+ * Collapse the author's {@link module:shared.ConsentModel} to a concrete stance
+ * for the visitor's detected region.
+ *
+ * - `opt-in`  → always `'opt-in'`.
+ * - `opt-out` → always `'opt-out'`.
+ * - `auto`    → `'opt-in'` for regulated regions (EU/EEA, UK, Switzerland,
+ *   California) AND for any uncertain detection (fail safe toward privacy);
+ *   `'opt-out'` for confidently non-regulated regions (e.g. most of the US).
+ *
+ * This is the single boundary that makes "region-aware auto-mode" work: one
+ * configuration yields a GDPR opt-in prompt in the EU and CCPA-style implied
+ * consent (with an opt-out path) elsewhere.
+ *
+ * @param config - The active configuration.
+ * @param region - Region info (defaults to {@link detectRegion}).
+ * @returns The concrete consent model to enforce this load.
+ */
+export function resolveConsentModel(
+  config: CookieConsentConfig,
+  region: RegionInfo = detectRegion(),
+): ResolvedConsentModel {
+  const model = config.behavior.consentModel;
+  if (model === 'opt-in' || model === 'opt-out') return model;
+  // `auto`: opt-in for regulated regions or any uncertain read; opt-out only for
+  // a confident non-regulated region.
+  return isRegulated(region) || !region.certain ? 'opt-in' : 'opt-out';
+}
+
+/**
+ * The category ids to grant as *implied consent* under an opt-out model — the
+ * author's default toggle state (every `required` category plus every category
+ * whose `defaultEnabled` is on). Fed to {@link CookieConsentApi.accept} so the
+ * runtime starts trackers immediately in opt-out regions, exactly as if the
+ * visitor had accepted the pre-checked defaults, while leaving an opt-out path.
+ *
+ * NOTE: unlike {@link gpcGrantedCategories} this does NOT force ad/marketing
+ * categories off — opt-out consent honours the author's defaults verbatim (a
+ * later GPC signal, handled first in boot, still overrides when present).
+ *
+ * @param config - The active configuration.
+ * @returns The category ids to grant as implied consent.
+ */
+export function impliedConsentGrants(config: CookieConsentConfig): string[] {
+  return config.categories.filter((c) => c.required || c.defaultEnabled).map((c) => c.id);
+}
+
+/**
+ * Whether boot should auto-apply implied consent this load. True only when fresh
+ * consent is needed (no decision on record, or a prior one has expired / been
+ * invalidated by a `reconsentVersion` bump) AND the resolved model (for the given
+ * region) is `opt-out`. When true, boot grants {@link impliedConsentGrants} so
+ * trackers run without a prompt; the visitor can still opt out afterwards. A
+ * still-valid decision — including a DNT/GPC one applied earlier in boot — always
+ * suppresses this (its guard is shared with {@link shouldShowBanner} via
+ * {@link needsReconsent}, so the two decisions can never disagree).
+ *
+ * @param config - The active configuration.
+ * @param state - The stored decision, or `null` if none.
+ * @param region - Region info (defaults to {@link detectRegion}).
+ * @returns `true` if implied consent should be applied.
+ */
+export function shouldApplyImpliedConsent(
+  config: CookieConsentConfig,
+  state: ConsentState | null,
+  region: RegionInfo = detectRegion(),
+): boolean {
+  if (!needsReconsent(config, state)) return false;
+  return resolveConsentModel(config, region) === 'opt-out';
+}
+
+/* -------------------------------------------------------------------------- */
 /* Re-consent (reuses consent-state's version/expiry rules)                   */
 /* -------------------------------------------------------------------------- */
 
@@ -378,7 +517,10 @@ export function needsReconsent(config: CookieConsentConfig, state: ConsentState 
  *
  * Order of precedence:
  * 1. A valid, current decision already on record → never show (the visitor's
- *    explicit choice wins over every heuristic).
+ *    explicit choice wins over every heuristic). This is also how an opt-out
+ *    region is handled: boot applies implied consent (see
+ *    {@link shouldApplyImpliedConsent}) BEFORE the banner mounts, so the record
+ *    exists here and the banner stays silent — trackers run, no prompt.
  * 2. `respectDoNotTrack` + a DNT signal → do NOT show; the runtime should
  *    instead persist a reject-by-default decision (only necessary cookies).
  * 3. `showMode: 'everywhere'` → always show (when consent is needed).

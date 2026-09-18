@@ -7,3 +7,4 @@
  * halves can never drift apart.
  */
 export * from './config-schema.js';
+export * from './tracker-scan.js';

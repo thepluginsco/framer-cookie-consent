@@ -67,6 +67,8 @@ function recordingApi(config: ReturnType<typeof mergeConfig>) {
     rejectAll: () => calls.push({ method: 'rejectAll', state: writeConsent(config, grantMap([])) }),
     openPreferences: () => calls.push({ method: 'openPreferences' }),
     withdraw: () => calls.push({ method: 'withdraw' }),
+    exportReceipt: () => null,
+    downloadReceipt: () => false,
   };
 }
 
@@ -271,4 +273,69 @@ test('blocking modal cannot be dismissed with Esc, but a normal preferences moda
     new dom2.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
   );
   assert.equal(modal2.hidden, false, 'Esc must not close a blocking modal');
+});
+
+/* --------------------------- receipt download ----------------------------- */
+
+test('receipt control: hidden with no receipt, shown once one exists, and downloads on click', () => {
+  setupDom();
+  const config = mergeConfig();
+
+  // A recording API whose receipt presence we can flip between opens.
+  let receipt: unknown = null;
+  let downloads = 0;
+  const api = {
+    ...recordingApi(config),
+    exportReceipt: () => receipt as never,
+    downloadReceipt: () => {
+      downloads += 1;
+      return receipt != null;
+    },
+  };
+
+  const ctrl = mountBanner(config, { api });
+  const row = ctrl.root.querySelector('.cc-modal__receipt') as HTMLElement;
+  const btn = ctrl.root.querySelector('.cc-receipt-btn') as HTMLButtonElement;
+  assert.ok(row && btn, 'receipt control should be built');
+  assert.equal(btn.textContent, `↓${config.strings.downloadReceipt}`, 'button shows the label');
+
+  // No decision yet → the control stays hidden.
+  ctrl.openPreferences();
+  assert.equal(row.hidden, true, 'no receipt → control hidden');
+
+  // A decision now exists → reopening reveals the control.
+  receipt = { id: 'r1' };
+  ctrl.closePreferences();
+  ctrl.openPreferences();
+  assert.equal(row.hidden, false, 'receipt present → control shown');
+
+  // Clicking it downloads the receipt.
+  btn.click();
+  assert.equal(downloads, 1, 'clicking downloads the receipt');
+});
+
+/* ------------------------------- GPC badge -------------------------------- */
+
+test('GPC badge: shown only when gpcHonored AND gpcShowBadge, with a status role', () => {
+  setupDom();
+  const config = mergeConfig({ behavior: { gpcShowBadge: true } });
+
+  // Honored + enabled → visible status badge.
+  const shown = mountBanner(config, { api: recordingApi(config), autoShow: false, gpcHonored: true });
+  const badge = shown.root.querySelector('.cc-gpc-badge') as HTMLElement;
+  assert.ok(badge, 'badge element should exist');
+  assert.equal(badge.hidden, false, 'badge should be visible when GPC was honored');
+  assert.equal(badge.getAttribute('role'), 'status');
+  assert.equal(badge.getAttribute('aria-live'), 'polite');
+  shown.destroy();
+
+  // Honored but author turned the badge off → hidden.
+  const off = mergeConfig({ behavior: { gpcShowBadge: false } });
+  const hidden = mountBanner(off, { api: recordingApi(off), autoShow: false, gpcHonored: true });
+  assert.equal((hidden.root.querySelector('.cc-gpc-badge') as HTMLElement).hidden, true);
+  hidden.destroy();
+
+  // Not honored this load → hidden even with the badge enabled.
+  const notHonored = mountBanner(config, { api: recordingApi(config), autoShow: false, gpcHonored: false });
+  assert.equal((notHonored.root.querySelector('.cc-gpc-badge') as HTMLElement).hidden, true);
 });

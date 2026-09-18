@@ -10,10 +10,11 @@ import type { ReactNode } from "react"
 import logoMark from "./assets/logo-mark.png"
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
 import { getLiveSiteUrl } from "../lib/framer"
+import { scanSiteForTrackers, type ScanResult } from "../lib/scanSite"
 import type { ScriptType } from "../types"
 import { T, focusRing } from "./tokens"
-import { Icon, Segmented, Toggle, HoverButton, Button } from "./ui"
-import { catColor, type Cfg, type ConsentfulModel } from "./model"
+import { Icon, Segmented, Toggle, HoverButton, Button, Spinner } from "./ui"
+import { catColor, trackerAlreadyManaged, CAT_NAME, type Cfg, type ConsentfulModel } from "./model"
 
 const SWATCHES = ["#2F6FED", "#6366F1", "#16A34A", "#0EA5E9", "#F97316", "#111827"]
 
@@ -379,6 +380,159 @@ export function AddScriptModal({ m, onClose }: { m: ConsentfulModel; onClose: ()
           </div>
         </div>
         <ModalFooter onCancel={onClose} submitLabel="Add script" canSubmit={canSubmit} onSubmit={submit} />
+      </Dialog>
+    </Backdrop>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* Scan site for trackers                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Display label for a detected tracker's proposed category. */
+function trackerCatLabel(m: ConsentfulModel, catId: string): string {
+  return m.cfg.categories.find((c) => c.id === catId)?.name ?? CAT_NAME[catId] ?? catId
+}
+
+export function ScanTrackersModal({ m, onClose }: { m: ConsentfulModel; onClose: () => void }) {
+  const [result, setResult] = useState<ScanResult | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  // Dedupe check works off the canonical script shape ({ value, tagId }); the
+  // design-model `CfgScript` calls the vendor tag id `id`, so remap here.
+  const managedScripts = m.cfg.scripts.map((s) => ({ value: s.value, tagId: s.id }))
+
+  // Run the scan once when the modal opens; pre-select every newly found tracker
+  // (i.e. not already managed and with a usable payload).
+  useEffect(() => {
+    let active = true
+    scanSiteForTrackers().then((r) => {
+      if (!active) return
+      setResult(r)
+      if (r.ok) {
+        const preselect = r.trackers
+          .filter((t) => t.value.trim().length > 0 && !trackerAlreadyManaged(managedScripts, t))
+          .map((t) => t.id)
+        setSelected(new Set(preselect))
+      }
+    })
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const toggle = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const trackers = result?.ok ? result.trackers : []
+  const chosen = trackers.filter((t) => selected.has(t.id))
+  const canSubmit = chosen.length > 0
+
+  const submit = () => {
+    if (!canSubmit) return
+    m.addDetectedTrackers(chosen)
+    onClose()
+  }
+
+  return (
+    <Backdrop onClose={onClose}>
+      <Dialog width={468}>
+        <ModalHeader title="Scan site for trackers" onClose={onClose} />
+        <div style={{ padding: 18, overflowY: "auto", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Loading */}
+          {result === null && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 2px", color: T.ink3, fontSize: 12.5 }}>
+              <Spinner /> Reading your published site…
+            </div>
+          )}
+
+          {/* Failure */}
+          {result && !result.ok && (
+            <div style={{ display: "flex", gap: 10, background: T.sunken, border: `1px solid ${T.border}`, borderRadius: T.rLg, padding: "13px 14px" }}>
+              <Icon name={result.reason === "not-published" ? "rocket_launch" : "wifi_off"} size={18} color={T.ink3} style={{ marginTop: 1 }} />
+              <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.5 }}>{result.message}</div>
+            </div>
+          )}
+
+          {/* Clean site */}
+          {result?.ok && trackers.length === 0 && (
+            <div style={{ display: "flex", gap: 10, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, borderRadius: T.rLg, padding: "13px 14px" }}>
+              <Icon name="check_circle" size={18} color={T.accent} style={{ marginTop: 1 }} />
+              <div style={{ fontSize: 12, color: "#3d5680", lineHeight: 1.5 }}>
+                No known trackers found on <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>{new URL(result.url).host}</span>. If you add tags later, scan again.
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {result?.ok && trackers.length > 0 && (
+            <>
+              <div style={{ fontSize: 11.5, color: T.ink3, lineHeight: 1.5 }}>
+                Found {trackers.length} tracker{trackers.length === 1 ? "" : "s"} on{" "}
+                <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>{new URL(result.url).host}</span>. Selected tags will be added as managed scripts, blocked until consent.
+              </div>
+              {trackers.map((t) => {
+                const managed = trackerAlreadyManaged(managedScripts, t)
+                const usable = t.value.trim().length > 0
+                const disabled = managed || !usable
+                const active = selected.has(t.id)
+                const col = catColor(t.category)
+                return (
+                  <div
+                    key={t.id}
+                    role="button"
+                    aria-disabled={disabled}
+                    onClick={() => !disabled && toggle(t.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 11,
+                      padding: "11px 12px",
+                      borderRadius: T.rLg,
+                      border: active ? `1.5px solid ${T.accent}` : `1px solid ${T.border}`,
+                      background: active ? T.accentSoft : T.surface,
+                      cursor: disabled ? "default" : "pointer",
+                      opacity: disabled ? 0.6 : 1,
+                      transition: "all .12s",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 18,
+                        height: 18,
+                        flex: "0 0 auto",
+                        borderRadius: 5,
+                        border: active ? `1.5px solid ${T.accent}` : `1.5px solid ${T.border}`,
+                        background: active ? T.accent : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {active && <Icon name="check" size={13} color="#fff" />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{t.name}</div>
+                      <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.ink4, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {managed ? "already managed" : !usable ? "detected — add manually below" : t.evidence}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: col, background: `${col}16`, padding: "4px 9px", borderRadius: T.rPill, flex: "0 0 auto" }}>
+                      {trackerCatLabel(m, t.category)}
+                    </span>
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </div>
+        <ModalFooter onCancel={onClose} submitLabel={chosen.length > 0 ? `Add ${chosen.length} script${chosen.length === 1 ? "" : "s"}` : "Add selected"} canSubmit={canSubmit} onSubmit={submit} />
       </Dialog>
     </Backdrop>
   )

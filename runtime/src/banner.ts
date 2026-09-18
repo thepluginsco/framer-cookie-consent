@@ -181,6 +181,12 @@ export interface MountOptions {
    * floating re-open button is shown (if a decision exists and it's enabled).
    */
   autoShow?: boolean;
+  /**
+   * `true` when `boot()` auto-applied a Global Privacy Control opt-out this load.
+   * When set (and `behavior.gpcShowBadge` is on) a small, self-dismissing
+   * confirmation badge is shown so the visitor can see their signal was honoured.
+   */
+  gpcHonored?: boolean;
 }
 
 /** Imperative handle returned by {@link mountBanner}. */
@@ -388,6 +394,24 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     api.accept(granted);
   };
 
+  // Verifiable-receipt download — the visible proof of Consentful's consent
+  // receipts. Only meaningful once a decision has been recorded, so it starts
+  // hidden and is revealed by `syncReceiptControl()` whenever a receipt exists.
+  const receiptButton = el('button', {
+    class: 'cc-receipt-btn',
+    type: 'button',
+    on: { click: () => api.downloadReceipt() },
+  }, [
+    el('span', { class: 'cc-receipt-btn__icon', text: '↓', attrs: { 'aria-hidden': 'true' } }),
+    el('span', { text: s.downloadReceipt }),
+  ]);
+  const receiptRow = el('div', { class: 'cc-modal__receipt', attrs: { hidden: '' } }, [receiptButton]);
+
+  /** Reveal the receipt control only when a stored, exportable receipt exists. */
+  const syncReceiptControl = (): void => {
+    receiptRow.hidden = api.exportReceipt() == null;
+  };
+
   const prefsFooter = el('div', { class: 'cc-modal__footer' }, [
     el('button', {
       class: 'cc-btn cc-btn--secondary',
@@ -426,7 +450,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
         hidden: '',
       },
     },
-    [prefsHeader, prefsBody, prefsFooter],
+    [prefsHeader, prefsBody, receiptRow, prefsFooter],
   );
 
   /* -------------------- floating re-open button ----------------- */
@@ -439,7 +463,25 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     on: { click: (e) => openPreferences(e.currentTarget as HTMLElement) },
   });
 
-  root.append(overlay, banner, prefsModal, fab);
+  /* ------------------- GPC "opt-out honored" badge -------------- */
+
+  // A small, self-dismissing confirmation shown when boot() auto-applied a
+  // Global Privacy Control opt-out. It carries `role="status"` + `aria-live`
+  // so assistive tech announces it once, then fades away on its own.
+  const showGpcBadge = options.gpcHonored === true && config.behavior.gpcShowBadge;
+  const gpcBadge = el(
+    'div',
+    {
+      class: `cc-gpc-badge cc-fab-${config.advanced.floatingButtonPosition}`,
+      attrs: { role: 'status', 'aria-live': 'polite', hidden: '' },
+    },
+    [
+      el('span', { class: 'cc-gpc-badge__check', text: '✓', attrs: { 'aria-hidden': 'true' } }),
+      el('span', { class: 'cc-gpc-badge__text', text: 'Global Privacy Control honored' }),
+    ],
+  );
+
+  root.append(overlay, banner, prefsModal, fab, gpcBadge);
   parent.append(root);
 
   /* --------------------------- view state ----------------------- */
@@ -479,6 +521,9 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
 
   function openPreferences(trigger?: HTMLElement | null): void {
     prefsReturnFocus = trigger ?? (root.ownerDocument.activeElement as HTMLElement | null);
+    // Reflect whether a downloadable receipt exists right now (a decision may have
+    // been recorded — or withdrawn — since the modal was last opened).
+    syncReceiptControl();
     // The preferences modal always sits above the banner while open.
     releaseTrap?.();
     prefsModal.hidden = false;
@@ -534,6 +579,8 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   // modal ALWAYS closes on a decision (there is no other dismiss path, so keeping
   // it open would trap the visitor); only a non-modal banner respects the setting.
   const onChange = (_e: Event): void => {
+    // A decision (or withdrawal) may have just created/removed the receipt.
+    syncReceiptControl();
     if (config.behavior.hideAfterChoice || isModalBanner) {
       closeBanner();
       if (!prefsModal.hidden) closePreferences();
@@ -562,6 +609,16 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     openBanner();
   } else if (shouldShowFloatingButton(config, initialState)) {
     showFloatingButton();
+  }
+
+  // Surface the GPC confirmation badge (only when boot honoured an opt-out and
+  // the author kept it on). It auto-dismisses so it never lingers as clutter.
+  if (showGpcBadge) {
+    gpcBadge.hidden = false;
+    const timer = setTimeout(() => {
+      gpcBadge.hidden = true;
+    }, 6000);
+    cleanups.push(() => clearTimeout(timer));
   }
 
   /* ----------------------------- destroy ------------------------ */

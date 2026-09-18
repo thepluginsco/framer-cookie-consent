@@ -29,7 +29,7 @@ import {
   TextPanel,
 } from "./panels"
 import { PreviewPane, type PreviewMode } from "./preview"
-import { AddCategoryModal, AddScriptModal, Onboarding } from "./modals"
+import { AddCategoryModal, AddScriptModal, ScanTrackersModal, Onboarding } from "./modals"
 
 type TabId = "categories" | "behavior" | "consent" | "scripts" | "theme" | "insights" | "license" | "preview"
 
@@ -79,7 +79,7 @@ export function ConsentfulShell() {
   const [tab, setTab] = useState<TabId>("categories")
   const [previewMode, setPreviewMode] = useState<PreviewMode>("banner")
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [modal, setModal] = useState<null | "category" | "script">(null)
+  const [modal, setModal] = useState<null | "category" | "script" | "scan">(null)
 
   const [onboarding, setOnboarding] = useState(false)
   const [onbStep, setOnbStep] = useState(0)
@@ -280,7 +280,7 @@ export function ConsentfulShell() {
             {tab === "categories" && <CategoriesPanel m={m} onAddCategory={() => setModal("category")} />}
             {tab === "behavior" && <BehaviorPanel m={m} />}
             {tab === "consent" && <ConsentPanel m={m} />}
-            {tab === "scripts" && <ScriptsPanel m={m} onAddScript={() => setModal("script")} />}
+            {tab === "scripts" && <ScriptsPanel m={m} onAddScript={() => setModal("script")} onScan={() => setModal("scan")} />}
             {tab === "theme" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                 <StylePanel m={m} />
@@ -399,6 +399,7 @@ export function ConsentfulShell() {
       )}
       {modal === "category" && <AddCategoryModal m={m} onClose={() => setModal(null)} />}
       {modal === "script" && <AddScriptModal m={m} onClose={() => setModal(null)} />}
+      {modal === "scan" && <ScanTrackersModal m={m} onClose={() => setModal(null)} />}
     </div>
   )
 }

@@ -12,15 +12,21 @@
 import { useCallback, useMemo } from "react"
 
 import { useSettingsContext } from "../state/settings-context"
-import type {
-  BannerLayout,
-  BannerPosition,
-  ConsentModeSignal,
-  CookieConsentConfig,
-  FloatingButtonPosition,
-  LocaleStrings,
-  ScriptType,
-  ThemeMode,
+import {
+  TRACKER_CATEGORY_LABEL,
+  TRACKER_CATEGORY_SIGNALS,
+  type BannerLayout,
+  type BannerPosition,
+  type ConsentModel,
+  type ConsentModeSignal,
+  type CookieConsentConfig,
+  type DetectedTracker,
+  type FloatingButtonPosition,
+  type LocaleStrings,
+  type ManagedScript,
+  type ScriptType,
+  type ThemeMode,
+  type TrackerCategoryId,
 } from "../types"
 
 /* -------------------------------------------------------------------------- */
@@ -90,6 +96,12 @@ export interface Cfg {
   saveLabel: string
   privacyUrl: string
   showWhen: ShowWhen
+  /**
+   * The consent model to enforce: GDPR opt-in, CCPA-style opt-out (implied
+   * consent), or region-aware `auto` (opt-in in regulated regions, opt-out
+   * elsewhere).
+   */
+  consentModel: ConsentModel
   /** Accurate geo endpoint URL (Pro); empty = free time-zone heuristic. */
   geoEndpoint: string
   /** Consent analytics endpoint URL (Pro); empty = disabled. */
@@ -97,6 +109,10 @@ export interface Cfg {
   expiryDays: number
   waitForUpdate: number
   respectDNT: boolean
+  /** Honour a Global Privacy Control signal as an opt-out of ad/marketing. */
+  respectGPC: boolean
+  /** Show a small confirmation badge when a GPC opt-out is auto-applied. */
+  gpcBadge: boolean
   hideAfter: boolean
   reloadOnChange: boolean
   /** Show a floating "cookie settings" button so visitors can reopen/withdraw. */
@@ -214,11 +230,14 @@ export function toCfg(c: CookieConsentConfig): Cfg {
     saveLabel: c.strings.savePreferences,
     privacyUrl: c.strings.privacyPolicyUrl,
     showWhen: MODE_TO_SHOW_WHEN[c.behavior.showMode],
+    consentModel: c.behavior.consentModel,
     geoEndpoint: c.geo.endpoint,
     analyticsEndpoint: c.analytics.endpoint,
     expiryDays: c.behavior.consentExpiryDays,
     waitForUpdate: c.consentMode.waitForUpdateMs,
     respectDNT: c.behavior.respectDoNotTrack,
+    respectGPC: c.behavior.respectGpc,
+    gpcBadge: c.behavior.gpcShowBadge,
     hideAfter: c.behavior.hideAfterChoice,
     reloadOnChange: c.behavior.reloadOnChange,
     floatingButton: c.advanced.floatingButton,
@@ -289,6 +308,94 @@ export function applyScripts(prev: CookieConsentConfig, scripts: CfgScript[]): C
   }
 }
 
+/** One-line description used when the scanner has to create a category. */
+const TRACKER_CATEGORY_DESC: Record<TrackerCategoryId, string> = {
+  analytics: "Helps us understand how visitors use the site.",
+  marketing: "Used to deliver relevant ads and measure campaigns.",
+  preferences: "Remembers choices like language and region.",
+}
+
+/**
+ * True when `t` is already represented in `scripts` — matched by payload URL
+ * (case-insensitive) or by a non-empty vendor tag id. Used to avoid adding the
+ * same tracker twice across repeated scans.
+ */
+export function trackerAlreadyManaged(
+  scripts: Pick<ManagedScript, "value" | "tagId">[],
+  t: Pick<DetectedTracker, "value" | "tagId">,
+): boolean {
+  const value = t.value.trim().toLowerCase()
+  return scripts.some(
+    (s) =>
+      (value.length > 0 && s.value.trim().toLowerCase() === value) ||
+      (t.tagId.length > 0 && s.tagId === t.tagId),
+  )
+}
+
+/**
+ * Write detected trackers into the config as managed scripts. Pure; exported for
+ * tests. For each tracker it (a) ensures the proposed consent category exists —
+ * creating it with the standard label/signals when the user has removed it — and
+ * (b) appends a gated {@link ManagedScript}, skipping duplicates and any tracker
+ * with no usable payload (an inline-only match we couldn't turn into a URL).
+ */
+export function applyDetectedTrackers(
+  prev: CookieConsentConfig,
+  trackers: DetectedTracker[],
+): CookieConsentConfig {
+  let next = prev
+
+  // 1. Ensure every proposed category exists (dedupe the ones we need to add).
+  const existing = new Set(next.categories.map((c) => c.id))
+  const missing: TrackerCategoryId[] = []
+  for (const t of trackers) {
+    if (!existing.has(t.category) && !missing.includes(t.category)) missing.push(t.category)
+  }
+  if (missing.length) {
+    const strings = { ...next.strings.categories }
+    const added = missing.map((id) => {
+      const label = TRACKER_CATEGORY_LABEL[id]
+      const description = TRACKER_CATEGORY_DESC[id]
+      strings[id] = { label, description }
+      return {
+        id,
+        label,
+        description,
+        required: false,
+        // Mirror the built-in presets: analytics starts on, ads/prefs opt-in.
+        defaultEnabled: id === "analytics",
+        signals: [...TRACKER_CATEGORY_SIGNALS[id]],
+      }
+    })
+    next = {
+      ...next,
+      categories: [...next.categories, ...added],
+      strings: { ...next.strings, categories: strings },
+    }
+  }
+
+  // 2. Append a managed script per new tracker, skipping duplicates + empties.
+  const scripts = [...next.scripts]
+  trackers.forEach((t, i) => {
+    const value = t.value.trim()
+    if (!value) return
+    if (trackerAlreadyManaged(scripts, t)) return
+    scripts.push({
+      id: `script-${Date.now()}-${i}`,
+      name: t.name,
+      provider: t.provider,
+      tagId: t.tagId,
+      category: t.category,
+      type: t.type,
+      value,
+      async: true,
+    })
+  })
+  if (scripts.length !== next.scripts.length) next = { ...next, scripts }
+
+  return next
+}
+
 /* -------------------------------------------------------------------------- */
 /* Presets                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -342,6 +449,8 @@ export interface ConsentfulModel {
   /* script ops */
   deleteScript: (index: number) => void
   createScript: (draft: { name: string; type: ScriptType; value: string; id: string; cat: string }) => void
+  /** Add trackers found by the site scanner (creates missing categories, dedupes). */
+  addDetectedTrackers: (trackers: DetectedTracker[]) => void
   /* translation ops (Pro multi-language) */
   addLanguage: (code: string) => void
   removeLanguage: (code: string) => void
@@ -400,6 +509,9 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
     case "showWhen":
       next.behavior = { ...prev.behavior, showMode: SHOW_WHEN_TO_MODE[value as ShowWhen] }
       break
+    case "consentModel":
+      next.behavior = { ...prev.behavior, consentModel: value as ConsentModel }
+      break
     case "geoEndpoint":
       next.geo = { ...prev.geo, endpoint: value as string }
       break
@@ -411,6 +523,12 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
       break
     case "respectDNT":
       next.behavior = { ...prev.behavior, respectDoNotTrack: value as boolean }
+      break
+    case "respectGPC":
+      next.behavior = { ...prev.behavior, respectGpc: value as boolean }
+      break
+    case "gpcBadge":
+      next.behavior = { ...prev.behavior, gpcShowBadge: value as boolean }
       break
     case "hideAfter":
       next.behavior = { ...prev.behavior, hideAfterChoice: value as boolean }
@@ -561,6 +679,14 @@ export function useConsentful(): ConsentfulModel {
     [setScripts],
   )
 
+  const addDetectedTrackers = useCallback(
+    (trackers: DetectedTracker[]) => {
+      if (!trackers.length) return
+      update((prev) => applyDetectedTrackers(prev, trackers))
+    },
+    [update],
+  )
+
   const addLanguage = useCallback(
     (code: string) => {
       const c = code.trim().toLowerCase()
@@ -624,6 +750,7 @@ export function useConsentful(): ConsentfulModel {
     createCategory,
     deleteScript,
     createScript,
+    addDetectedTrackers,
     addLanguage,
     removeLanguage,
     localeValue,

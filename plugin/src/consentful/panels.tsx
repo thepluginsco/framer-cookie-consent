@@ -347,10 +347,19 @@ const SHOW_WHEN_HINT: Record<string, string> = {
   geo: "Show based on a custom region rule — configurable with Pro.",
 }
 
+const CONSENT_MODEL_HINT: Record<string, string> = {
+  "opt-in":
+    "GDPR-style: nothing non-essential runs until the visitor accepts. The safest, strictest default.",
+  "opt-out":
+    "CCPA-style: your default categories run immediately (implied consent); visitors can opt out via the reopen button.",
+  auto: "Region-aware: opt-in for EU / EEA / UK / Switzerland / California (or when the region is unclear), opt-out everywhere else — one banner, correct on both sides of the Atlantic.",
+}
+
 export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
   const { cfg } = m
   const toggles = [
     { key: "respectDNT" as const, label: 'Respect "Do Not Track"', desc: "Skip the banner and deny all when the browser signals DNT." },
+    { key: "respectGPC" as const, label: "Honor Global Privacy Control", desc: "Auto-apply an opt-out of ad/marketing (not a full reject) when the browser sends GPC. Recognized under CCPA/CPRA." },
     { key: "hideAfter" as const, label: "Hide after a choice", desc: "Remove the banner once the visitor has decided." },
     { key: "reloadOnChange" as const, label: "Reload on change", desc: "Refresh the page when consent changes so tags re-evaluate." },
   ]
@@ -368,6 +377,20 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
           ]}
         />
         <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{SHOW_WHEN_HINT[cfg.showWhen]}</div>
+      </Card>
+
+      <Card>
+        <Eyebrow style={{ marginBottom: 11 }}>Consent model</Eyebrow>
+        <Segmented
+          value={cfg.consentModel}
+          onChange={(v) => m.set("consentModel", v)}
+          options={[
+            { value: "opt-in", label: "Opt-in" },
+            { value: "opt-out", label: "Opt-out" },
+            { value: "auto", label: "Auto" },
+          ]}
+        />
+        <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{CONSENT_MODEL_HINT[cfg.consentModel]}</div>
       </Card>
 
       <GeoEndpointCard m={m} />
@@ -394,6 +417,15 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
             <Toggle on={cfg[t.key]} onClick={() => m.toggle(t.key)} />
           </Row>
         ))}
+        {cfg.respectGPC ? (
+          <Row
+            title="Show “opt-out honored” badge"
+            desc="Briefly confirm to the visitor that their GPC signal was respected."
+            border={false}
+          >
+            <Toggle on={cfg.gpcBadge} onClick={() => m.toggle("gpcBadge")} />
+          </Row>
+        ) : null}
       </Card>
 
       <Card style={{ padding: "6px 16px 14px" }}>
@@ -580,7 +612,7 @@ export function ConsentPanel({ m }: { m: ConsentfulModel }) {
 /* Scripts                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export function ScriptsPanel({ m, onAddScript }: { m: ConsentfulModel; onAddScript: () => void }) {
+export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; onAddScript: () => void; onScan: () => void }) {
   const { cfg } = m
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -592,6 +624,10 @@ export function ScriptsPanel({ m, onAddScript }: { m: ConsentfulModel; onAddScri
           are detected automatically.
         </div>
       </div>
+
+      <Button variant="secondary" onClick={onScan} icon="radar" full>
+        Scan site for trackers
+      </Button>
 
       {cfg.scripts.map((s, i) => {
         const col = catColor(s.cat)

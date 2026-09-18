@@ -102,12 +102,47 @@ export interface ConsentModeConfig {
  */
 export type ShowMode = 'everywhere' | 'eu-only' | 'by-region';
 
+/**
+ * How consent is obtained — the legal model the banner enforces. Orthogonal to
+ * {@link ShowMode} (which decides *where* the banner appears); this decides the
+ * *default grant state before the visitor chooses*.
+ * - `opt-in`  — GDPR-style. Nothing non-essential runs until the visitor
+ *   explicitly accepts; the banner blocks/prompts by default.
+ * - `opt-out` — CCPA-style implied consent. The author's default categories are
+ *   granted on load (trackers run immediately) and the visitor can opt out
+ *   afterwards (via the floating "cookie settings" button / preferences).
+ * - `auto`    — region-aware: behaves as `opt-in` in regulated regions
+ *   (EU/EEA, UK, Switzerland, California) or whenever region detection is
+ *   uncertain (fail safe toward privacy), and as `opt-out` everywhere else. One
+ *   configuration that is correct on both sides of the Atlantic.
+ */
+export type ConsentModel = 'opt-in' | 'opt-out' | 'auto';
+
 /** Non-visual behavioural policy for the banner. */
 export interface BehaviorConfig {
   /** Who sees the banner (see {@link ShowMode}). */
   showMode: ShowMode;
+  /**
+   * The consent model to enforce (see {@link ConsentModel}). `opt-in` is the
+   * GDPR-safe default; `auto` adapts opt-in vs opt-out to the visitor's region.
+   */
+  consentModel: ConsentModel;
   /** If true, treat a browser Do Not Track signal as a rejection. */
   respectDoNotTrack: boolean;
+  /**
+   * If true, honour a browser Global Privacy Control signal as an opt-out of
+   * sale/sharing. Unlike Do Not Track (a blanket reject), GPC targets ONLY the
+   * ad/marketing categories (`ad_storage`/`ad_user_data`/`ad_personalization`) —
+   * analytics and other non-advertising categories keep their author defaults.
+   * Recognised as a valid opt-out under CCPA/CPRA and Colorado's law.
+   */
+  respectGpc: boolean;
+  /**
+   * When {@link BehaviorConfig.respectGpc} auto-applies a GPC opt-out, show a
+   * small non-intrusive confirmation badge ("opt-out honored") so the visitor
+   * can see their signal was respected. Purely a courtesy; no effect on gating.
+   */
+  gpcShowBadge: boolean;
   /** Remove the banner once the visitor has made a choice. */
   hideAfterChoice: boolean;
   /** Refresh the page when consent changes so tags re-evaluate. */
@@ -157,6 +192,34 @@ export interface GeoConfig {
  */
 export interface AnalyticsConfig {
   /** URL of the collection endpoint. Empty disables analytics entirely. */
+  endpoint: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Consent receipts (verifiable decision records)                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Consent receipts. When enabled (the default), the runtime stamps a
+ * verifiable, timestamped record onto every consent decision and stores it
+ * client-side alongside the consent cookie. The visitor (or the site owner)
+ * can retrieve it via `window.CookieConsent.exportReceipt()` or download it as
+ * JSON via `downloadReceipt()`. This is ∅-infra: the receipt never leaves the
+ * browser unless a central log {@link ReceiptsConfig.endpoint} is configured.
+ *
+ * A receipt carries a tamper-evident fingerprint over its own contents — not a
+ * cryptographic signature (the zero-server design holds no signing key), but a
+ * stable integrity digest so an altered receipt is detectable.
+ */
+export interface ReceiptsConfig {
+  /** Stamp a receipt on each decision and persist it with the consent record. */
+  enabled: boolean;
+  /**
+   * Optional endpoint for a central receipt log (Pro). When set, each receipt is
+   * additionally POSTed here (best-effort, like {@link AnalyticsConfig}) so the
+   * site owner keeps an auditable copy. Empty = receipts stay entirely on the
+   * visitor's device and NO network call is ever made.
+   */
   endpoint: string;
 }
 
@@ -246,6 +309,8 @@ export interface LocaleStrings {
   customize: string;
   /** Save-choices button label. */
   savePreferences: string;
+  /** Download-consent-receipt control label (preferences view). */
+  downloadReceipt: string;
   /** Privacy policy link label (the URL stays shared across locales). */
   privacyPolicyLabel: string;
   /** Per-category copy overrides, keyed by category id. */
@@ -270,6 +335,8 @@ export interface StringsConfig {
   customize: string;
   /** Save-choices button label (in the preferences view). */
   savePreferences: string;
+  /** Download-consent-receipt control label (shown in the preferences view once a decision exists). */
+  downloadReceipt: string;
   /** Privacy policy link label. */
   privacyPolicyLabel: string;
   /** Privacy policy URL. */
@@ -387,6 +454,8 @@ export interface CookieConsentConfig {
   geo: GeoConfig;
   /** Anonymous consent analytics (Pro); empty endpoint = disabled. */
   analytics: AnalyticsConfig;
+  /** Verifiable consent receipts (client-side; central log optional). */
+  receipts: ReceiptsConfig;
   /** Banner layout and CTAs. */
   banner: BannerConfig;
   /** Visual theme. */
@@ -480,7 +549,10 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
   },
   behavior: {
     showMode: 'eu-only',
+    consentModel: 'opt-in',
     respectDoNotTrack: true,
+    respectGpc: true,
+    gpcShowBadge: true,
     hideAfterChoice: true,
     reloadOnChange: false,
     reconsentVersion: '1',
@@ -490,6 +562,10 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     endpoint: '',
   },
   analytics: {
+    endpoint: '',
+  },
+  receipts: {
+    enabled: true,
     endpoint: '',
   },
   banner: {
@@ -513,6 +589,7 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     rejectAll: 'Reject all',
     customize: 'Manage preferences',
     savePreferences: 'Save choices',
+    downloadReceipt: 'Download consent receipt',
     privacyPolicyLabel: 'Privacy Policy',
     privacyPolicyUrl: 'https://yoursite.com/privacy',
     categories: defaultCategoryStrings(),
@@ -590,6 +667,7 @@ function normalizeSignals(input: unknown): ConsentModeSignal[] | undefined {
 /* -------------------------------------------------------------------------- */
 
 const SHOW_MODES: readonly ShowMode[] = ['everywhere', 'eu-only', 'by-region'];
+const CONSENT_MODELS: readonly ConsentModel[] = ['opt-in', 'opt-out', 'auto'];
 const POSITIONS: readonly BannerPosition[] = [
   'bottom-left',
   'bottom-right',
@@ -665,7 +743,10 @@ function mergeConsentMode(
 function mergeBehavior(d: BehaviorConfig, p: DeepPartial<BehaviorConfig> | undefined): BehaviorConfig {
   return {
     showMode: oneOf(p?.showMode, SHOW_MODES, d.showMode),
+    consentModel: oneOf(p?.consentModel, CONSENT_MODELS, d.consentModel),
     respectDoNotTrack: boolOr(p?.respectDoNotTrack, d.respectDoNotTrack),
+    respectGpc: boolOr(p?.respectGpc, d.respectGpc),
+    gpcShowBadge: boolOr(p?.gpcShowBadge, d.gpcShowBadge),
     hideAfterChoice: boolOr(p?.hideAfterChoice, d.hideAfterChoice),
     reloadOnChange: boolOr(p?.reloadOnChange, d.reloadOnChange),
     reconsentVersion: strOr(p?.reconsentVersion, d.reconsentVersion),
@@ -683,6 +764,14 @@ function mergeGeo(d: GeoConfig, p: DeepPartial<GeoConfig> | undefined): GeoConfi
 /** Merge analytics (consent event collection) config. */
 function mergeAnalytics(d: AnalyticsConfig, p: DeepPartial<AnalyticsConfig> | undefined): AnalyticsConfig {
   return {
+    endpoint: strOr(p?.endpoint, d.endpoint),
+  };
+}
+
+/** Merge consent-receipts config. */
+function mergeReceipts(d: ReceiptsConfig, p: DeepPartial<ReceiptsConfig> | undefined): ReceiptsConfig {
+  return {
+    enabled: boolOr(p?.enabled, d.enabled),
     endpoint: strOr(p?.endpoint, d.endpoint),
   };
 }
@@ -737,6 +826,7 @@ const LOCALE_STRING_KEYS: readonly Exclude<keyof LocaleStrings, 'categories'>[] 
   'rejectAll',
   'customize',
   'savePreferences',
+  'downloadReceipt',
   'privacyPolicyLabel',
 ];
 
@@ -787,6 +877,7 @@ function mergeStrings(d: StringsConfig, p: DeepPartial<StringsConfig> | undefine
     rejectAll: strOr(p?.rejectAll, d.rejectAll),
     customize: strOr(p?.customize, d.customize),
     savePreferences: strOr(p?.savePreferences, d.savePreferences),
+    downloadReceipt: strOr(p?.downloadReceipt, d.downloadReceipt),
     privacyPolicyLabel: strOr(p?.privacyPolicyLabel, d.privacyPolicyLabel),
     privacyPolicyUrl: strOr(p?.privacyPolicyUrl, d.privacyPolicyUrl),
     categories: mergeCategoryStrings(d.categories, p?.categories),
@@ -863,6 +954,7 @@ export function mergeConfig(partial: DeepPartial<CookieConsentConfig> = {}): Coo
     behavior: mergeBehavior(d.behavior, partial.behavior),
     geo: mergeGeo(d.geo, partial.geo),
     analytics: mergeAnalytics(d.analytics, partial.analytics),
+    receipts: mergeReceipts(d.receipts, partial.receipts),
     banner: mergeBanner(d.banner, partial.banner),
     theme: mergeTheme(d.theme, partial.theme),
     strings: mergeStrings(d.strings, partial.strings),

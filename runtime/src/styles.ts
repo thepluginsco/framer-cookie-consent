@@ -347,6 +347,13 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-modal__footer{display:flex;gap:9px;margin-top:14px}`,
     `${r} .cc-modal__footer .cc-btn{flex:1}`,
 
+    // Verifiable-receipt download — a muted line above the footer buttons,
+    // shown only once a decision exists (see banner.ts syncReceiptControl).
+    `${r} .cc-modal__receipt{margin-top:12px;padding-top:12px;border-top:1px solid var(--cc-bd)}`,
+    `${r} .cc-receipt-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:600;color:var(--cc-sub);background:none;border:none;padding:0;cursor:pointer;text-decoration:none}`,
+    `${r} .cc-receipt-btn:hover{color:var(--cc-tx);text-decoration:underline}`,
+    `${r} .cc-receipt-btn__icon{font-size:14px;line-height:1;font-weight:800;color:var(--cc-ac)}`,
+
     // Category rows in the preferences modal.
     `${r} .cc-cat{display:flex;align-items:flex-start;gap:12px;padding:12px 2px;border-bottom:1px solid var(--cc-bd)}`,
     `${r} .cc-cat:last-child{border-bottom:0}`,
@@ -371,6 +378,14 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-fab-bottom-right{bottom:20px;right:20px}`,
     `${r} .cc-fab-top-left{top:20px;left:20px}`,
     `${r} .cc-fab-top-right{top:20px;right:20px}`,
+
+    // GPC "opt-out honored" badge — a compact, self-dismissing status pill.
+    // Shares the fab corner classes for positioning; sits just above the fab.
+    `${r} .cc-gpc-badge{position:fixed;z-index:2147483645;display:inline-flex;align-items:center;gap:7px;background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:999px;box-shadow:0 6px 18px rgba(23,28,45,.18);padding:8px 14px;font:inherit;font-size:12px;font-weight:600}`,
+    `${r} .cc-gpc-badge.cc-fab-bottom-left,${r} .cc-gpc-badge.cc-fab-bottom-right{bottom:64px}`,
+    `${r} .cc-gpc-badge.cc-fab-top-left,${r} .cc-gpc-badge.cc-fab-top-right{top:64px}`,
+    `${r} .cc-gpc-badge__check{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--cc-ac);color:var(--cc-act);font-size:10px;font-weight:800;flex:0 0 auto}`,
+    `${r} .cc-gpc-badge__text{white-space:nowrap}`,
 
     `${r} [hidden]{display:none !important}`,
     `@media (prefers-reduced-motion:reduce){${r} *,${r} *::before,${r} *::after{transition:none !important;animation:none !important}}`,

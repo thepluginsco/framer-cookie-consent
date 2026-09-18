@@ -11,15 +11,34 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 
-import { mergeConfig } from '@framer-cookie-consent/shared';
+import { mergeConfig, type DetectedTracker } from '@framer-cookie-consent/shared';
 import {
   toCfg,
   applyScripts,
   applyCategories,
+  applyDetectedTrackers,
+  trackerAlreadyManaged,
   scriptHost,
   type CfgScript,
   type CfgCategory,
 } from '../plugin/src/consentful/model.ts';
+
+/** Build a DetectedTracker with sensible defaults for these tests. */
+function tracker(over: Partial<DetectedTracker> = {}): DetectedTracker {
+  return {
+    id: 'ga4',
+    name: 'Google Analytics 4',
+    vendor: 'Google',
+    provider: 'googletagmanager.com',
+    category: 'analytics',
+    signals: ['analytics_storage'],
+    tagId: 'G-ABC123',
+    type: 'src',
+    value: 'https://www.googletagmanager.com/gtag/js?id=G-ABC123',
+    evidence: 'external script',
+    ...over,
+  };
+}
 
 /* -------------------------------------------------------------------------- */
 /* scriptHost                                                                  */
@@ -101,6 +120,11 @@ test('toCfg → applyScripts round-trips a script losslessly', () => {
   assert.equal(back.scripts[0]!.category, 'analytics');
 });
 
+test('toCfg: surfaces the consent model verbatim', () => {
+  assert.equal(toCfg(mergeConfig()).consentModel, 'opt-in'); // schema default
+  assert.equal(toCfg(mergeConfig({ behavior: { consentModel: 'auto' } })).consentModel, 'auto');
+});
+
 test('applyScripts: reuses the existing id/async when replacing at the same index', () => {
   const base = mergeConfig({
     scripts: [
@@ -134,4 +158,67 @@ test('applyCategories: a locked category is written as required + always enabled
   assert.equal(analytics.defaultEnabled, false);
   // Per-category copy overrides are mirrored into strings.categories.
   assert.equal(next.strings.categories['analytics']!.label, 'Analytics');
+});
+
+/* -------------------------------------------------------------------------- */
+/* applyDetectedTrackers (site-scan → managed scripts)                         */
+/* -------------------------------------------------------------------------- */
+
+test('applyDetectedTrackers: adds a detected tracker as a gated managed script', () => {
+  const base = mergeConfig(); // scripts: []
+  const next = applyDetectedTrackers(base, [tracker()]);
+  assert.equal(next.scripts.length, 1);
+  const s = next.scripts[0]!;
+  assert.equal(s.name, 'Google Analytics 4');
+  assert.equal(s.category, 'analytics');
+  assert.equal(s.type, 'src');
+  assert.equal(s.tagId, 'G-ABC123');
+  assert.equal(s.provider, 'googletagmanager.com');
+  assert.match(s.value, /gtag\/js/);
+  assert.equal(s.async, true);
+});
+
+test('applyDetectedTrackers: creates a missing category with standard signals', () => {
+  // Start from a config that has NO marketing category.
+  const base = applyCategories(mergeConfig(), [
+    { id: 'necessary', name: 'Necessary', desc: 'x', signals: [], enabled: true, locked: true },
+    { id: 'analytics', name: 'Analytics', desc: 'x', signals: ['analytics_storage'], enabled: true, locked: false },
+  ]);
+  assert.equal(base.categories.some((c) => c.id === 'marketing'), false);
+
+  const next = applyDetectedTrackers(base, [
+    tracker({ id: 'meta-pixel', name: 'Meta Pixel', category: 'marketing', tagId: '123', value: 'https://connect.facebook.net/en_US/fbevents.js' }),
+  ]);
+
+  const marketing = next.categories.find((c) => c.id === 'marketing');
+  assert.ok(marketing, 'marketing category was created');
+  assert.equal(marketing!.required, false);
+  assert.deepEqual(marketing!.signals, ['ad_storage', 'ad_user_data', 'ad_personalization']);
+  assert.equal(next.strings.categories['marketing']!.label, 'Marketing');
+  assert.equal(next.scripts.length, 1);
+});
+
+test('applyDetectedTrackers: skips duplicates by URL and by tag id', () => {
+  const base = applyScripts(mergeConfig(), [
+    { name: 'GA4', id: 'G-ABC123', type: 'src', value: 'https://www.googletagmanager.com/gtag/js?id=G-ABC123', cat: 'analytics' },
+  ]);
+  // Same URL, and a second tracker with same tagId but different URL — both dupes.
+  const next = applyDetectedTrackers(base, [
+    tracker(),
+    tracker({ id: 'ga4-alt', value: 'https://example.com/other.js' }),
+  ]);
+  assert.equal(next.scripts.length, 1);
+});
+
+test('applyDetectedTrackers: skips a tracker with no usable payload', () => {
+  const base = mergeConfig();
+  const next = applyDetectedTrackers(base, [tracker({ type: 'inline', value: '' })]);
+  assert.equal(next.scripts.length, 0);
+});
+
+test('trackerAlreadyManaged: matches on value or tag id', () => {
+  const scripts = [{ value: 'https://cdn.x/a.js', tagId: 'AW-1' }];
+  assert.equal(trackerAlreadyManaged(scripts, { value: 'https://cdn.x/a.js', tagId: '' }), true);
+  assert.equal(trackerAlreadyManaged(scripts, { value: 'https://other/b.js', tagId: 'AW-1' }), true);
+  assert.equal(trackerAlreadyManaged(scripts, { value: 'https://other/b.js', tagId: '' }), false);
 });

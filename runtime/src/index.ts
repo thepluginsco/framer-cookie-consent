@@ -18,6 +18,10 @@ import { installScriptBlocker } from './script-blocker.ts';
 import {
   shouldShowBanner,
   isDoNotTrackEnabled,
+  isGpcEnabled,
+  gpcGrantedCategories,
+  shouldApplyImpliedConsent,
+  impliedConsentGrants,
   detectRegion,
   resolveRegion,
   createEndpointResolver,
@@ -181,10 +185,27 @@ export async function boot(): Promise<void> {
     //     documented geo policy (see shouldShowBanner step 2).
     try {
       if (config.behavior.respectDoNotTrack && isDoNotTrackEnabled() && !readConsent(config)) {
-        api.rejectAll();
+        api.rejectAll('dnt');
       }
     } catch (err) {
       logError(err, 'dnt');
+    }
+
+    // (d.6) Honour Global Privacy Control as an opt-out of sale/sharing. Unlike
+    //     DNT (a blanket reject above), GPC targets only the ad/marketing
+    //     categories — analytics and other non-ad categories keep the author's
+    //     defaults (see gpcGrantedCategories). Only applied when no decision is
+    //     already on record, so an explicit choice — or the DNT reject above —
+    //     always wins. When applied, the banner (below) shows a small
+    //     confirmation badge if the author left `gpcShowBadge` on.
+    let gpcHonored = false;
+    try {
+      if (config.behavior.respectGpc && isGpcEnabled() && !readConsent(config)) {
+        api.accept(gpcGrantedCategories(config), 'gpc');
+        gpcHonored = true;
+      }
+    } catch (err) {
+      logError(err, 'gpc');
     }
 
     // (e) Resolve the visitor's region. When an accurate geo endpoint is
@@ -196,6 +217,24 @@ export async function boot(): Promise<void> {
       ? await resolveRegion(createEndpointResolver(config.geo.endpoint))
       : detectRegion();
 
+    // (e.5) Region-aware consent model. In an opt-out region (CCPA-style, or the
+    //     author choosing `consentModel: 'opt-out'` outright) and with no valid
+    //     decision on record, apply IMPLIED consent: grant the author's default
+    //     categories so trackers run immediately, exactly as if the pre-checked
+    //     defaults had been accepted. The visitor keeps an opt-out path via the
+    //     floating "cookie settings" button / preferences. This runs AFTER region
+    //     resolution (it needs the region) but AFTER DNT/GPC too, so an expressed
+    //     signal always wins. In opt-in regions this is a no-op and the banner
+    //     (below) prompts as usual. Persisting a decision here makes the banner's
+    //     shouldShowBanner verdict fall through to "already decided" → no prompt.
+    try {
+      if (shouldApplyImpliedConsent(config, readConsent(config), region)) {
+        api.accept(impliedConsentGrants(config), 'implied');
+      }
+    } catch (err) {
+      logError(err, 'implied-consent');
+    }
+
     // (f) Render the banner once the DOM is ready. resolveBannerConfig applies
     //     the license gate + white-label entitlement: full banner when licensed,
     //     basic branded fallback when unlicensed. The blocker above already keeps
@@ -204,7 +243,11 @@ export async function boot(): Promise<void> {
     whenDomReady(() => {
       try {
         const state = readConsent(config);
-        mountBanner(bannerConfig, { api, autoShow: shouldShowBanner(config, state, region) });
+        mountBanner(bannerConfig, {
+          api,
+          autoShow: shouldShowBanner(config, state, region),
+          gpcHonored,
+        });
       } catch (err) {
         logError(err, 'mount');
       }

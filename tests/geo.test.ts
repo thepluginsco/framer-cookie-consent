@@ -26,7 +26,13 @@ import {
   needsReconsent,
   shouldShowBanner,
   shouldShowFloatingButton,
+  resolveConsentModel,
+  impliedConsentGrants,
+  shouldApplyImpliedConsent,
   isDoNotTrackEnabled,
+  isGpcEnabled,
+  isSaleCategory,
+  gpcGrantedCategories,
   type RegionInfo,
 } from '../runtime/src/geo.ts';
 
@@ -129,6 +135,66 @@ test('respectDoNotTrack + DNT → no banner (reject-by-default)', () => {
   assert.equal(shouldShowBanner(euOnly, null, region, true), true);
 });
 
+/* --------------------- consent model (opt-in vs opt-out) ------------------ */
+
+test('resolveConsentModel: explicit opt-in / opt-out ignore the region', () => {
+  const optIn = mergeConfig({ behavior: { consentModel: 'opt-in' } });
+  const optOut = mergeConfig({ behavior: { consentModel: 'opt-out' } });
+  const eu = classifyRegion('Europe/Berlin', 'de-DE');
+  const us = classifyRegion('America/New_York', 'en-US');
+  assert.equal(resolveConsentModel(optIn, us), 'opt-in');
+  assert.equal(resolveConsentModel(optOut, eu), 'opt-out');
+});
+
+test('resolveConsentModel: auto → opt-in in the EU, opt-out in the US', () => {
+  const auto = mergeConfig({ behavior: { consentModel: 'auto' } });
+  assert.equal(resolveConsentModel(auto, classifyRegion('Europe/Paris', 'fr-FR')), 'opt-in');
+  assert.equal(resolveConsentModel(auto, classifyRegion('America/New_York', 'en-US')), 'opt-out');
+});
+
+test('resolveConsentModel: auto → opt-in for California and for uncertain reads (fail safe)', () => {
+  const auto = mergeConfig({ behavior: { consentModel: 'auto' } });
+  assert.equal(resolveConsentModel(auto, classifyRegion('America/Los_Angeles', 'en-US')), 'opt-in');
+  assert.equal(resolveConsentModel(auto, classifyRegion(null)), 'opt-in'); // uncertain → opt-in
+});
+
+test('impliedConsentGrants: grants the author defaults (required + defaultEnabled)', () => {
+  // Defaults: necessary(req), analytics(on), marketing(off), preferences(off).
+  assert.deepEqual(impliedConsentGrants(mergeConfig()).sort(), ['analytics', 'necessary']);
+});
+
+test('impliedConsentGrants: honours a default-on marketing category (unlike GPC)', () => {
+  const cfg = mergeConfig({
+    categories: [
+      { id: 'necessary', label: 'N', description: '', required: true, defaultEnabled: true, signals: ['security_storage'] },
+      { id: 'marketing', label: 'M', description: '', required: false, defaultEnabled: true, signals: ['ad_storage'] },
+    ],
+  });
+  assert.deepEqual(impliedConsentGrants(cfg).sort(), ['marketing', 'necessary']);
+});
+
+test('shouldApplyImpliedConsent: only with no valid decision AND an opt-out model', () => {
+  const auto = mergeConfig({ behavior: { consentModel: 'auto' } });
+  const us = classifyRegion('America/New_York', 'en-US');
+  const eu = classifyRegion('Europe/Berlin', 'de-DE');
+  // No decision + opt-out region → apply implied consent.
+  assert.equal(shouldApplyImpliedConsent(auto, null, us), true);
+  // No decision + opt-in region → do not (the banner prompts instead).
+  assert.equal(shouldApplyImpliedConsent(auto, null, eu), false);
+  // A valid decision already on record → never re-apply.
+  assert.equal(shouldApplyImpliedConsent(auto, validState(auto), us), false);
+});
+
+test('shouldApplyImpliedConsent: an expired opt-out decision re-applies implied consent', () => {
+  const cfg = mergeConfig({ behavior: { consentModel: 'opt-out', consentExpiryDays: 30 } });
+  const expired: ConsentState = {
+    version: cfg.behavior.reconsentVersion,
+    timestamp: Date.now() - 60 * 86_400_000, // 60 days > 30-day expiry
+    categories: { necessary: true },
+  };
+  assert.equal(shouldApplyImpliedConsent(cfg, expired, classifyRegion('America/New_York')), true);
+});
+
 /* -------------------------------- reconsent ------------------------------- */
 
 test('needsReconsent: true when no decision, false when valid', () => {
@@ -202,6 +268,61 @@ test('isDoNotTrackEnabled reads the DNT signal', (t) => {
   }
   try {
     assert.equal(isDoNotTrackEnabled(), true);
+  } finally {
+    if (desc) Object.defineProperty(globalThis, 'navigator', desc);
+    else delete (globalThis as Record<string, unknown>).navigator;
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Global Privacy Control (opt-out of sale/sharing)                            */
+/* -------------------------------------------------------------------------- */
+
+test('isSaleCategory: only ad/marketing categories count as "sale"', () => {
+  const cfg = mergeConfig();
+  const byId = (id: string) => cfg.categories.find((c) => c.id === id)!;
+  assert.equal(isSaleCategory(byId('marketing')), true); // ad_storage etc.
+  assert.equal(isSaleCategory(byId('analytics')), false); // analytics_storage
+  assert.equal(isSaleCategory(byId('necessary')), false);
+  assert.equal(isSaleCategory(byId('preferences')), false); // functionality_storage
+});
+
+test('gpcGrantedCategories: denies ad categories, keeps author defaults for the rest', () => {
+  // Defaults: necessary(req), analytics(on), marketing(off/ad), preferences(off).
+  const granted = gpcGrantedCategories(mergeConfig());
+  assert.deepEqual(granted.sort(), ['analytics', 'necessary']);
+  // Never a blanket reject — analytics (a non-ad default-on category) survives.
+  assert.ok(granted.includes('analytics'));
+  assert.ok(!granted.includes('marketing'));
+});
+
+test('gpcGrantedCategories: a default-on marketing category is still forced off', () => {
+  // Even if the author left marketing opt-out ON, GPC must deny sale/sharing.
+  const cfg = mergeConfig({
+    categories: [
+      { id: 'necessary', label: 'N', description: '', required: true, defaultEnabled: true, signals: ['security_storage'] },
+      { id: 'marketing', label: 'M', description: '', required: false, defaultEnabled: true, signals: ['ad_storage'] },
+      { id: 'analytics', label: 'A', description: '', required: false, defaultEnabled: false, signals: ['analytics_storage'] },
+    ],
+  });
+  const granted = gpcGrantedCategories(cfg);
+  assert.ok(!granted.includes('marketing')); // sale category → denied
+  assert.ok(!granted.includes('analytics')); // author default was off → stays off
+  assert.deepEqual(granted, ['necessary']);
+});
+
+test('isGpcEnabled reads navigator.globalPrivacyControl', (t) => {
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  try {
+    Object.defineProperty(globalThis, 'navigator', { value: { globalPrivacyControl: true }, configurable: true });
+  } catch {
+    t.skip('navigator not configurable in this runtime');
+    return;
+  }
+  try {
+    assert.equal(isGpcEnabled(), true);
+    Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true });
+    assert.equal(isGpcEnabled(), false);
   } finally {
     if (desc) Object.defineProperty(globalThis, 'navigator', desc);
     else delete (globalThis as Record<string, unknown>).navigator;
