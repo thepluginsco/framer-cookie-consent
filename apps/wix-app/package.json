@@ -1,0 +1,29 @@
+{
+  "name": "@framer-cookie-consent/wix-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wix App shell (Phase 3.5) — a dashboard page that authors the banner and a Cloudflare Worker that holds OAuth, stores per-site config, embeds the loader via the shared engine, and serves config to the runtime.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build:bridge": "node build-bridge.mjs",
+    "build": "npm run build:bridge && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "deploy:worker": "wrangler deploy"
+  },
+  "dependencies": {
+    "@framer-cookie-consent/shared": "*",
+    "@framer-cookie-consent/shared-ui": "*",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6",
+    "esbuild": "^0.24",
+    "typescript": "^5.9",
+    "vite": "^8"
+  }
+}

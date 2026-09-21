@@ -18,12 +18,12 @@
  * (the privacy policy) is validated to a safe scheme.
  */
 
-import type { CookieConsentConfig, ConsentCategory } from '@framer-cookie-consent/shared';
+import type { CookieConsentConfig, ConsentCategory, ThemeMode } from '@framer-cookie-consent/shared';
 import { installConsentApi, type CookieConsentApi, type ConsentState } from './consent-state.ts';
 import { needsReconsent, shouldShowFloatingButton } from './geo.ts';
 import { injectStyles, ROOT_CLASS, assertThemeContrast } from './styles.ts';
 import { localizeStrings, detectLanguages } from './i18n.ts';
-import { brandLogoUrl } from './brand-mark.ts';
+import { brandLogoUrl, brandLightLogoUrl, cookieMarkUrl, settingsCookieMarkUrl } from './brand-mark.ts';
 
 /**
  * Build-time flag, replaced by a literal via esbuild `define`. `false` in the
@@ -34,7 +34,7 @@ import { brandLogoUrl } from './brand-mark.ts';
 declare const __CC_DEV__: boolean | undefined;
 
 /** Where the (non-white-label) "Powered by" credit links. TODO: confirm brand URL. */
-const POWERED_BY_URL = 'https://thepluginsco.com';
+const POWERED_BY_URL = 'https://consentful.theplugins.co';
 /** Brand name shown in the credit, beside the mark. */
 const POWERED_BY_NAME = 'Consentful';
 /** Accessible label for the whole credit link. */
@@ -99,6 +99,52 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Category icons                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The four consent-category glyphs, as build-time-constant SVG markup. Keyed by
+ * a coarse icon name we map each category id onto. These are trusted literals
+ * with no config data interpolated, so assigning them via `innerHTML` (below) is
+ * safe — the file's textContent-only rule guards *config* copy, not our own icons.
+ */
+const CATEGORY_ICON_SVG: Record<string, string> = {
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="13" width="4" height="7" rx="1.3"/><rect x="10" y="9" width="4" height="11" rx="1.3"/><rect x="16" y="5" width="4" height="15" rx="1.3"/></svg>',
+  megaphone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1Z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>',
+  sliders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h9"/><path d="M17 8h3"/><circle cx="15" cy="8" r="2.3"/><path d="M4 16h3"/><path d="M11 16h9"/><circle cx="9" cy="16" r="2.3"/></svg>',
+};
+
+/**
+ * Map a consent-category id onto one of the {@link CATEGORY_ICON_SVG} glyphs plus
+ * its tinted colour class. Unknown ids fall back to the neutral "preferences"
+ * slider glyph so a custom category still renders a sensible icon.
+ */
+function categoryIcon(id: string): { key: string; tone: string } {
+  switch (id) {
+    case 'necessary':
+      return { key: 'lock', tone: 'neutral' };
+    case 'analytics':
+      return { key: 'chart', tone: 'blue' };
+    case 'marketing':
+      return { key: 'megaphone', tone: 'violet' };
+    case 'preferences':
+    case 'functional':
+      return { key: 'sliders', tone: 'green' };
+    default:
+      return { key: 'sliders', tone: 'green' };
+  }
+}
+
+/** Build the tinted, rounded icon tile shown at the start of each category row. */
+function categoryIconTile(id: string): HTMLElement {
+  const { key, tone } = categoryIcon(id);
+  const tile = el('span', { class: `cc-cat__icon cc-cat__icon--${tone}`, attrs: { 'aria-hidden': 'true' } });
+  tile.innerHTML = CATEGORY_ICON_SVG[key] ?? CATEGORY_ICON_SVG.sliders!;
+  return tile;
+}
+
+/* -------------------------------------------------------------------------- */
 /* URL safety                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -119,6 +165,39 @@ export function safeUrl(raw: string): string | null {
     if (name !== 'http' && name !== 'https') return null;
   }
   return v;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Powered-by mark                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The "Powered by Consentful" logo image, resolved for the banner's theme so it
+ * stays legible on both light and dark surfaces. The default wordmark is dark ink
+ * for light backgrounds; {@link brandLightLogoUrl} is the light variant for dark
+ * backgrounds.
+ *
+ * - `light` → the dark-ink wordmark (matches the light palette).
+ * - `dark`  → the light wordmark (matches the always-dark palette).
+ * - `auto`  → a `<picture>` defaulting to the dark-ink wordmark, swapping to the
+ *   light wordmark under `prefers-color-scheme: dark` — mirroring how the `auto`
+ *   palette flips with the visitor's system preference (see `styles.ts`).
+ *
+ * @param mode - The resolved {@link ThemeMode} from the active theme.
+ * @returns An `<img>` (explicit modes) or `<picture>` (auto) node.
+ */
+function poweredByLogo(mode: ThemeMode): HTMLElement {
+  const imgAttrs = { alt: POWERED_BY_NAME, loading: 'lazy', decoding: 'async' } as const;
+  if (mode === 'auto') {
+    return el('picture', { class: 'cc-powered__pic' }, [
+      el('source', {
+        attrs: { srcset: brandLightLogoUrl(), media: '(prefers-color-scheme:dark)' },
+      }),
+      el('img', { class: 'cc-powered__logo', attrs: { src: brandLogoUrl(), ...imgAttrs } }),
+    ]);
+  }
+  const src = mode === 'dark' ? brandLightLogoUrl() : brandLogoUrl();
+  return el('img', { class: 'cc-powered__logo', attrs: { src, ...imgAttrs } });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -254,8 +333,11 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   // Text column: heading, body, then the "Manage preferences" + policy links.
   const text = el('div', { class: 'cc-banner__text' }, [title, message]);
 
+  // Links row: "Manage preferences" (accent) and the privacy policy (muted),
+  // separated by a hairline divider — mirroring the design's footer link pair.
+  const links = el('div', { class: 'cc-banner__links' });
   if (config.banner.showPreferencesButton) {
-    text.append(
+    links.append(
       el('button', {
         class: 'cc-banner__manage',
         type: 'button',
@@ -269,7 +351,10 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   // muted link so it stays available for compliance without fighting the design.
   const policyHref = safeUrl(s.privacyPolicyUrl);
   if (policyHref) {
-    text.append(
+    if (links.childElementCount > 0) {
+      links.append(el('span', { class: 'cc-banner__sep', text: '|', attrs: { 'aria-hidden': 'true' } }));
+    }
+    links.append(
       el('a', {
         class: 'cc-banner__policy',
         href: policyHref,
@@ -278,6 +363,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
       }),
     );
   }
+  if (links.childElementCount > 0) text.append(links);
 
   const actions = el('div', { class: 'cc-banner__actions' });
   if (config.banner.showRejectButton) {
@@ -299,7 +385,19 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     }),
   );
 
-  const bannerInner = el('div', { class: 'cc-banner__inner' }, [text, actions]);
+  // Decorative cookie-with-shield hero: a tinted disc holding the brand mark,
+  // set off from the copy by a hairline divider. Purely cosmetic (empty alt), so
+  // a load failure never disturbs the layout.
+  const figure = el('div', { class: 'cc-banner__figure', attrs: { 'aria-hidden': 'true' } }, [
+    el('span', { class: 'cc-banner__disc' }, [
+      el('img', {
+        class: 'cc-banner__mark',
+        attrs: { src: cookieMarkUrl(), alt: '', loading: 'lazy', decoding: 'async' },
+      }),
+    ]),
+  ]);
+
+  const bannerInner = el('div', { class: 'cc-banner__inner' }, [figure, text, actions]);
 
   // The "Powered by" credit is shown on EVERY tier — white-label no longer hides
   // it. Only the author-config `poweredByHidden` flag can suppress it.
@@ -315,10 +413,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
           },
           [
             el('span', { class: 'cc-powered__by', text: 'Powered by' }),
-            el('img', {
-              class: 'cc-powered__logo',
-              attrs: { src: brandLogoUrl(), alt: POWERED_BY_NAME, loading: 'lazy', decoding: 'async' },
-            }),
+            poweredByLogo(config.theme.mode),
           ],
         ),
       ]),
@@ -341,12 +436,35 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     [bannerInner],
   );
 
+  // A dismiss "×" in the corner — only on a non-blocking banner (a blocking modal
+  // offers no dismiss path until the visitor makes a choice). Dismissing records
+  // no consent; the floating button can reopen the prompt later.
+  if (!isModalBanner) {
+    banner.append(
+      el('button', {
+        class: 'cc-banner__close',
+        type: 'button',
+        text: '×',
+        attrs: { 'aria-label': 'Close' },
+        on: { click: () => closeBanner() },
+      }),
+    );
+  }
+
   /* ------------------------ preferences modal ------------------- */
 
   const prefsTitleId = 'cc-prefs-title';
 
   const prefsBody = el('div', { class: 'cc-modal__body' });
   const checkboxes = new Map<string, HTMLInputElement>();
+  // Per-vendor switches, keyed by ManagedScript id (Phase 4.2 preference center).
+  const vendorInputs = new Map<string, HTMLInputElement>();
+
+  // Full preference center (Phase 4.2): `showVendors` lists the scripts each
+  // category gates; `perVendorToggles` additionally gives each one its own
+  // switch. Both are off by default, so the modal keeps its simple shape.
+  const showVendors = config.preferenceCenter.showVendors;
+  const perVendorToggles = showVendors && config.preferenceCenter.perVendorToggles;
 
   config.categories.forEach((category: ConsentCategory) => {
     const strings = s.categories[category.id];
@@ -354,12 +472,19 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     const description = strings?.description ?? category.description;
     const descId = `cc-cat-${category.id}-desc`;
 
+    // Label row: the name, plus an "Always on" badge for required categories
+    // (mirrors the design). The badge is decorative next to the static ON control.
+    const head = el('div', { class: 'cc-cat__head' }, [el('span', { class: 'cc-cat__label', text: label })]);
+    if (category.required) {
+      head.append(el('span', { class: 'cc-cat__always', text: 'Always on' }));
+    }
     const textCol = el('div', { class: 'cc-cat__text' }, [
-      el('div', { class: 'cc-cat__label', text: label }),
+      head,
       el('p', { class: 'cc-cat__desc', id: descId, text: description }),
     ]);
 
     let control: HTMLElement;
+    let categoryInput: HTMLInputElement | null = null;
     if (category.required) {
       // Required categories are always on — show a static "ON" pill.
       control = el('span', {
@@ -378,12 +503,63 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
       // defaultChecked; the property is what we read back on save).
       input.checked = category.defaultEnabled;
       checkboxes.set(category.id, input);
+      categoryInput = input;
 
       const track = el('span', { class: 'cc-switch__track', attrs: { 'aria-hidden': 'true' } });
       control = el('label', { class: 'cc-switch', attrs: { for: inputId, 'aria-label': label } }, [input, track]);
     }
 
-    prefsBody.append(el('div', { class: 'cc-cat' }, [textCol, control]));
+    const catRow = el('div', { class: 'cc-cat' }, [categoryIconTile(category.id), textCol, control]);
+    const catBlock = el('div', { class: 'cc-cat-block' }, [catRow]);
+
+    // Per-vendor list: the individual services this category gates. Only config
+    // scripts (which carry ids) are listed; markup placeholders stay category-gated.
+    if (showVendors) {
+      const vendors = config.scripts.filter((sc) => sc.category === category.id);
+      if (vendors.length > 0) {
+        const list = el('div', { class: 'cc-cat__vendors' }, [
+          el('div', { class: 'cc-cat__vendors-h', text: s.vendorsHeading }),
+        ]);
+        const catVendorInputs: HTMLInputElement[] = [];
+        for (const v of vendors) {
+          const meta = v.purpose.trim() || v.provider.trim();
+          const vText = el('div', { class: 'cc-vendor__text' }, [
+            el('div', { class: 'cc-vendor__name', text: v.name }),
+            ...(meta ? [el('p', { class: 'cc-vendor__meta', text: meta })] : []),
+          ]);
+
+          let vControl: HTMLElement;
+          if (perVendorToggles && !category.required) {
+            const vId = `cc-vendor-${v.id}`;
+            const vInput = el('input', { id: vId, type: 'checkbox', attrs: { 'aria-label': v.name } });
+            vInput.checked = true; // vendors are allowed by default within a granted category
+            vendorInputs.set(v.id, vInput);
+            catVendorInputs.push(vInput);
+            const vTrack = el('span', { class: 'cc-switch__track', attrs: { 'aria-hidden': 'true' } });
+            vControl = el('label', { class: 'cc-switch cc-switch--sm', attrs: { for: vId } }, [vInput, vTrack]);
+          } else {
+            // Transparency-only: a static marker, no toggle.
+            vControl = el('span', { class: 'cc-vendor__dot', attrs: { 'aria-hidden': 'true' } });
+          }
+          list.append(el('div', { class: 'cc-vendor' }, [vText, vControl]));
+        }
+
+        // A vendor can only run if its category is granted, so mirror the
+        // category switch onto its vendor switches (disabled while the category
+        // is off), keeping the UI honest about what a per-vendor choice can do.
+        if (categoryInput && catVendorInputs.length > 0) {
+          const cInput = categoryInput;
+          const syncVendors = (): void => {
+            for (const vi of catVendorInputs) vi.disabled = !cInput.checked;
+          };
+          cInput.addEventListener('change', syncVendors);
+          syncVendors();
+        }
+        catBlock.append(list);
+      }
+    }
+
+    prefsBody.append(catBlock);
   });
 
   const savePreferences = (): void => {
@@ -391,7 +567,15 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     for (const [id, input] of checkboxes) {
       if (input.checked) granted.push(id);
     }
-    api.accept(granted);
+    // Carry per-vendor decisions when the preference center exposed them. The
+    // switch reflects the visitor's vendor preference; the category gates whether
+    // it matters, so we record the switch value as-is.
+    let vendors: Record<string, boolean> | undefined;
+    if (vendorInputs.size > 0) {
+      vendors = {};
+      for (const [id, input] of vendorInputs) vendors[id] = input.checked;
+    }
+    api.accept(granted, 'custom', vendors);
   };
 
   // Verifiable-receipt download — the visible proof of Consentful's consent
@@ -412,7 +596,43 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     receiptRow.hidden = api.exportReceipt() == null;
   };
 
-  const prefsFooter = el('div', { class: 'cc-modal__footer' }, [
+  // Footer note (left): an info glyph, a reassurance line, and the policy /
+  // manage links — mirroring the design. The links echo the banner's pair.
+  const noteLinks = el('div', { class: 'cc-modal__note-links' });
+  if (policyHref) {
+    noteLinks.append(
+      el('a', {
+        class: 'cc-modal__note-link',
+        href: policyHref,
+        text: s.privacyPolicyLabel,
+        attrs: { rel: 'noopener', target: '_blank' },
+      }),
+    );
+  }
+  noteLinks.append(el('span', { class: 'cc-modal__note-sep', text: '|', attrs: { 'aria-hidden': 'true' } }));
+  noteLinks.append(
+    el('button', {
+      class: 'cc-modal__note-link',
+      type: 'button',
+      text: s.customize,
+      // Already inside the preference center; nudge focus to the first control.
+      on: { click: () => (focusables(prefsBody)[0] ?? prefsBody).focus() },
+    }),
+  );
+
+  const infoIcon = el('span', { class: 'cc-modal__info', attrs: { 'aria-hidden': 'true' } });
+  infoIcon.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>';
+
+  const footerNote = el('div', { class: 'cc-modal__note' }, [
+    infoIcon,
+    el('div', { class: 'cc-modal__note-text' }, [
+      el('span', { class: 'cc-modal__note-line', text: 'You can change your preferences at any time.' }),
+      noteLinks,
+    ]),
+  ]);
+
+  const footerActions = el('div', { class: 'cc-modal__actions' }, [
     el('button', {
       class: 'cc-btn cc-btn--secondary',
       type: 'button',
@@ -427,8 +647,26 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     }),
   ]);
 
-  const prefsHeader = el('div', { class: 'cc-modal__header' }, [
+  const prefsFooter = el('div', { class: 'cc-modal__footer' }, [footerNote, footerActions]);
+
+  const prefsHeadingBlock = el('div', { class: 'cc-modal__heading' }, [
     el('h2', { class: 'cc-modal__title', id: prefsTitleId, text: 'Privacy preferences' }),
+    el('p', {
+      class: 'cc-modal__subtitle',
+      text: 'Choose which cookies to allow. You can update your preferences anytime from here.',
+    }),
+  ]);
+
+  const prefsFigure = el('span', { class: 'cc-modal__figure', attrs: { 'aria-hidden': 'true' } }, [
+    el('img', {
+      class: 'cc-modal__mark',
+      attrs: { src: settingsCookieMarkUrl(), alt: '', loading: 'lazy', decoding: 'async' },
+    }),
+  ]);
+
+  const prefsHeader = el('div', { class: 'cc-modal__header' }, [
+    prefsFigure,
+    prefsHeadingBlock,
     el('button', {
       class: 'cc-modal__close',
       type: 'button',

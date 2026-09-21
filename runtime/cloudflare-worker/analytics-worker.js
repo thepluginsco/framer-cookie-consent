@@ -6,8 +6,14 @@
  * visitor ids, no page URLs. Free tier (Workers + KV) is plenty.
  *
  * Two routes:
- *   POST /            — record one event  { type, categories:{id:0|1}, version }
+ *   POST /            — record one event
+ *                       { type, categories:{id:0|1}, version, variant?, region? }
  *   GET  /stats?days=30 — read the last N days of aggregates (for the dashboard)
+ *
+ * Each day additionally keeps accept/reject/custom sub-counts BY A/B variant and
+ * BY coarse region (Phase 4.1), so the plugin's Insights tab can compare consent
+ * rates per variant and per region. Those are still just counters — no IPs, no
+ * cookies, no visitor ids. `variant`/`region` are sanitised to a short slug.
  *
  * ── Deploy ────────────────────────────────────────────────────────────────
  *   1. Create a KV namespace:  `wrangler kv namespace create CONSENT_STATS`
@@ -40,7 +46,31 @@ function today() {
 
 /** A fresh, empty day bucket. */
 function emptyDay() {
-  return { total: 0, accept: 0, reject: 0, custom: 0, categories: {} };
+  return { total: 0, accept: 0, reject: 0, custom: 0, categories: {}, variants: {}, regions: {} };
+}
+
+/** A fresh, empty decision sub-bucket (per variant / per region). */
+function emptyBucket() {
+  return { total: 0, accept: 0, reject: 0, custom: 0 };
+}
+
+/**
+ * Sanitise a caller-supplied variant/region label to a short, safe slug so it's
+ * a clean map key and can never bloat a bucket: keep `A–Z a–z 0–9 _ -`, cap at
+ * 32 chars. Returns "" when nothing usable remains (then it's simply not counted).
+ */
+function slug(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32);
+}
+
+/** Add one decision of `type` into a `{ id: bucket }` map under `key`. */
+function tallyInto(map, key, type) {
+  if (!key) return;
+  const b = map[key] || emptyBucket();
+  b.total += 1;
+  b[type] += 1;
+  map[key] = b;
 }
 
 export default {
@@ -86,6 +116,10 @@ export default {
       const key = `day:${today()}`;
       const raw = await env.CONSENT_STATS.get(key);
       const day = raw ? JSON.parse(raw) : emptyDay();
+      // Heal buckets written by an older Worker (pre-4.1) that lack these maps.
+      if (!day.categories) day.categories = {};
+      if (!day.variants) day.variants = {};
+      if (!day.regions) day.regions = {};
       day.total += 1;
       day[type] += 1;
       const cats = body.categories && typeof body.categories === "object" ? body.categories : {};
@@ -95,6 +129,10 @@ export default {
         if (granted === 1 || granted === true) c.granted += 1;
         day.categories[id] = c;
       }
+      // A/B + region sub-counts (Phase 4.1). Sanitised, and only when supplied —
+      // a non-tested site sends neither and these maps stay empty.
+      tallyInto(day.variants, slug(body.variant), type);
+      tallyInto(day.regions, slug(body.region), type);
       // 400-day TTL so old buckets self-expire; the dashboard only reads ~30.
       await env.CONSENT_STATS.put(key, JSON.stringify(day), { expirationTtl: 400 * 86400 });
       return json({ ok: true }, 202);

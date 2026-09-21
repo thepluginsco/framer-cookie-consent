@@ -25,6 +25,41 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "--workspace", "plugin", "preview:standalone"],
       "port": 5273
+    },
+    {
+      "name": "embed-config",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "apps/embed-config", "dev", "--", "--port", "5300"],
+      "port": 5300,
+      "autoPort": true
+    },
+    {
+      "name": "webflow-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "apps/webflow-app", "dev", "--", "--port", "5310"],
+      "port": 5310,
+      "autoPort": true
+    },
+    {
+      "name": "wordpress-plugin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "apps/wordpress-plugin", "dev", "--", "--port", "5320"],
+      "port": 5320,
+      "autoPort": true
+    },
+    {
+      "name": "shopify-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "apps/shopify-app", "dev", "--", "--port", "5330"],
+      "port": 5330,
+      "autoPort": true
+    },
+    {
+      "name": "wix-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--workspace", "apps/wix-app", "dev", "--", "--port", "5340"],
+      "port": 5340,
+      "autoPort": true
     }
   ]
 }

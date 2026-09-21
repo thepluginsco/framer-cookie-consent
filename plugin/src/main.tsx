@@ -1,5 +1,4 @@
 import "@framer/plugin/framer.css"
-import "./consentful/fonts.css"
 
 import React from "react"
 import ReactDOM from "react-dom/client"

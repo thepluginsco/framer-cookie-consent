@@ -1,0 +1,34 @@
+# Cloudflare Worker config for the Webflow Data Client (Phase 3.2 App shell).
+#
+# This is the credential-holding half: it owns the OAuth client_secret and the
+# site access tokens (in KV), and runs the shared installWebflowLoader/
+# removeWebflowLoader engine against the live Webflow v2 API.
+#
+# Before deploying, set the secrets (never commit them):
+#   wrangler secret put WEBFLOW_CLIENT_SECRET
+# and create the KV namespace, pasting its id below:
+#   wrangler kv namespace create TOKENS
+
+name = "consentful-webflow"
+main = "src/worker.ts"
+compatibility_date = "2026-01-01"
+
+# Public/build-time vars (secrets go via `wrangler secret put`).
+[vars]
+WEBFLOW_CLIENT_ID = ""            # set to your Webflow app client id
+WEBFLOW_REDIRECT_URI = ""         # https://<worker-host>/callback (registered on the app)
+APP_ORIGIN = ""                   # the Designer extension origin, for the post-auth bounce + CORS
+
+# KV binding for stored per-site tokens (token:<siteId> -> access token).
+# Replace `id` with the id printed by `wrangler kv namespace create TOKENS`.
+[[kv_namespaces]]
+binding = "TOKENS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# KV binding for stored per-site config (config:<siteId> -> serialized config),
+# so the Designer panel reopens on the site's live banner (load-on-mount).
+# Optional but recommended — install/remove still work without it.
+#   wrangler kv namespace create CONFIGS
+[[kv_namespaces]]
+binding = "CONFIGS"
+id = "REPLACE_WITH_CONFIGS_KV_NAMESPACE_ID"

@@ -76,6 +76,25 @@ export function classify(state: ConsentState): ClassifiedConsent {
   return { granted, denied };
 }
 
+/**
+ * The set of config-script ids the visitor turned OFF at the vendor level
+ * (`state.vendors[id] === false`). Pure and DOM-free. A vendor absent from the
+ * map — or a state with no `vendors` at all — yields no denials, so behaviour is
+ * identical to the pre-4.2, category-only model.
+ *
+ * @param state - The current consent decision.
+ * @returns The set of explicitly-denied vendor (script) ids.
+ */
+export function deniedVendorsOf(state: ConsentState): Set<string> {
+  const out = new Set<string>();
+  if (state.vendors) {
+    for (const [id, ok] of Object.entries(state.vendors)) {
+      if (ok === false) out.add(id);
+    }
+  }
+  return out;
+}
+
 /* -------------------------------------------------------------------------- */
 /* DOM operations                                                             */
 /* -------------------------------------------------------------------------- */
@@ -196,8 +215,15 @@ export interface ScriptBlocker {
  * @returns A {@link ScriptBlocker} instance.
  */
 export function createScriptBlocker(config: CookieConsentConfig): ScriptBlocker {
-  /** Categories currently granted — the single gate every activation checks. */
+  /** Categories currently granted — the first gate every activation checks. */
   let granted = new Set<string>();
+  /**
+   * Config-script ids the visitor turned OFF in the preference center (Phase
+   * 4.2). A denied vendor is held back even when its category is granted. Only
+   * config {@link ManagedScript} entries carry ids, so this never affects markup
+   * `text/plain` placeholders (they stay purely category-gated).
+   */
+  let deniedVendors = new Set<string>();
   /** Ids of config scripts already injected, so re-runs never duplicate them. */
   const injected = new Set<string>();
   let observer: MutationObserver | null = null;
@@ -228,6 +254,9 @@ export function createScriptBlocker(config: CookieConsentConfig): ScriptBlocker 
     let count = 0;
     for (const script of config.scripts) {
       if (injected.has(script.id) || !accept(script.category)) continue;
+      // A vendor the visitor toggled off is held back even when its category is
+      // granted. Not marked injected, so re-enabling it later still activates it.
+      if (deniedVendors.has(script.id)) continue;
       injected.add(script.id);
       parent.appendChild(buildConfigScript(d, script));
       count += 1;
@@ -267,6 +296,7 @@ export function createScriptBlocker(config: CookieConsentConfig): ScriptBlocker 
     if (unsubscribe) return;
     unsubscribe = onConsentChange((state) => {
       granted = new Set(classify(state).granted);
+      deniedVendors = deniedVendorsOf(state);
       activateGranted();
     });
   }
@@ -274,6 +304,7 @@ export function createScriptBlocker(config: CookieConsentConfig): ScriptBlocker 
   return {
     applyConsent(state: ConsentState): void {
       granted = new Set(classify(state).granted);
+      deniedVendors = deniedVendorsOf(state);
       ensureObserver();
       ensureSubscription();
       activateGranted();

@@ -224,6 +224,82 @@ export interface ReceiptsConfig {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Preference center (Phase 4.2)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The "full preference center" — how much detail the runtime's preferences
+ * modal reveals, and whether visitors can consent at the individual-vendor
+ * level rather than only per category.
+ *
+ * Both flags are ∅-infra and default OFF, so the modal keeps its simple
+ * per-category shape unless the author opts in. When {@link showVendors} is on,
+ * each category lists the {@link ManagedScript} vendors it gates (name +
+ * provider + {@link ManagedScript.purpose}) for transparency. When
+ * {@link perVendorToggles} is *also* on, every listed vendor gets its own
+ * on/off switch, and a vendor a visitor turns off is held back by the script
+ * blocker even while its category is granted.
+ *
+ * Per-vendor control applies only to config-authored {@link ManagedScript}
+ * entries (they carry stable ids). Markup `type="text/plain"` placeholders on
+ * the page have no vendor id and stay category-gated — compliance is unchanged
+ * for them.
+ */
+export interface PreferenceCenterConfig {
+  /** List the individual vendors under each category in the preferences modal. */
+  showVendors: boolean;
+  /** Give each listed vendor its own on/off switch (per-vendor consent). */
+  perVendorToggles: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/* A/B consent-rate testing (Phase 4.1)                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A single banner variant in an A/B consent-rate test.
+ *
+ * A variant may override ONLY presentation — copy, banner layout and theme —
+ * never the categories, scripts, consent model or Consent Mode wiring. That
+ * constraint is deliberate and load-bearing: an A/B test changes how the banner
+ * LOOKS and READS, never what it blocks or the legal basis it enforces, so the
+ * guiding principle "compliance always runs, identically" holds across every
+ * variant. Omitted override fields inherit the base config verbatim.
+ */
+export interface AbVariant {
+  /** Stable id used to bucket visitors and tag analytics (e.g. `'A'`, `'B'`). */
+  id: string;
+  /** Human label for the plugin editor and dashboard (e.g. `'Short copy'`). */
+  label: string;
+  /** Relative selection weight (≥ 0); higher gets more traffic. Default `1`. */
+  weight: number;
+  /** Copy overrides (a subset of {@link StringsConfig}). */
+  strings: Partial<Pick<StringsConfig, 'title' | 'message' | 'acceptAll' | 'rejectAll' | 'customize'>>;
+  /** Banner-layout overrides (a subset of {@link BannerConfig}). */
+  banner: Partial<Pick<BannerConfig, 'layout' | 'position' | 'showRejectButton' | 'showPreferencesButton'>>;
+  /** Theme overrides (a subset of {@link ThemeConfig}). */
+  theme: Partial<Pick<ThemeConfig, 'accent' | 'mode' | 'borderRadius'>>;
+}
+
+/**
+ * A/B consent-rate test (Pro / depth). When {@link AbTestConfig.enabled} with two
+ * or more variants, the runtime buckets each visitor into one variant (sticky +
+ * weighted), renders that variant's presentation, and tags every consent-
+ * analytics event with the assigned variant id — so the Insights dashboard can
+ * compare accept / reject / customise rates per variant (and per region).
+ *
+ * Assignment is ∅-infra (client-side, sticky in localStorage); only the
+ * per-variant NUMBERS depend on the analytics Worker being deployed. With fewer
+ * than two variants (or disabled) the test is inert and the base config renders.
+ */
+export interface AbTestConfig {
+  /** Master switch. Off (default) → no bucketing; the base config renders as-is. */
+  enabled: boolean;
+  /** Variants under test. Fewer than two → inert (base config renders). */
+  variants: AbVariant[];
+}
+
+/* -------------------------------------------------------------------------- */
 /* Banner layout                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -311,6 +387,8 @@ export interface LocaleStrings {
   savePreferences: string;
   /** Download-consent-receipt control label (preferences view). */
   downloadReceipt: string;
+  /** Heading above a category's per-vendor list in the preference center. */
+  vendorsHeading: string;
   /** Privacy policy link label (the URL stays shared across locales). */
   privacyPolicyLabel: string;
   /** Per-category copy overrides, keyed by category id. */
@@ -337,6 +415,8 @@ export interface StringsConfig {
   savePreferences: string;
   /** Download-consent-receipt control label (shown in the preferences view once a decision exists). */
   downloadReceipt: string;
+  /** Heading above a category's per-vendor list in the preference center. */
+  vendorsHeading: string;
   /** Privacy policy link label. */
   privacyPolicyLabel: string;
   /** Privacy policy URL. */
@@ -374,6 +454,13 @@ export interface ManagedScript {
   provider: string;
   /** Optional vendor tag id shown in the plugin (e.g. "G-4XZ8QP"). */
   tagId: string;
+  /**
+   * One-line, visitor-facing explanation of what this vendor does. Shown in the
+   * preference center's per-vendor list when
+   * {@link PreferenceCenterConfig.showVendors} is on. Empty falls back to the
+   * provider/name, so it is safe to leave blank.
+   */
+  purpose: string;
   /** Category id whose consent unblocks this script. */
   category: KnownCategoryId | (string & {});
   /** `src` loads an external URL; `inline` executes inline code. */
@@ -456,6 +543,10 @@ export interface CookieConsentConfig {
   analytics: AnalyticsConfig;
   /** Verifiable consent receipts (client-side; central log optional). */
   receipts: ReceiptsConfig;
+  /** Preference-center detail level + per-vendor consent (both off by default). */
+  preferenceCenter: PreferenceCenterConfig;
+  /** A/B consent-rate test (Pro); disabled with no variants by default. */
+  abTest: AbTestConfig;
   /** Banner layout and CTAs. */
   banner: BannerConfig;
   /** Visual theme. */
@@ -568,6 +659,14 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     enabled: true,
     endpoint: '',
   },
+  preferenceCenter: {
+    showVendors: false,
+    perVendorToggles: false,
+  },
+  abTest: {
+    enabled: false,
+    variants: [],
+  },
   banner: {
     layout: 'card',
     position: 'bottom-right',
@@ -590,6 +689,7 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     customize: 'Manage preferences',
     savePreferences: 'Save choices',
     downloadReceipt: 'Download consent receipt',
+    vendorsHeading: 'Services',
     privacyPolicyLabel: 'Privacy Policy',
     privacyPolicyUrl: 'https://yoursite.com/privacy',
     categories: defaultCategoryStrings(),
@@ -776,6 +876,67 @@ function mergeReceipts(d: ReceiptsConfig, p: DeepPartial<ReceiptsConfig> | undef
   };
 }
 
+/** Return a trimmed non-empty string, or `undefined` — for optional overrides. */
+function optStr(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+/** Return a validated enum member, or `undefined` when absent/invalid. */
+function optOneOf<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : undefined;
+}
+
+/** Return a clamped integer, or `undefined` when absent/invalid. */
+function optNum(value: unknown, min: number, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.min(max, Math.max(min, value));
+}
+
+/** Assign `value` onto `target[key]` only when defined (keeps overrides sparse). */
+function put<T, K extends keyof T>(target: T, key: K, value: T[K] | undefined): void {
+  if (value !== undefined) target[key] = value;
+}
+
+/** Normalize one A/B variant, keeping only present, valid presentation overrides. */
+function normalizeVariant(p: DeepPartial<AbVariant> | undefined, index: number): AbVariant {
+  const strings: AbVariant['strings'] = {};
+  put(strings, 'title', optStr(p?.strings?.title));
+  put(strings, 'message', optStr(p?.strings?.message));
+  put(strings, 'acceptAll', optStr(p?.strings?.acceptAll));
+  put(strings, 'rejectAll', optStr(p?.strings?.rejectAll));
+  put(strings, 'customize', optStr(p?.strings?.customize));
+
+  const banner: AbVariant['banner'] = {};
+  put(banner, 'layout', optOneOf(p?.banner?.layout, LAYOUTS));
+  put(banner, 'position', optOneOf(p?.banner?.position, POSITIONS));
+  put(banner, 'showRejectButton', typeof p?.banner?.showRejectButton === 'boolean' ? p.banner.showRejectButton : undefined);
+  put(banner, 'showPreferencesButton', typeof p?.banner?.showPreferencesButton === 'boolean' ? p.banner.showPreferencesButton : undefined);
+
+  const theme: AbVariant['theme'] = {};
+  put(theme, 'accent', optStr(p?.theme?.accent));
+  put(theme, 'mode', optOneOf(p?.theme?.mode, THEME_MODES));
+  put(theme, 'borderRadius', optNum(p?.theme?.borderRadius, 0, 40));
+
+  return {
+    id: strOr(p?.id, '').trim() || `V${index + 1}`,
+    label: strOr(p?.label, ''),
+    weight: numOr(p?.weight, 1, 0, 1_000_000),
+    strings,
+    banner,
+    theme,
+  };
+}
+
+/** Merge the A/B consent-rate test config (a provided variants array is authoritative). */
+function mergeAbTest(d: AbTestConfig, p: DeepPartial<AbTestConfig> | undefined): AbTestConfig {
+  return {
+    enabled: boolOr(p?.enabled, d.enabled),
+    variants: Array.isArray(p?.variants)
+      ? p.variants.map((v, i) => normalizeVariant(v, i))
+      : d.variants.map((v, i) => normalizeVariant(v, i)),
+  };
+}
+
 /** Merge banner layout config. */
 function mergeBanner(d: BannerConfig, p: DeepPartial<BannerConfig> | undefined): BannerConfig {
   return {
@@ -827,6 +988,7 @@ const LOCALE_STRING_KEYS: readonly Exclude<keyof LocaleStrings, 'categories'>[] 
   'customize',
   'savePreferences',
   'downloadReceipt',
+  'vendorsHeading',
   'privacyPolicyLabel',
 ];
 
@@ -878,6 +1040,7 @@ function mergeStrings(d: StringsConfig, p: DeepPartial<StringsConfig> | undefine
     customize: strOr(p?.customize, d.customize),
     savePreferences: strOr(p?.savePreferences, d.savePreferences),
     downloadReceipt: strOr(p?.downloadReceipt, d.downloadReceipt),
+    vendorsHeading: strOr(p?.vendorsHeading, d.vendorsHeading),
     privacyPolicyLabel: strOr(p?.privacyPolicyLabel, d.privacyPolicyLabel),
     privacyPolicyUrl: strOr(p?.privacyPolicyUrl, d.privacyPolicyUrl),
     categories: mergeCategoryStrings(d.categories, p?.categories),
@@ -893,6 +1056,7 @@ function normalizeScript(input: DeepPartial<ManagedScript>, index: number): Mana
     name: strOr(input.name, strOr(input.provider, 'Managed script')),
     provider: strOr(input.provider, ''),
     tagId: strOr(input.tagId, ''),
+    purpose: strOr(input.purpose, ''),
     category: strOr(input.category, 'marketing'),
     type: oneOf(input.type, SCRIPT_TYPES, 'src'),
     value: strOr(input.value, ''),
@@ -904,6 +1068,17 @@ function normalizeScript(input: DeepPartial<ManagedScript>, index: number): Mana
 function mergeScripts(d: ManagedScript[], p: DeepPartial<ManagedScript>[] | undefined): ManagedScript[] {
   if (!Array.isArray(p)) return d.map((s) => ({ ...s }));
   return p.map(normalizeScript);
+}
+
+/** Merge the preference-center config. */
+function mergePreferenceCenter(
+  d: PreferenceCenterConfig,
+  p: DeepPartial<PreferenceCenterConfig> | undefined,
+): PreferenceCenterConfig {
+  return {
+    showVendors: boolOr(p?.showVendors, d.showVendors),
+    perVendorToggles: boolOr(p?.perVendorToggles, d.perVendorToggles),
+  };
 }
 
 /** Merge advanced options. */
@@ -955,6 +1130,8 @@ export function mergeConfig(partial: DeepPartial<CookieConsentConfig> = {}): Coo
     geo: mergeGeo(d.geo, partial.geo),
     analytics: mergeAnalytics(d.analytics, partial.analytics),
     receipts: mergeReceipts(d.receipts, partial.receipts),
+    preferenceCenter: mergePreferenceCenter(d.preferenceCenter, partial.preferenceCenter),
+    abTest: mergeAbTest(d.abTest, partial.abTest),
     banner: mergeBanner(d.banner, partial.banner),
     theme: mergeTheme(d.theme, partial.theme),
     strings: mergeStrings(d.strings, partial.strings),

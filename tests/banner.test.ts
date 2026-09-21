@@ -201,6 +201,46 @@ test('hideAfterChoice honours the setting: default hides, false keeps a non-moda
   c3.destroy();
 });
 
+test('the "Powered by" credit links to the Consentful site', () => {
+  setupDom();
+  const config = mergeConfig();
+  const ctrl = mountBanner(config, { api: recordingApi(config) });
+  const link = ctrl.root.querySelector('.cc-powered__link') as HTMLAnchorElement;
+  assert.ok(link, 'powered-by link should render on every tier');
+  assert.equal(link.getAttribute('href'), 'https://consentful.theplugins.co');
+});
+
+test('the powered-by logo swaps variant by theme mode (light/dark/auto)', () => {
+  // light: the dark-ink wordmark, a plain <img>, no <picture>.
+  setupDom();
+  const light = mergeConfig({ theme: { mode: 'light' } });
+  const cl = mountBanner(light, { api: recordingApi(light) });
+  assert.equal(cl.root.querySelector('.cc-powered__pic'), null, 'light mode is a plain img, no <picture>');
+  const lightImg = cl.root.querySelector('.cc-powered__logo') as HTMLImageElement;
+  assert.ok(lightImg.getAttribute('src')!.endsWith('/logo.png'), 'light mode uses the default (dark-ink) logo');
+
+  // dark: the light wordmark, still a plain <img>.
+  setupDom();
+  const dark = mergeConfig({ theme: { mode: 'dark' } });
+  const cd = mountBanner(dark, { api: recordingApi(dark) });
+  assert.equal(cd.root.querySelector('.cc-powered__pic'), null, 'dark mode is a plain img, no <picture>');
+  const darkImg = cd.root.querySelector('.cc-powered__logo') as HTMLImageElement;
+  assert.ok(darkImg.getAttribute('src')!.endsWith('/logo-light.png'), 'dark mode uses the light logo variant');
+
+  // auto: a <picture> defaulting to the dark-ink logo, swapping to the light one
+  // under prefers-color-scheme: dark (mirrors the auto palette flip).
+  setupDom();
+  const auto = mergeConfig({ theme: { mode: 'auto' } });
+  const ca = mountBanner(auto, { api: recordingApi(auto) });
+  const pic = ca.root.querySelector('.cc-powered__pic');
+  assert.ok(pic, 'auto mode renders a <picture>');
+  const source = pic!.querySelector('source') as HTMLSourceElement;
+  assert.equal(source.getAttribute('media'), '(prefers-color-scheme:dark)');
+  assert.ok(source.getAttribute('srcset')!.endsWith('/logo-light.png'), 'dark-preference source is the light logo');
+  const autoImg = pic!.querySelector('.cc-powered__logo') as HTMLImageElement;
+  assert.ok(autoImg.getAttribute('src')!.endsWith('/logo.png'), 'auto default is the dark-ink logo');
+});
+
 /**
  * jsdom's `location.reload` is non-configurable and `location` can't be deleted,
  * so we can't stub it in place. Instead, swap the GLOBAL `window` the runtime

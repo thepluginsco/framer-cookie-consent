@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* The dashboard page runs in the browser; the Worker runs on the Cloudflare
+       runtime; the consent bridge runs on the published Wix site. All three use
+       the DOM/WHATWG globals (fetch, Request/Response, URL, crypto.subtle), so a
+       single DOM lib type-checks every half. Vite/Wrangler/esbuild bundle the
+       actual output; tsc is type-check-only (noEmit from the base). */
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "useDefineForClassFields": true,
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
+  },
+  /* Project reference to the shared core keeps this app in the same
+     type-checked graph and lets `@framer-cookie-consent/shared` resolve. */
+  "references": [{ "path": "../../shared" }],
+  "include": ["src"]
+}

@@ -1,0 +1,17 @@
+# Theme app extension config for the Consentful app-embed block.
+#
+# Deployed with the Shopify CLI (`shopify app deploy`) from the app root. The CLI
+# ships everything under this extension's `blocks/` and `assets/` folders:
+#   blocks/consentful.liquid            — the app-embed block (generated; see README)
+#   assets/consentful-consent-bridge.js — the Customer Privacy bridge (built)
+#
+# NOTE: confirm `api_version` and the exact key layout against the Shopify CLI
+# version you deploy with — the theme-app-extension TOML schema has changed
+# across CLI releases. This is deploy-time infra (your Shopify Partner account).
+
+api_version = "2024-10"
+
+[[extensions]]
+name = "Consentful cookie consent"
+handle = "consentful"
+type = "theme"

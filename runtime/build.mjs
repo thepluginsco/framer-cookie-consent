@@ -26,12 +26,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Hard ceiling for the minified bundle. Build fails above this.
  *
  * The bundle carries three banner layouts (card / bar / modal), light/dark/auto
- * theming, and the Pro features (accurate-geo endpoint resolver, multi-language
- * copy, consent-event analytics). It is still deferred and gzips to ~12 KB over
- * the wire, so the honest raw ceiling is 44 KB — with headroom so a careless
- * addition still trips the gate.
+ * theming, and the Pro / depth features (accurate-geo endpoint resolver,
+ * multi-language copy, consent-event analytics, the Phase 4.1 A/B consent-rate
+ * test, and the Phase 4.2 full preference center: per-category vendor lists +
+ * per-vendor consent switches gated by the script blocker). It is still
+ * deferred and gzips to ~17.5 KB over the wire (the redesigned banner + full
+ * preference center — tinted category icons, cookie hero marks, sectioned modal
+ * — added ~1.9 KB gzipped), so the honest raw ceiling is 60 KB — the wire cost
+ * is what matters, and there is headroom so a careless addition still trips the gate.
  */
-const MAX_BYTES = 44 * 1024; // 44 KB (≈12 KB gzipped)
+const MAX_BYTES = 60 * 1024; // 60 KB (≈17.5 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 

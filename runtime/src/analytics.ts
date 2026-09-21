@@ -19,6 +19,21 @@ import { onConsentChange, type ConsentState } from './consent-state.ts';
 /** The decision shape a visitor made, derived from the granted categories. */
 export type ConsentEventType = 'accept' | 'reject' | 'custom';
 
+/**
+ * Boot-time context layered onto every reported event. It's a LIVE object read
+ * at report time (not a snapshot): the runtime creates it once at boot with the
+ * assigned A/B `variant`, then fills in `region` after geo resolves — so a
+ * visitor's real button-press (which happens long after boot) carries both.
+ * Both stay PRIVACY-SAFE: a variant id and a coarse region bucket, never a
+ * precise location or any identifier.
+ */
+export interface AnalyticsContext {
+  /** Assigned A/B variant id (Phase 4.1), or absent when no test is running. */
+  variant?: string;
+  /** Coarse region bucket (`'EU'`, `'UK'`, `'US-CA'`, `'OTHER'`, …), or absent. */
+  region?: string;
+}
+
 /** The minimal, anonymous event payload sent to the collection endpoint. */
 export interface ConsentEvent {
   /** `accept` = all optional granted, `reject` = none, `custom` = a mix. */
@@ -27,6 +42,10 @@ export interface ConsentEvent {
   categories: Record<string, 0 | 1>;
   /** The `reconsentVersion` in effect, so counts can be bucketed per policy. */
   version: string;
+  /** Assigned A/B variant id, when a test is running (omitted otherwise). */
+  variant?: string;
+  /** Coarse region bucket, when geo has resolved (omitted otherwise). */
+  region?: string;
 }
 
 /**
@@ -38,7 +57,11 @@ export interface ConsentEvent {
  * @param state - The consent decision.
  * @returns The anonymous {@link ConsentEvent} to report.
  */
-export function buildConsentEvent(config: CookieConsentConfig, state: ConsentState): ConsentEvent {
+export function buildConsentEvent(
+  config: CookieConsentConfig,
+  state: ConsentState,
+  ctx: AnalyticsContext = {},
+): ConsentEvent {
   const optional = config.categories.filter((c) => !c.required);
   const categories: Record<string, 0 | 1> = {};
   let granted = 0;
@@ -49,7 +72,12 @@ export function buildConsentEvent(config: CookieConsentConfig, state: ConsentSta
   }
   const type: ConsentEventType =
     optional.length === 0 || granted === optional.length ? 'accept' : granted === 0 ? 'reject' : 'custom';
-  return { type, categories, version: state.version };
+  const event: ConsentEvent = { type, categories, version: state.version };
+  // Only attach the A/B / region dimensions when actually present, so a
+  // non-tested site keeps emitting the exact same payload it always has.
+  if (ctx.variant) event.variant = ctx.variant;
+  if (ctx.region) event.region = ctx.region;
+  return event;
 }
 
 /** POST an event body to the endpoint, preferring sendBeacon. Best-effort, never throws. */
@@ -86,10 +114,14 @@ function send(endpoint: string, body: string): void {
  * @param config - The active configuration.
  * @param state - The consent decision to report.
  */
-export function reportConsent(config: CookieConsentConfig, state: ConsentState): void {
+export function reportConsent(
+  config: CookieConsentConfig,
+  state: ConsentState,
+  ctx: AnalyticsContext = {},
+): void {
   const endpoint = config.analytics.endpoint.trim();
   if (!endpoint || typeof window === 'undefined') return;
-  send(endpoint, JSON.stringify(buildConsentEvent(config, state)));
+  send(endpoint, JSON.stringify(buildConsentEvent(config, state, ctx)));
 }
 
 /**
@@ -97,9 +129,15 @@ export function reportConsent(config: CookieConsentConfig, state: ConsentState):
  * decision. No-op when analytics is disabled. Call once during boot.
  *
  * @param config - The active configuration.
+ * @param ctx - Live A/B / region context, read at each report (Phase 4.1). The
+ *   caller may mutate it after install (e.g. set `region` once geo resolves) and
+ *   later events pick the new values up.
  * @returns An unsubscribe function (a no-op when analytics is disabled).
  */
-export function installConsentAnalytics(config: CookieConsentConfig): () => void {
+export function installConsentAnalytics(
+  config: CookieConsentConfig,
+  ctx: AnalyticsContext = {},
+): () => void {
   if (!config.analytics.endpoint.trim()) return () => {};
-  return onConsentChange((state) => reportConsent(config, state));
+  return onConsentChange((state) => reportConsent(config, state, ctx));
 }

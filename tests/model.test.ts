@@ -21,7 +21,7 @@ import {
   scriptHost,
   type CfgScript,
   type CfgCategory,
-} from '../plugin/src/consentful/model.ts';
+} from '../shared-ui/src/model.ts';
 
 /** Build a DetectedTracker with sensible defaults for these tests. */
 function tracker(over: Partial<DetectedTracker> = {}): DetectedTracker {

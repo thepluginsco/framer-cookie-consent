@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* The authoring UI and the consent-bridge asset both run in the browser
+       (the storefront / the theme editor host), so a single DOM lib covers
+       type-checking. Vite/esbuild bundle the actual output; tsc is
+       type-check-only (noEmit from the base). */
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
+  },
+  /* Project reference to the shared core keeps this app in the same
+     type-checked graph and lets `@framer-cookie-consent/shared` resolve. */
+  "references": [{ "path": "../../shared" }],
+  "include": ["src"]
+}

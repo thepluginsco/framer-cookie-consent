@@ -32,7 +32,7 @@ import {
   type CachedLicense,
 } from "../lib/licenseCache"
 import { entitlementsFor, type Entitlements } from "../lib/entitlements"
-import { useSettingsContext } from "../state/settings-context"
+import { useSettingsContext } from "@framer-cookie-consent/shared-ui"
 import type { LicenseTier } from "../types"
 
 /* -------------------------------------------------------------------------- */

@@ -48,6 +48,12 @@ export interface ConsentReceipt {
   language: string;
   /** Per-category grants at decision time (a self-contained copy). */
   categories: Record<string, boolean>;
+  /**
+   * Per-vendor grants at decision time (script id → granted), present only when
+   * the visitor made vendor-level choices in the preference center. Absent for
+   * category-only decisions, so older / simpler receipts are unaffected.
+   */
+  vendors?: Record<string, boolean>;
   /** Google Consent Mode signals granted by this decision, sorted. */
   signals: string[];
   /** Tamper-evident integrity fingerprint over every field above. */
@@ -62,6 +68,14 @@ export interface ConsentState {
   timestamp: number;
   /** Per-category grant map, keyed by category id. */
   categories: Record<string, boolean>;
+  /**
+   * Per-vendor grant map, keyed by {@link ManagedScript.id}. Present only when
+   * the visitor toggled individual vendors in the preference center (Phase 4.2).
+   * A vendor absent from the map is governed solely by its category; a vendor
+   * mapped to `false` is held back by the script blocker even if its category is
+   * granted. Absent entirely for category-only decisions.
+   */
+  vendors?: Record<string, boolean>;
   /**
    * Verifiable receipt for this decision. Present when
    * `config.receipts.enabled` (the default); absent for decisions made with
@@ -78,8 +92,13 @@ export interface CookieConsentApi {
    * Grant exactly these categories (plus required); persist + emit. `method`
    * labels the receipt (defaults to `custom`; the runtime passes `gpc` when
    * auto-applying a Global Privacy Control opt-out).
+   *
+   * `vendors` optionally carries per-vendor decisions (script id → granted) from
+   * the preference center: a vendor mapped to `false` is held back even while
+   * its category is granted. Unknown ids are dropped; omitting the map keeps the
+   * decision category-only.
    */
-  accept(categoryIds: string[], method?: ConsentMethod): void;
+  accept(categoryIds: string[], method?: ConsentMethod, vendors?: Record<string, boolean>): void;
   /** Grant every category. `method` labels the receipt (defaults to `accept_all`). */
   acceptAll(method?: ConsentMethod): void;
   /** Grant only required categories. `method` labels the receipt (defaults to `reject_all`). */
@@ -213,7 +232,7 @@ function canonicalReceipt(r: Omit<ConsentReceipt, 'proof'>): string {
     .sort()
     .map((k) => `${k}:${r.categories[k] ? 1 : 0}`)
     .join(',');
-  return [
+  const parts = [
     r.id,
     r.issued,
     r.method,
@@ -224,7 +243,17 @@ function canonicalReceipt(r: Omit<ConsentReceipt, 'proof'>): string {
     r.language,
     cats,
     [...r.signals].sort().join(','),
-  ].join('|');
+  ];
+  // Vendors are appended ONLY when present, so a category-only receipt hashes
+  // exactly as before (older receipts and callers stay verifiable unchanged).
+  if (r.vendors && Object.keys(r.vendors).length > 0) {
+    const vendors = Object.keys(r.vendors)
+      .sort()
+      .map((k) => `${k}:${r.vendors![k] ? 1 : 0}`)
+      .join(',');
+    parts.push(`v=${vendors}`);
+  }
+  return parts.join('|');
 }
 
 /**
@@ -249,6 +278,7 @@ function buildReceipt(
   categories: Record<string, boolean>,
   method: ConsentMethod,
   timestamp: number,
+  vendors?: Record<string, boolean>,
 ): ConsentReceipt {
   const base: Omit<ConsentReceipt, 'proof'> = {
     id: newReceiptId(),
@@ -262,6 +292,7 @@ function buildReceipt(
     categories: { ...categories },
     signals: grantedSignals(config, categories),
   };
+  if (vendors && Object.keys(vendors).length > 0) base.vendors = { ...vendors };
   return { ...base, proof: fingerprint(canonicalReceipt(base)) };
 }
 
@@ -329,6 +360,8 @@ export function readConsent(config: CookieConsentConfig, cookieName = DEFAULT_CO
       return null;
     }
     state = { version: p.version, timestamp: p.timestamp, categories: p.categories as Record<string, boolean> };
+    // Carry per-vendor decisions through verbatim (older records simply lack them).
+    if (p.vendors && typeof p.vendors === 'object') state.vendors = p.vendors as Record<string, boolean>;
     // Carry a stored receipt through verbatim (older records simply lack one).
     if (p.receipt && typeof p.receipt === 'object') state.receipt = p.receipt as ConsentReceipt;
   } catch {
@@ -352,6 +385,7 @@ export function writeConsent(
   categories: Record<string, boolean>,
   cookieName = DEFAULT_COOKIE_NAME,
   method: ConsentMethod = 'custom',
+  vendors?: Record<string, boolean>,
 ): ConsentState {
   const normalized: Record<string, boolean> = { ...categories };
   for (const c of config.categories) {
@@ -363,9 +397,34 @@ export function writeConsent(
     timestamp,
     categories: normalized,
   };
-  if (receiptsEnabled(config)) state.receipt = buildReceipt(config, normalized, method, timestamp);
+  // Keep only vendor decisions that name a real config script, so a stale or
+  // hostile map can't bloat the record with junk ids.
+  const cleanVendors = filterVendors(config, vendors);
+  if (cleanVendors) state.vendors = cleanVendors;
+  if (receiptsEnabled(config)) state.receipt = buildReceipt(config, normalized, method, timestamp, cleanVendors);
   persist(JSON.stringify(state), cookieName, config.behavior.consentExpiryDays);
   return state;
+}
+
+/**
+ * Keep only vendor entries that reference a real {@link CookieConsentConfig.scripts}
+ * id, coercing values to booleans. Returns `undefined` when the input is empty or
+ * yields nothing, so a category-only decision stores no `vendors` key at all.
+ */
+function filterVendors(
+  config: CookieConsentConfig,
+  vendors: Record<string, boolean> | undefined,
+): Record<string, boolean> | undefined {
+  if (!vendors || typeof vendors !== 'object') return undefined;
+  const known = new Set(config.scripts.map((s) => s.id));
+  const out: Record<string, boolean> = {};
+  let any = false;
+  for (const [id, ok] of Object.entries(vendors)) {
+    if (!known.has(id)) continue;
+    out[id] = ok === true;
+    any = true;
+  }
+  return any ? out : undefined;
 }
 
 /** Erase the stored decision from both stores (used by "withdraw consent"). */
@@ -459,13 +518,13 @@ function decide(config: CookieConsentConfig, granted: readonly string[]): Record
  * @returns the API object (also returned for non-browser callers/tests).
  */
 export function installConsentApi(config: CookieConsentConfig, cookieName = DEFAULT_COOKIE_NAME): CookieConsentApi {
-  const apply = (granted: readonly string[], method: ConsentMethod): void => {
-    emitConsentChange(writeConsent(config, decide(config, granted), cookieName, method));
+  const apply = (granted: readonly string[], method: ConsentMethod, vendors?: Record<string, boolean>): void => {
+    emitConsentChange(writeConsent(config, decide(config, granted), cookieName, method, vendors));
   };
   const getReceipt = (): ConsentReceipt | null => readConsent(config, cookieName)?.receipt ?? null;
   const api: CookieConsentApi = {
     getState: () => readConsent(config, cookieName),
-    accept: (cats, method = 'custom') => apply(cats, method),
+    accept: (cats, method = 'custom', vendors) => apply(cats, method, vendors),
     acceptAll: (method = 'accept_all') => apply(config.categories.map((c) => c.id), method),
     rejectAll: (method = 'reject_all') => apply([], method),
     openPreferences: () => {

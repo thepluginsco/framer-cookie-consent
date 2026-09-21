@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Browser target for a static Vite app. Vite bundles the output; tsc is
+       type-check-only (noEmit from the base config). */
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
+  },
+  /* Project reference to the shared core keeps this app in the same
+     type-checked graph and lets `@framer-cookie-consent/shared` resolve. */
+  "references": [{ "path": "../../shared" }],
+  "include": ["src"]
+}

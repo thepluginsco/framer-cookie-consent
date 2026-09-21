@@ -84,6 +84,7 @@ export function localizeStrings(strings: StringsConfig, languages: readonly stri
     customize: t.customize || strings.customize,
     savePreferences: t.savePreferences || strings.savePreferences,
     downloadReceipt: t.downloadReceipt || strings.downloadReceipt,
+    vendorsHeading: t.vendorsHeading || strings.vendorsHeading,
     privacyPolicyLabel: t.privacyPolicyLabel || strings.privacyPolicyLabel,
     categories: localizeCategories(strings.categories, t.categories),
   };

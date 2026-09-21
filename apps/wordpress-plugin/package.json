@@ -1,0 +1,26 @@
+{
+  "name": "@framer-cookie-consent/wordpress-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WordPress App shell (Phase 3.3) — a PHP plugin (settings screen + REST option store + wp_head printer + active-plugin tracker detection) whose admin bundle authors the banner and installs the loader via the shared engine.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@framer-cookie-consent/shared": "*",
+    "@framer-cookie-consent/shared-ui": "*",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6",
+    "typescript": "^5.9",
+    "vite": "^8"
+  }
+}

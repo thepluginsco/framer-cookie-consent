@@ -1,0 +1,2 @@
+# The built consent bridge (consentful-consent-bridge.js) is emitted here by
+# `npm run build:bridge` (esbuild). It is a build artifact.

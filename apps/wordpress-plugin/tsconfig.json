@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* The admin bundle runs in the wp-admin browser; it uses the DOM/WHATWG
+       globals (fetch, URL, document). Vite bundles the actual output; tsc is
+       type-check-only (noEmit from the base). */
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
+  },
+  /* Project reference to the shared core keeps this app in the same
+     type-checked graph and lets `@framer-cookie-consent/shared` resolve. */
+  "references": [{ "path": "../../shared" }],
+  "include": ["src"]
+}

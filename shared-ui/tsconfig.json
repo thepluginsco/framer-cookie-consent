@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    /* React authoring UI, bundled by each consuming app's Vite; tsc is
+       type-check-only here (noEmit from the base config). Mirrors the plugin's
+       editor-iframe target so the shared components type-check identically to
+       how Framer consumes them. */
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "allowImportingTsExtensions": true,
+    "types": []
+  },
+  "references": [{ "path": "../shared" }],
+  "include": ["src"]
+}

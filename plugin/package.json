@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@framer-cookie-consent/shared": "*",
+    "@framer-cookie-consent/shared-ui": "*",
     "@framer-cookie-consent/runtime": "*",
     "@framer/plugin": "^4",
     "react": "^18",

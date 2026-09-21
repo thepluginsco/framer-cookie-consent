@@ -286,91 +286,145 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r}{${paletteVars(base, theme)};font-family:var(--cc-ft);color:var(--cc-tx);line-height:1.5;font-size:14px;box-sizing:border-box}`,
     `${r} *,${r} *::before,${r} *::after{box-sizing:border-box}`,
     `${r} :focus-visible{outline:2px solid var(--cc-ac);outline-offset:2px;border-radius:3px}`,
-    `${r} .cc-overlay{position:fixed;inset:0;background:rgba(15,18,28,.4);z-index:2147483646}`,
+    `${r} .cc-overlay{position:fixed;inset:0;background:rgba(15,18,28,.45);z-index:2147483646}`,
 
-    // Surface (banner + modal share it).
-    `${r} .cc-banner{position:fixed;z-index:2147483647;background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 14px 40px rgba(23,28,45,.22);padding:20px;width:calc(100% - 32px);max-width:420px}`,
-    `${r} .cc-banner__inner{display:block}`,
+    // Surface (banner + modal share it). The banner is a horizontal hero card:
+    // decorative cookie figure, copy, then a stacked action column.
+    `${r} .cc-banner{position:fixed;z-index:2147483647;background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 22px 60px rgba(23,28,45,.22);padding:22px 24px;width:calc(100% - 32px);max-width:460px}`,
+    `${r} .cc-banner__inner{display:flex;align-items:center;flex-wrap:wrap;gap:18px}`,
 
     // Card positions.
     `${r} .cc-banner--card.cc-pos-bottom-left{bottom:20px;left:20px}`,
     `${r} .cc-banner--card.cc-pos-bottom-right{bottom:20px;right:20px}`,
-    `${r} .cc-banner--card.cc-pos-bottom-center{bottom:20px;left:50%;transform:translateX(-50%)}`,
-    `${r} .cc-banner--card.cc-pos-center{top:50%;left:50%;transform:translate(-50%,-50%)}`,
+    `${r} .cc-banner--card.cc-pos-bottom-center{bottom:20px;left:50%;transform:translateX(-50%);max-width:640px}`,
+    `${r} .cc-banner--card.cc-pos-center{top:50%;left:50%;transform:translate(-50%,-50%);max-width:640px}`,
 
     // Bar layout: spans the bottom edge, content in a centred row.
-    `${r} .cc-banner--bar{left:0;right:0;bottom:0;width:100%;max-width:none;border-radius:0;border-width:1px 0 0 0;box-shadow:0 -6px 20px rgba(23,28,45,.12);padding:16px 24px}`,
-    `${r} .cc-banner--bar .cc-banner__inner{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;max-width:1120px;margin:0 auto}`,
+    `${r} .cc-banner--bar{left:0;right:0;bottom:0;width:100%;max-width:none;border-radius:0;border-width:1px 0 0 0;box-shadow:0 -6px 24px rgba(23,28,45,.12);padding:16px 24px}`,
+    `${r} .cc-banner--bar .cc-banner__inner{display:flex;gap:12px 22px;max-width:1120px;margin:0 auto}`,
     `${r} .cc-banner--bar .cc-banner__text{flex:1;min-width:0}`,
-    `${r} .cc-banner--bar .cc-banner__message{display:none}`,
-    `${r} .cc-banner--bar .cc-banner__actions{margin-top:0;flex:0 0 auto}`,
+    `${r} .cc-banner--bar .cc-banner__disc{width:60px;height:60px}`,
+    `${r} .cc-banner--bar .cc-banner__mark{width:50px;height:50px}`,
+    `${r} .cc-banner--bar .cc-banner__title{font-size:17px}`,
+    `${r} .cc-banner--bar .cc-banner__actions{flex-direction:row;min-width:0;align-self:center}`,
+    `${r} .cc-banner--bar .cc-powered{flex-basis:auto;position:absolute;top:9px;right:16px;margin:0}`,
 
     // Modal layout: centred dialog.
-    `${r} .cc-banner--modal{top:50%;left:50%;transform:translate(-50%,-50%);max-width:460px}`,
+    `${r} .cc-banner--modal{top:50%;left:50%;transform:translate(-50%,-50%);max-width:640px}`,
+
+    // Decorative cookie figure: a tinted disc + brand mark, divided from the copy.
+    `${r} .cc-banner__figure{flex:0 0 auto;position:relative;display:flex;align-items:center;padding-right:20px}`,
+    `${r} .cc-banner__figure::after{content:"";position:absolute;top:6px;bottom:6px;right:0;width:1px;background:var(--cc-bd)}`,
+    `${r} .cc-banner__disc{position:relative;display:flex;align-items:center;justify-content:center;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#eef2ff,#e6ebff);overflow:hidden}`,
+    `${r} .cc-banner__disc::before{content:"";position:absolute;left:9px;bottom:11px;width:32px;height:24px;background-image:radial-gradient(currentColor 1.1px,transparent 1.3px);background-size:8px 8px;color:rgba(96,120,214,.35)}`,
+    `${r} .cc-banner__mark{position:relative;width:74px;height:74px;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(23,28,45,.16))}`,
 
     // Banner content.
-    `${r} .cc-banner__title{margin:0;font-size:17px;font-weight:800;letter-spacing:-.01em;color:var(--cc-tx)}`,
-    `${r} .cc-banner__message{margin:6px 0 0;font-size:13px;line-height:1.55;color:var(--cc-sub)}`,
-    `${r} .cc-banner__manage{display:inline-block;margin-top:12px;font-size:13px;font-weight:700;color:var(--cc-ac);background:none;border:none;padding:0;cursor:pointer;text-decoration:none}`,
-    `${r} .cc-banner__manage:hover{text-decoration:underline}`,
-    `${r} .cc-banner--bar .cc-banner__manage{margin-top:4px}`,
-    `${r} .cc-banner__policy{display:inline-block;margin-top:8px;margin-left:14px;font-size:12px;color:var(--cc-sub);text-decoration:underline}`,
-    `${r} .cc-banner--bar .cc-banner__policy{margin-top:4px}`,
-    `${r} .cc-banner__actions{display:flex;gap:9px;margin-top:16px}`,
-    `${r} .cc-banner--card .cc-banner__actions .cc-btn{flex:1}`,
+    `${r} .cc-banner__text{flex:1 1 240px;min-width:200px}`,
+    `${r} .cc-banner__title{margin:0;font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--cc-tx)}`,
+    `${r} .cc-banner__message{margin:7px 0 0;font-size:13.5px;line-height:1.55;color:var(--cc-sub)}`,
+    `${r} .cc-banner__links{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px}`,
+    `${r} .cc-banner__manage{font:inherit;font-size:13px;font-weight:700;color:var(--cc-ac);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}`,
+    `${r} .cc-banner__manage:hover{opacity:.82}`,
+    `${r} .cc-banner__sep{color:var(--cc-bd);font-size:12px;user-select:none}`,
+    `${r} .cc-banner__policy{font-size:13px;color:var(--cc-sub);text-decoration:underline;text-underline-offset:2px}`,
+    `${r} .cc-banner__policy:hover{color:var(--cc-tx)}`,
+    `${r} .cc-banner__actions{display:flex;flex-direction:column;gap:10px;flex:0 0 auto;align-self:center;min-width:150px}`,
+    `${r} .cc-banner__actions .cc-btn{width:100%}`,
+    `${r} .cc-banner--bar .cc-banner__actions .cc-btn{width:auto}`,
+
+    // Banner dismiss "×" (non-blocking layouts only).
+    `${r} .cc-banner__close{position:absolute;top:12px;right:13px;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;background:none;border:none;border-radius:8px;color:var(--cc-sub);font-size:20px;line-height:1;cursor:pointer;padding:0}`,
+    `${r} .cc-banner__close:hover{color:var(--cc-tx);background:rgba(127,131,138,.12)}`,
 
     // Buttons.
-    `${r} .cc-btn{font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;border:1px solid transparent;border-radius:var(--cc-rdb);padding:10px 16px;white-space:nowrap;transition:filter 120ms ease,background 120ms ease}`,
-    `${r} .cc-btn--primary{background:var(--cc-ac);color:var(--cc-act)}`,
-    `${r} .cc-btn--primary:hover{filter:brightness(1.06)}`,
-    `${r} .cc-btn--secondary{background:transparent;color:var(--cc-tx);border-color:var(--cc-rjb)}`,
-    `${r} .cc-btn--secondary:hover{background:rgba(127,131,138,.08)}`,
+    `${r} .cc-btn{font:inherit;font-size:14px;font-weight:700;cursor:pointer;border:1px solid transparent;border-radius:var(--cc-rdb);padding:11px 22px;white-space:nowrap;transition:filter .12s ease,box-shadow .12s ease,background .12s}`,
+    `${r} .cc-btn--primary{background:var(--cc-ac);color:var(--cc-act);box-shadow:0 6px 16px rgba(23,28,45,.16)}`,
+    `${r} .cc-btn--primary{background:linear-gradient(180deg,color-mix(in srgb,var(--cc-ac) 82%,#fff),var(--cc-ac))}`,
+    `${r} .cc-btn--primary:hover{filter:brightness(1.04)}`,
+    `${r} .cc-btn--secondary{background:var(--cc-bg);color:var(--cc-tx);border-color:var(--cc-rjb);box-shadow:0 1px 2px rgba(23,28,45,.05)}`,
+    `${r} .cc-btn--secondary:hover{background:rgba(127,131,138,.06)}`,
 
-    // Powered-by credit — a right-aligned footer line beneath the actions:
-    // "Powered by" set inline before the full logo, so it reads as a credit and
-    // never crowds the title. In the BAR layout it's instead pinned to the
-    // corner, out of the single flex row (which the text region depends on).
-    `${r} .cc-powered{display:flex;justify-content:flex-end;align-items:center;margin:14px 0 0;z-index:1}`,
+    // Powered-by credit — a right-aligned footer line on its own wrapped row.
+    `${r} .cc-powered{display:flex;justify-content:flex-end;align-items:center;flex-basis:100%;margin:0;z-index:1}`,
     `${r} .cc-powered__link{display:inline-flex;flex-direction:row;align-items:center;gap:6px;text-decoration:none;line-height:1}`,
     `${r} .cc-powered__by{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--cc-sub)}`,
+    `${r} .cc-powered__pic{display:contents}`,
     `${r} .cc-powered__logo{height:20px;width:auto;display:block}`,
     `${r} .cc-powered__link:hover .cc-powered__logo{opacity:.82}`,
-    `${r} .cc-banner--bar .cc-powered{position:absolute;top:10px;right:16px;margin:0}`,
 
-    // Preferences modal.
-    `${r} .cc-modal{position:fixed;z-index:2147483647;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 16px 50px rgba(23,28,45,.3);width:calc(100% - 32px);max-width:460px;max-height:calc(100vh - 48px);display:flex;flex-direction:column;padding:18px}`,
-    `${r} .cc-modal__header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}`,
-    `${r} .cc-modal__title{margin:0;font-size:16px;font-weight:800;color:var(--cc-tx)}`,
-    `${r} .cc-modal__close{background:none;border:none;cursor:pointer;color:var(--cc-sub);font-size:22px;line-height:1;padding:0 2px}`,
+    // Preferences modal — sectioned: header, scrollable body of card rows, footer.
+    `${r} .cc-modal{position:fixed;z-index:2147483647;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 24px 70px rgba(23,28,45,.3);width:calc(100% - 32px);max-width:540px;max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden}`,
+    `${r} .cc-modal__header{display:flex;align-items:flex-start;gap:16px;padding:22px 24px 14px}`,
+    `${r} .cc-modal__figure{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#eef2ff,#e6ebff);overflow:hidden}`,
+    `${r} .cc-modal__mark{width:50px;height:50px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(23,28,45,.16))}`,
+    `${r} .cc-modal__heading{flex:1;min-width:0;padding-top:2px}`,
+    `${r} .cc-modal__title{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--cc-tx)}`,
+    `${r} .cc-modal__subtitle{margin:5px 0 0;font-size:13px;line-height:1.5;color:var(--cc-sub)}`,
+    `${r} .cc-modal__close{flex:0 0 auto;background:none;border:none;cursor:pointer;color:var(--cc-sub);font-size:22px;line-height:1;padding:0 2px;margin-top:-2px}`,
     `${r} .cc-modal__close:hover{color:var(--cc-tx)}`,
-    `${r} .cc-modal__body{overflow-y:auto;margin:0 -2px}`,
-    `${r} .cc-modal__footer{display:flex;gap:9px;margin-top:14px}`,
-    `${r} .cc-modal__footer .cc-btn{flex:1}`,
+    `${r} .cc-modal__body{overflow-y:auto;padding:6px 24px 10px;display:flex;flex-direction:column;gap:10px}`,
+    `${r} .cc-modal__footer{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 24px 20px;border-top:1px solid var(--cc-bd)}`,
+    `${r} .cc-modal__note{display:flex;align-items:flex-start;gap:9px;flex:1 1 220px;min-width:0}`,
+    `${r} .cc-modal__info{flex:0 0 auto;color:var(--cc-sub);margin-top:1px}`,
+    `${r} .cc-modal__info svg{width:18px;height:18px;display:block}`,
+    `${r} .cc-modal__note-text{min-width:0}`,
+    `${r} .cc-modal__note-line{display:block;font-size:12px;color:var(--cc-sub);line-height:1.4}`,
+    `${r} .cc-modal__note-links{display:flex;align-items:center;gap:8px;margin-top:3px}`,
+    `${r} .cc-modal__note-link{font:inherit;font-size:12px;font-weight:600;color:var(--cc-sub);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}`,
+    `${r} .cc-modal__note-link:hover{color:var(--cc-tx)}`,
+    `${r} .cc-modal__note-sep{color:var(--cc-bd);font-size:11px;user-select:none}`,
+    `${r} .cc-modal__actions{display:flex;gap:10px;flex:0 0 auto}`,
+    `${r} .cc-modal__actions .cc-btn{min-width:120px}`,
 
-    // Verifiable-receipt download — a muted line above the footer buttons,
-    // shown only once a decision exists (see banner.ts syncReceiptControl).
-    `${r} .cc-modal__receipt{margin-top:12px;padding-top:12px;border-top:1px solid var(--cc-bd)}`,
+    // Verifiable-receipt download — a muted line above the footer.
+    `${r} .cc-modal__receipt{margin:0 24px;padding:10px 0;border-top:1px solid var(--cc-bd)}`,
     `${r} .cc-receipt-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:600;color:var(--cc-sub);background:none;border:none;padding:0;cursor:pointer;text-decoration:none}`,
     `${r} .cc-receipt-btn:hover{color:var(--cc-tx);text-decoration:underline}`,
     `${r} .cc-receipt-btn__icon{font-size:14px;line-height:1;font-weight:800;color:var(--cc-ac)}`,
 
-    // Category rows in the preferences modal.
-    `${r} .cc-cat{display:flex;align-items:flex-start;gap:12px;padding:12px 2px;border-bottom:1px solid var(--cc-bd)}`,
-    `${r} .cc-cat:last-child{border-bottom:0}`,
+    // Category rows — each a bordered card holding a tinted icon, copy, control.
+    `${r} .cc-cat-block{border:1px solid var(--cc-bd);border-radius:14px;background:var(--cc-bg)}`,
+    `${r} .cc-cat{display:flex;align-items:center;gap:14px;padding:14px 16px}`,
+    `${r} .cc-cat__icon{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px}`,
+    `${r} .cc-cat__icon svg{width:20px;height:20px;display:block}`,
+    `${r} .cc-cat__icon--neutral{background:#eef0f4;color:#6b7280}`,
+    `${r} .cc-cat__icon--blue{background:#e6efff;color:#3b7bf6}`,
+    `${r} .cc-cat__icon--violet{background:#f1e9ff;color:#8b5cf6}`,
+    `${r} .cc-cat__icon--green{background:#e4f6ec;color:#1ba565}`,
     `${r} .cc-cat__text{flex:1;min-width:0}`,
-    `${r} .cc-cat__label{font-size:13.5px;font-weight:700;color:var(--cc-tx)}`,
-    `${r} .cc-cat__desc{margin:3px 0 0;font-size:12px;line-height:1.45;color:var(--cc-sub)}`,
+    `${r} .cc-cat__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}`,
+    `${r} .cc-cat__label{font-size:14.5px;font-weight:700;color:var(--cc-tx)}`,
+    `${r} .cc-cat__always{font-size:11px;font-weight:700;color:#3b7bf6;background:#e6efff;padding:2px 9px;border-radius:20px}`,
+    `${r} .cc-cat__desc{margin:3px 0 0;font-size:12.5px;line-height:1.45;color:var(--cc-sub)}`,
 
-    // Toggle switch (42x24 track, matches the plugin exactly).
+    // Per-vendor list (Phase 4.2 preference center) — the services a category gates.
+    `${r} .cc-cat__vendors{margin:0 16px 14px;padding:8px 12px;background:rgba(127,131,138,.07);border-radius:10px}`,
+    `${r} .cc-cat__vendors-h{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--cc-sub);margin-bottom:4px}`,
+    `${r} .cc-vendor{display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--cc-bd)}`,
+    `${r} .cc-vendor:first-of-type{border-top:0}`,
+    `${r} .cc-vendor__text{flex:1;min-width:0}`,
+    `${r} .cc-vendor__name{font-size:12.5px;font-weight:600;color:var(--cc-tx)}`,
+    `${r} .cc-vendor__meta{margin:1px 0 0;font-size:11px;line-height:1.4;color:var(--cc-sub);word-break:break-word}`,
+    `${r} .cc-vendor__dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--cc-ac);opacity:.55}`,
+    // Compact vendor switch (a smaller variant of the category toggle).
+    `${r} .cc-switch--sm input{width:34px;height:20px}`,
+    `${r} .cc-switch--sm .cc-switch__track{width:34px;height:20px}`,
+    `${r} .cc-switch--sm .cc-switch__track::after{width:16px;height:16px}`,
+    `${r} .cc-switch--sm input:checked ~ .cc-switch__track::after{transform:translateX(14px)}`,
+
+    // Toggle switch (48x28 track).
     `${r} .cc-switch{position:relative;flex:0 0 auto;display:inline-flex;align-items:center}`,
-    `${r} .cc-switch input{position:absolute;opacity:0;width:42px;height:24px;margin:0;cursor:pointer}`,
-    `${r} .cc-switch__track{position:relative;width:42px;height:24px;border-radius:20px;background:var(--cc-rjb);transition:background .18s}`,
-    `${r} .cc-switch__track::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(23,28,45,.28);transition:transform .18s}`,
+    `${r} .cc-switch input{position:absolute;opacity:0;width:48px;height:28px;margin:0;cursor:pointer}`,
+    `${r} .cc-switch__track{position:relative;width:48px;height:28px;border-radius:20px;background:var(--cc-rjb);transition:background .18s}`,
+    `${r} .cc-switch__track::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(23,28,45,.28);transition:transform .18s}`,
     `${r} .cc-switch input:checked ~ .cc-switch__track{background:var(--cc-ac)}`,
-    `${r} .cc-switch input:checked ~ .cc-switch__track::after{transform:translateX(18px)}`,
+    `${r} .cc-switch input:checked ~ .cc-switch__track::after{transform:translateX(20px)}`,
     `${r} .cc-switch input:disabled ~ .cc-switch__track{opacity:.6}`,
     `${r} .cc-switch input:focus-visible ~ .cc-switch__track{outline:2px solid var(--cc-ac);outline-offset:2px}`,
-    `${r} .cc-cat__on{font-size:10px;font-weight:800;letter-spacing:.04em;color:var(--cc-sub);background:rgba(127,131,138,.14);padding:3px 9px;border-radius:20px;flex:0 0 auto;align-self:center}`,
+    // Required-category static "ON" control — a disabled-looking switch.
+    `${r} .cc-cat__on{position:relative;flex:0 0 auto;width:52px;height:28px;border-radius:20px;background:var(--cc-rjb);color:var(--cc-sub);font-size:10px;font-weight:800;letter-spacing:.06em;display:inline-flex;align-items:center;padding-left:11px}`,
+    `${r} .cc-cat__on::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(23,28,45,.22)}`,
 
     // Floating re-open button.
     `${r} .cc-fab{position:fixed;z-index:2147483645;background:var(--cc-ac);color:var(--cc-act);border:none;border-radius:999px;box-shadow:0 6px 18px rgba(23,28,45,.28);padding:11px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}`,

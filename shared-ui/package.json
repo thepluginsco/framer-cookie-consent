@@ -1,0 +1,31 @@
+{
+  "name": "@framer-cookie-consent/shared-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The shared Consentful authoring UI (React): design tokens, primitives, the editor shell and portable panels. Every platform front-end (Framer, embed, Webflow, WordPress, Shopify, Wix) renders these same components through a small host adapter, so the UI/UX is identical across surfaces.",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./fonts.css": "./src/fonts.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "dependencies": {
+    "@framer-cookie-consent/shared": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5.9"
+  }
+}

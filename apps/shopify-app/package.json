@@ -1,0 +1,29 @@
+{
+  "name": "@framer-cookie-consent/shopify-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shopify App shell (Phase 3.4) — a theme app extension (app-embed block) that renders the shared loader, a Customer Privacy consent bridge, and a static authoring UI that generates the deployable Liquid block.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:bridge && vite build",
+    "build:bridge": "node build-bridge.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "deploy": "shopify app deploy"
+  },
+  "dependencies": {
+    "@framer-cookie-consent/shared": "*",
+    "@framer-cookie-consent/shared-ui": "*",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.9",
+    "vite": "^8"
+  }
+}

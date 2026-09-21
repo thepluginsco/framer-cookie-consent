@@ -1,8 +1,10 @@
 import { framer } from "@framer/plugin"
 
+import "@framer-cookie-consent/shared-ui/fonts.css"
 import "./App.css"
+import { ConsentfulShell, HostProvider } from "@framer-cookie-consent/shared-ui"
 import { SettingsProvider } from "./state/SettingsProvider"
-import { ConsentfulShell } from "./consentful/ConsentfulShell"
+import { framerHost } from "./host/framerHost"
 
 /**
  * Root of the Consentful plugin UI (runs inside the Framer editor iframe).
@@ -40,7 +42,9 @@ try {
 export function App() {
   return (
     <SettingsProvider>
-      <ConsentfulShell />
+      <HostProvider value={framerHost}>
+        <ConsentfulShell />
+      </HostProvider>
     </SettingsProvider>
   )
 }

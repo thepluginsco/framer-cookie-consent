@@ -137,6 +137,24 @@ function isRegulated(r: RegionInfo): boolean {
 }
 
 /**
+ * Collapse a {@link RegionInfo} to a coarse, privacy-safe bucket for analytics
+ * (Phase 4.1 A/B / region breakdown). Deliberately low-cardinality — a handful
+ * of regulatory zones, never a precise country — so an event can carry "where"
+ * without carrying anything that identifies a visitor.
+ *
+ * @param r - The resolved region.
+ * @returns One of `'US-CA'`, `'UK'`, `'CH'`, `'EU'`, `'UNKNOWN'`, `'OTHER'`.
+ */
+export function regionBucket(r: RegionInfo): string {
+  if (r.isCalifornia) return 'US-CA';
+  if (r.isUK) return 'UK';
+  if (r.region === 'CH') return 'CH';
+  if (r.isEU) return 'EU';
+  if (r.region === 'UNKNOWN') return 'UNKNOWN';
+  return 'OTHER';
+}
+
+/**
  * Extract the region subtag (e.g. `'DE'`) from a BCP-47 locale (e.g. `'de-DE'`).
  * Returns `null` for bare languages (`'de'`) — a region needs an explicit
  * `-REGION` part — which keeps the parse unambiguous.

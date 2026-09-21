@@ -6,8 +6,9 @@
 
 import type { ReactNode } from "react"
 
+import { SettingsContext } from "@framer-cookie-consent/shared-ui"
+
 import { useSettings } from "../hooks/useSettings"
-import { SettingsContext } from "./settings-context"
 
 /** Wrap the plugin UI in this once (near the root). */
 export function SettingsProvider({ children }: { children: ReactNode }) {

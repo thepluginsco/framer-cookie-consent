@@ -1,0 +1,28 @@
+/* Page frame for the embed builder. The authoring UI itself is the shared
+   Consentful shell (`@framer-cookie-consent/shared-ui`), styled with inline
+   styles from its own design tokens; this sheet only owns the page-level
+   reset so the shell fills the window. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #17191e;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: #f4f5f8;
+}
+
+#root {
+  height: 100%;
+}

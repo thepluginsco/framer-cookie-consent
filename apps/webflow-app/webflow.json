@@ -1,0 +1,15 @@
+{
+  "name": "Consentful",
+  "publicComment": "Cookie-consent & GDPR/CCPA banner: author it in the Designer, publish it to your site. Self-hosted ~11 KB runtime, Google Consent Mode v2, no visitor account.",
+  "apiVersion": "2",
+  "scopes": [
+    "sites:read",
+    "sites:write",
+    "custom_code:read",
+    "custom_code:write",
+    "authorized_user:read"
+  ],
+  "designerExtension": {
+    "size": "large"
+  }
+}

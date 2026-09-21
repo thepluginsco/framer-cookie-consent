@@ -1,0 +1,29 @@
+/* Page frame for the WordPress admin UI. The editor itself is the shared
+   Consentful shell (`@framer-cookie-consent/shared-ui`); this sheet only owns
+   the reset so the shell fills its mount. wp-admin wraps the mount, so the
+   shell sizes to the viewport height it's given. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #17191e;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: #f4f5f8;
+}
+
+#root,
+#app,
+#consentful-admin {
+  height: 100%;
+}

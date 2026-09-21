@@ -25,10 +25,12 @@ import {
   detectRegion,
   resolveRegion,
   createEndpointResolver,
+  regionBucket,
 } from './geo.ts';
 import { mountBanner } from './banner.ts';
 import { isLicensed, resolveBannerConfig } from './license-gate.ts';
-import { installConsentAnalytics } from './analytics.ts';
+import { installConsentAnalytics, type AnalyticsContext } from './analytics.ts';
+import { resolveActiveVariant } from './variant.ts';
 import { reportError } from './error-logger.ts';
 
 /** Manual-control surface added to `window.CookieConsent`. */
@@ -149,8 +151,20 @@ function warnUnlicensed(): void {
  */
 export async function boot(): Promise<void> {
   try {
-    // (a) Config.
-    const config = readEmbeddedConfig();
+    // (a) Config. Then resolve the A/B variant (Phase 4.1): pick a sticky,
+    //     weighted variant and apply ONLY its presentation overrides, so the
+    //     banner a visitor sees is their variant. Compliance sections are
+    //     unchanged by construction (see applyVariant), so every variant is
+    //     equally protective. `variantId` is null when no test is running.
+    const base = readEmbeddedConfig();
+    const active = resolveActiveVariant(base);
+    const config = active.config;
+
+    // A live analytics context (Phase 4.1): the assigned variant now, the coarse
+    // region once geo resolves (step e). installConsentAnalytics reads it at each
+    // report, so a visitor's real decision carries both dimensions.
+    const analyticsCtx: AnalyticsContext = {};
+    if (active.variantId) analyticsCtx.variant = active.variantId;
 
     // (b) License gate. Unlicensed only affects the *banner presentation* (see
     //     step e) — compliance below runs regardless. Warn the owner in console.
@@ -164,8 +178,9 @@ export async function boot(): Promise<void> {
     onConsentChange((state) => updateConsent(config, state));
 
     // Anonymous consent analytics (Pro). No-op unless an endpoint is configured;
-    // reports only the decision type + granted categories, never any identifier.
-    installConsentAnalytics(config);
+    // reports only the decision type + granted categories (+ optional A/B variant
+    // and coarse region), never any identifier.
+    installConsentAnalytics(config, analyticsCtx);
 
     // Imperative API on window.CookieConsent (banner + host site drive this).
     const api = installConsentApi(config);
@@ -216,6 +231,10 @@ export async function boot(): Promise<void> {
     const region = config.geo.endpoint
       ? await resolveRegion(createEndpointResolver(config.geo.endpoint))
       : detectRegion();
+
+    // Fill the region dimension so any subsequent consent event (the visitor's
+    // actual choice, made after the banner mounts below) is bucketed by region.
+    analyticsCtx.region = regionBucket(region);
 
     // (e.5) Region-aware consent model. In an opt-out region (CCPA-style, or the
     //     author choosing `consentModel: 'opt-out'` outright) and with no valid
