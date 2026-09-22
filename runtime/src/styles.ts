@@ -290,7 +290,7 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
 
     // Surface (banner + modal share it). The banner is a horizontal hero card:
     // decorative cookie figure, copy, then a stacked action column.
-    `${r} .cc-banner{position:fixed;z-index:2147483647;background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 22px 60px rgba(23,28,45,.22);padding:22px 24px;width:calc(100% - 32px);max-width:460px}`,
+    `${r} .cc-banner{position:fixed;z-index:2147483647;background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 22px 60px rgba(23,28,45,.22);padding:22px 24px;width:calc(100% - 32px);max-width:600px}`,
     `${r} .cc-banner__inner{display:flex;align-items:center;flex-wrap:wrap;gap:18px}`,
 
     // Card positions.
@@ -442,6 +442,30 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-gpc-badge__text{white-space:nowrap}`,
 
     `${r} [hidden]{display:none !important}`,
+
+    // Responsive: on narrow screens the horizontal hero collapses into a single
+    // centred column — cookie figure on top, copy, then full-width stacked
+    // actions — so the banner and both modals stay legible and tappable on phones.
+    `@media (max-width:600px){` +
+      `${r} .cc-banner{padding:20px}` +
+      `${r} .cc-banner__inner{flex-direction:column;align-items:stretch;gap:14px}` +
+      `${r} .cc-banner__figure{padding-right:0;justify-content:center}` +
+      `${r} .cc-banner__figure::after{display:none}` +
+      `${r} .cc-banner__disc{width:64px;height:64px}` +
+      `${r} .cc-banner__mark{width:52px;height:52px}` +
+      `${r} .cc-banner__text{flex:1 1 auto;min-width:0;text-align:center}` +
+      `${r} .cc-banner__links{justify-content:center}` +
+      `${r} .cc-banner__actions,${r} .cc-banner--bar .cc-banner__actions{flex-direction:column;min-width:0;align-self:stretch}` +
+      `${r} .cc-banner__actions .cc-btn,${r} .cc-banner--bar .cc-banner__actions .cc-btn{width:100%}` +
+      `${r} .cc-powered,${r} .cc-banner--bar .cc-powered{position:static;justify-content:center;margin-top:2px}` +
+      `${r} .cc-modal__header{gap:12px}` +
+      `${r} .cc-modal__body{flex:1 1 auto}` +
+      `${r} .cc-modal__footer{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px}` +
+      `${r} .cc-modal__note{flex:0 0 auto}` +
+      `${r} .cc-modal__actions{flex-direction:column-reverse}` +
+      `${r} .cc-modal__actions .cc-btn{width:100%;min-width:0}` +
+    `}`,
+
     `@media (prefers-reduced-motion:reduce){${r} *,${r} *::before,${r} *::after{transition:none !important;animation:none !important}}`,
   ];
 
