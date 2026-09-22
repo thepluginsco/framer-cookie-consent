@@ -165,7 +165,7 @@ export function contentVersion(sourceCode: string): string {
   return `0.0.${fnv1a32(sourceCode)}`;
 }
 
-/** RUNTIME_VERSION (`v0.1.7`) as a bare semver (`0.1.7`) for Webflow's `version`. */
+/** RUNTIME_VERSION (`v0.1.9`) as a bare semver (`0.1.9`) for Webflow's `version`. */
 export function runtimeRegistrationVersion(): string {
   return RUNTIME_VERSION.replace(/^v/, "");
 }

@@ -29,6 +29,8 @@ const SELF_SRC: string = (() => {
 const RUNTIME_PATH = '/runtime/dist/consent.min.js';
 /** Path of the full brand logo within the repo (committed under the plugin's public dir). */
 const LOGO_PATH = '/plugin/public/logo.png';
+/** Path of the compact brand mark (logo without wordmark), for the floating re-open button. */
+const LOGO_MARK_PATH = '/plugin/public/logo-mark.png';
 /**
  * Path of the LIGHT brand-logo variant, for use on dark banner backgrounds. The
  * default {@link LOGO_PATH} wordmark is dark ink tuned for light surfaces; this
@@ -45,8 +47,9 @@ const SETTINGS_COOKIE_PATH = '/plugin/public/settings-cookie.png';
  * Stable fallbacks pinned to a tag known to contain the logo, used only when the
  * runtime's own origin can't be derived. Bump alongside a runtime re-tag.
  */
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.7/plugin/public';
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.9/plugin/public';
 const LOGO_FALLBACK = `${CDN_BASE}/logo.png`;
+const LOGO_MARK_FALLBACK = `${CDN_BASE}/logo-mark.png`;
 const LOGO_LIGHT_FALLBACK = `${CDN_BASE}/logo-light.png`;
 const COOKIE_FALLBACK = `${CDN_BASE}/cookie.png`;
 const SETTINGS_COOKIE_FALLBACK = `${CDN_BASE}/settings-cookie.png`;
@@ -67,6 +70,18 @@ function assetUrl(repoPath: string, fallback: string): string {
  */
 export function brandLogoUrl(): string {
   return assetUrl(LOGO_PATH, LOGO_FALLBACK);
+}
+
+/**
+ * The compact brand-mark image URL (the logo glyph without the wordmark), matched
+ * to whatever tag served this runtime. Used inside the floating re-open button so
+ * it reads as "Consentful" rather than a generic cookie icon. Decorative, so a
+ * load failure degrades to the button's accessible label without breaking layout.
+ *
+ * @returns An absolute URL to the compact brand-mark PNG.
+ */
+export function logoMarkUrl(): string {
+  return assetUrl(LOGO_MARK_PATH, LOGO_MARK_FALLBACK);
 }
 
 /**

@@ -350,7 +350,7 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-powered__link{display:inline-flex;flex-direction:row;align-items:center;gap:6px;text-decoration:none;line-height:1}`,
     `${r} .cc-powered__by{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--cc-sub)}`,
     `${r} .cc-powered__pic{display:contents}`,
-    `${r} .cc-powered__logo{height:20px;width:auto;display:block}`,
+    `${r} .cc-powered__logo{height:26px;width:auto;display:block}`,
     `${r} .cc-powered__link:hover .cc-powered__logo{opacity:.82}`,
 
     // Preferences modal — sectioned: header, scrollable body of card rows, footer.
@@ -426,8 +426,11 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-cat__on{position:relative;flex:0 0 auto;width:52px;height:28px;border-radius:20px;background:var(--cc-rjb);color:var(--cc-sub);font-size:10px;font-weight:800;letter-spacing:.06em;display:inline-flex;align-items:center;padding-left:11px}`,
     `${r} .cc-cat__on::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(23,28,45,.22)}`,
 
-    // Floating re-open button.
-    `${r} .cc-fab{position:fixed;z-index:2147483645;background:var(--cc-ac);color:var(--cc-act);border:none;border-radius:999px;box-shadow:0 6px 18px rgba(23,28,45,.28);padding:11px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}`,
+    // Floating re-open button — a compact round control carrying the Consentful
+    // brand mark; clicking it re-opens the preferences modal.
+    `${r} .cc-fab{position:fixed;z-index:2147483645;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;padding:0;background:var(--cc-bg);border:1px solid var(--cc-bd);border-radius:50%;box-shadow:0 6px 18px rgba(23,28,45,.28);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}`,
+    `${r} .cc-fab:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(23,28,45,.32)}`,
+    `${r} .cc-fab__mark{width:30px;height:30px;display:block;object-fit:contain;pointer-events:none}`,
     `${r} .cc-fab-bottom-left{bottom:20px;left:20px}`,
     `${r} .cc-fab-bottom-right{bottom:20px;right:20px}`,
     `${r} .cc-fab-top-left{top:20px;left:20px}`,
@@ -436,8 +439,8 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     // GPC "opt-out honored" badge — a compact, self-dismissing status pill.
     // Shares the fab corner classes for positioning; sits just above the fab.
     `${r} .cc-gpc-badge{position:fixed;z-index:2147483645;display:inline-flex;align-items:center;gap:7px;background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:999px;box-shadow:0 6px 18px rgba(23,28,45,.18);padding:8px 14px;font:inherit;font-size:12px;font-weight:600}`,
-    `${r} .cc-gpc-badge.cc-fab-bottom-left,${r} .cc-gpc-badge.cc-fab-bottom-right{bottom:64px}`,
-    `${r} .cc-gpc-badge.cc-fab-top-left,${r} .cc-gpc-badge.cc-fab-top-right{top:64px}`,
+    `${r} .cc-gpc-badge.cc-fab-bottom-left,${r} .cc-gpc-badge.cc-fab-bottom-right{bottom:82px}`,
+    `${r} .cc-gpc-badge.cc-fab-top-left,${r} .cc-gpc-badge.cc-fab-top-right{top:82px}`,
     `${r} .cc-gpc-badge__check{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--cc-ac);color:var(--cc-act);font-size:10px;font-weight:800;flex:0 0 auto}`,
     `${r} .cc-gpc-badge__text{white-space:nowrap}`,
 
@@ -458,6 +461,9 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
       `${r} .cc-banner__actions,${r} .cc-banner--bar .cc-banner__actions{flex-direction:column;min-width:0;align-self:stretch}` +
       `${r} .cc-banner__actions .cc-btn,${r} .cc-banner--bar .cc-banner__actions .cc-btn{width:100%}` +
       `${r} .cc-powered,${r} .cc-banner--bar .cc-powered{position:static;justify-content:center;margin-top:2px}` +
+      `${r} .cc-powered__logo{height:22px}` +
+      `${r} .cc-fab{width:46px;height:46px}` +
+      `${r} .cc-fab__mark{width:26px;height:26px}` +
       `${r} .cc-modal__header{gap:12px}` +
       `${r} .cc-modal__body{flex:1 1 auto}` +
       `${r} .cc-modal__footer{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px}` +

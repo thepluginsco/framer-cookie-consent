@@ -23,7 +23,13 @@ import { installConsentApi, type CookieConsentApi, type ConsentState } from './c
 import { needsReconsent, shouldShowFloatingButton } from './geo.ts';
 import { injectStyles, ROOT_CLASS, assertThemeContrast } from './styles.ts';
 import { localizeStrings, detectLanguages } from './i18n.ts';
-import { brandLogoUrl, brandLightLogoUrl, cookieMarkUrl, settingsCookieMarkUrl } from './brand-mark.ts';
+import {
+  brandLogoUrl,
+  brandLightLogoUrl,
+  cookieMarkUrl,
+  settingsCookieMarkUrl,
+  logoMarkUrl,
+} from './brand-mark.ts';
 
 /**
  * Build-time flag, replaced by a literal via esbuild `define`. `false` in the
@@ -693,13 +699,29 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
 
   /* -------------------- floating re-open button ----------------- */
 
-  const fab = el('button', {
-    class: `cc-fab cc-fab-${config.advanced.floatingButtonPosition}`,
-    type: 'button',
-    text: s.customize,
-    attrs: { 'aria-haspopup': 'dialog', hidden: '' },
-    on: { click: (e) => openPreferences(e.currentTarget as HTMLElement) },
-  });
+  // A compact round button carrying the Consentful brand mark (not a generic
+  // cookie icon). `s.customize` becomes the accessible label so screen readers
+  // still announce "Manage preferences", and doubles as the hover tooltip.
+  const fab = el(
+    'button',
+    {
+      class: `cc-fab cc-fab-${config.advanced.floatingButtonPosition}`,
+      type: 'button',
+      attrs: {
+        'aria-haspopup': 'dialog',
+        'aria-label': s.customize,
+        title: s.customize,
+        hidden: '',
+      },
+      on: { click: (e) => openPreferences(e.currentTarget as HTMLElement) },
+    },
+    [
+      el('img', {
+        class: 'cc-fab__mark',
+        attrs: { src: logoMarkUrl(), alt: '', loading: 'lazy', decoding: 'async' },
+      }),
+    ],
+  );
 
   /* ------------------- GPC "opt-out honored" badge -------------- */
 
