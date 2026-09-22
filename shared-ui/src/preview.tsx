@@ -70,7 +70,7 @@ export function PreviewPane({
     border: `1px solid ${bBorder}`,
     boxShadow: isBar ? "0 -6px 20px rgba(23,28,45,.12)" : "0 18px 44px rgba(23,28,45,.24)",
     padding: isBar ? "13px 16px" : "16px 16px 14px",
-    maxWidth: isBar || spanning ? "none" : 300,
+    maxWidth: isBar || spanning ? "none" : 340,
     fontFamily: T.sans,
   }
 
@@ -88,8 +88,11 @@ export function PreviewPane({
   })
 
   const btnBase: CSSProperties = { padding: "9px 15px", borderRadius: Math.min(cfg.radius, 11), fontSize: 11.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }
-  const acceptStyle: CSSProperties = { ...btnBase, background: A, color: "#fff", border: "1px solid transparent", boxShadow: `0 5px 13px ${A}33`, flex: 1 }
-  const rejectStyle: CSSProperties = { ...btnBase, background: bBg, color: bText, border: `1px solid ${rejBorder}`, flex: 1 }
+  // Bar keeps buttons side-by-side (a row); card/modal stack them into the
+  // right-hand action column (Reject over Accept), mirroring runtime styles.ts.
+  const actBtn: CSSProperties = isBar ? { flex: 1 } : { width: "100%" }
+  const acceptStyle: CSSProperties = { ...btnBase, background: A, color: "#fff", border: "1px solid transparent", boxShadow: `0 5px 13px ${A}33`, ...actBtn }
+  const rejectStyle: CSSProperties = { ...btnBase, background: bBg, color: bText, border: `1px solid ${rejBorder}`, ...actBtn }
   const linkSep: CSSProperties = { color: bBorder, fontSize: 11 }
   const manageStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: A, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }
   const policyStyle: CSSProperties = { fontSize: 11, color: bSub, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }
@@ -218,7 +221,7 @@ export function PreviewPane({
                 </div>
 
                 {/* Copy */}
-                <div style={{ flex: "1 1 150px", minWidth: 140 }}>
+                <div style={{ flex: "1 1 120px", minWidth: 120 }}>
                   <div style={{ fontSize: isBar ? 14 : 15.5, fontWeight: 800, color: bText, letterSpacing: "-.02em", paddingRight: isBar ? 40 : 16 }}>{cfg.heading}</div>
                   {!isBar ? <div style={{ fontSize: 11, color: bSub, marginTop: 5, lineHeight: 1.5 }}>{cfg.body}</div> : null}
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: isBar ? 4 : 9 }}>
@@ -228,8 +231,8 @@ export function PreviewPane({
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 8, flex: isBar ? "0 0 auto" : "1 1 100%", marginTop: isBar ? 0 : 2 }}>
+                {/* Actions — right-hand column on card/modal, inline row on bar */}
+                <div style={{ display: "flex", flexDirection: isBar ? "row" : "column", gap: isBar ? 8 : 7, flex: "0 0 auto", minWidth: isBar ? 0 : 90, alignSelf: isBar ? "auto" : "center" }}>
                   <button type="button" style={rejectStyle}>{cfg.rejectLabel}</button>
                   <button type="button" style={acceptStyle}>{cfg.acceptLabel}</button>
                 </div>
