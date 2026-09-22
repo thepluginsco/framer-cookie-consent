@@ -352,6 +352,9 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-powered__pic{display:contents}`,
     `${r} .cc-powered__logo{height:26px;width:auto;display:block}`,
     `${r} .cc-powered__link:hover .cc-powered__logo{opacity:.82}`,
+    // Modal variant: the same credit on its own full-width row inside the
+    // preferences footer, centred and divided from the actions above it.
+    `${r} .cc-powered--modal{flex-basis:100%;justify-content:center;margin-top:2px;padding-top:14px;border-top:1px solid var(--cc-bd)}`,
 
     // Preferences modal — sectioned: header, scrollable body of card rows, footer.
     `${r} .cc-modal{position:fixed;z-index:2147483647;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--cc-bg);color:var(--cc-tx);border:1px solid var(--cc-bd);border-radius:var(--cc-rd);box-shadow:0 24px 70px rgba(23,28,45,.3);width:calc(100% - 32px);max-width:540px;max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden}`,

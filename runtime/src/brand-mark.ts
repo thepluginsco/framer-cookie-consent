@@ -47,7 +47,7 @@ const SETTINGS_COOKIE_PATH = '/plugin/public/settings-cookie.png';
  * Stable fallbacks pinned to a tag known to contain the logo, used only when the
  * runtime's own origin can't be derived. Bump alongside a runtime re-tag.
  */
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.9/plugin/public';
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@v0.1.10/plugin/public';
 const LOGO_FALLBACK = `${CDN_BASE}/logo.png`;
 const LOGO_MARK_FALLBACK = `${CDN_BASE}/logo-mark.png`;
 const LOGO_LIGHT_FALLBACK = `${CDN_BASE}/logo-light.png`;

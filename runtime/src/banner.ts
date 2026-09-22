@@ -206,6 +206,30 @@ function poweredByLogo(mode: ThemeMode): HTMLElement {
   return el('img', { class: 'cc-powered__logo', attrs: { src, ...imgAttrs } });
 }
 
+/**
+ * The full "Powered by Consentful" credit block (label + linked wordmark), shared
+ * by the banner and the preferences modal so the credit is identical in both. An
+ * optional {@link extraClass} lets a surface tweak placement (e.g. the modal
+ * centres it in its footer) without duplicating the markup.
+ *
+ * @param mode - The resolved {@link ThemeMode} for logo selection.
+ * @param extraClass - Extra class appended to the `.cc-powered` wrapper, or empty.
+ * @returns The credit `<div>` node.
+ */
+function poweredByCredit(mode: ThemeMode, extraClass = ''): HTMLElement {
+  return el('div', { class: extraClass ? `cc-powered ${extraClass}` : 'cc-powered' }, [
+    el(
+      'a',
+      {
+        class: 'cc-powered__link',
+        href: POWERED_BY_URL,
+        attrs: { rel: 'noopener', target: '_blank', 'aria-label': POWERED_BY_LABEL },
+      },
+      [el('span', { class: 'cc-powered__by', text: 'Powered by' }), poweredByLogo(mode)],
+    ),
+  ]);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Focus management                                                           */
 /* -------------------------------------------------------------------------- */
@@ -408,22 +432,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   // The "Powered by" credit is shown on EVERY tier — white-label no longer hides
   // it. Only the author-config `poweredByHidden` flag can suppress it.
   if (!config.strings.poweredByHidden) {
-    bannerInner.append(
-      el('div', { class: 'cc-powered' }, [
-        el(
-          'a',
-          {
-            class: 'cc-powered__link',
-            href: POWERED_BY_URL,
-            attrs: { rel: 'noopener', target: '_blank', 'aria-label': POWERED_BY_LABEL },
-          },
-          [
-            el('span', { class: 'cc-powered__by', text: 'Powered by' }),
-            poweredByLogo(config.theme.mode),
-          ],
-        ),
-      ]),
-    );
+    bannerInner.append(poweredByCredit(config.theme.mode));
   }
 
   const banner = el(
@@ -654,6 +663,12 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   ]);
 
   const prefsFooter = el('div', { class: 'cc-modal__footer' }, [footerNote, footerActions]);
+
+  // Mirror the banner's "Powered by Consentful" credit in the modal, on its own
+  // full-width row beneath the footer actions. Suppressed by the same author flag.
+  if (!config.strings.poweredByHidden) {
+    prefsFooter.append(poweredByCredit(config.theme.mode, 'cc-powered--modal'));
+  }
 
   const prefsHeadingBlock = el('div', { class: 'cc-modal__heading' }, [
     el('h2', { class: 'cc-modal__title', id: prefsTitleId, text: 'Privacy preferences' }),
