@@ -28,19 +28,37 @@ the portal gate is wired (section 1).
 ## 1. Wire the Dodo/Neon portal licensing into the plugin  **[decision: portal is authoritative — 2026-09-22]**
 
 The sibling `../consentful-portal` holds the live licensing engine (Neon DB,
-ES256/JWKS entitlement tokens) and an `@theplugins/license-sdk` verifier. **This
-repo does not import it yet.** Integration required:
+ES256/JWKS entitlement tokens) and a `plugin-sdk` verifier. **This repo does not
+import it yet.**
 
-- [ ] Remove the plugin's LemonSqueezy files: `plugin/src/lib/license.ts`,
-      `licenseConfig.ts`, `licenseCache.ts`, and the LS vars in `plugin/.env.example`.
-- [ ] Wire the plugin/runtime Pro gate to the portal SDK verifier (domain-locked
-      signed token, verified via JWKS from `consentful.theplugins.co`).
-- [ ] Decide how the runtime obtains its per-domain entitlement token (embedded at
-      publish vs fetched at boot keyed by hostname) — a real design step.
-- [ ] Revert the two overrides in section 0.
-- [ ] **[you]** In `../consentful-portal`: create Dodo products, fill
-      `DODO_PRODUCT_*`, wire billing-webhook → site-license issuance, finish the
-      pricing annual toggle. Needs the Dodo dashboard.
+**Architecture decided (2026-09-23): fetch-at-boot by hostname.** The runtime
+fetches a domain-scoped signed token at load, verifies it via WebCrypto against
+the portal JWKS, caches it (fail-closed on expiry), and derives entitlement.
+Chosen because tokens are short-lived (24h) and self-service domain changes must
+propagate without re-publishing.
+
+Progress:
+- [x] **Phase 1 — runtime verifier** ported into `runtime/src/license-token.ts`
+      (dependency-free ES256/JWKS, mirrors the portal verifier) + 9 unit tests.
+      Not yet imported by boot, so the shipped bundle is unchanged. Inlining it
+      later adds ~2 KB → **bump the runtime bundle budget 60 → 64 KB** in
+      `runtime/build.mjs` when wiring.
+- [ ] **PORTAL GAP (blocker for fetch-at-boot):** the portal's public API
+      (`/public/validate`, `/public/entitlements`) is **key-authenticated** — for
+      the plugin software, not an anonymous visitor page. There is **no keyless
+      domain-only endpoint.** Build one in `../consentful-portal`, e.g.
+      `GET /public/site-entitlement?domain=<host>` (publishable `x-api-key`, rate
+      limited): look up the license whose `licensed_domains` ⊇ registrable(host),
+      issue a short-lived domain-scoped token; no match → free-tier / 404.
+- [ ] **Phase 2 — wire boot + remove legacy:** add a JWKS-cache + entitlement
+      fetch/cache module; render free-tier immediately then upgrade on a verified
+      token; add a portal-base-URL config field; bump the bundle budget; delete
+      the plugin's LemonSqueezy files (`plugin/src/lib/license.ts`,
+      `licenseConfig.ts`, `licenseCache.ts`, LS vars in `.env.example`); revert
+      the two overrides in section 0.
+- [ ] **Phase 3 — E2E [you]:** deploy the portal API + the new endpoint; verify on
+      a real domain; create Dodo products, fill `DODO_PRODUCT_*`, wire
+      billing-webhook → site-license issuance, finish the pricing annual toggle.
 
 ---
 
