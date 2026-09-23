@@ -39,7 +39,7 @@ import {
  */
 declare const __CC_DEV__: boolean | undefined;
 
-/** Where the (non-white-label) "Powered by" credit links. TODO: confirm brand URL. */
+/** Where the (non-white-label) "Powered by" credit links. */
 const POWERED_BY_URL = 'https://consentful.theplugins.co';
 /** Brand name shown in the credit, beside the mark. */
 const POWERED_BY_NAME = 'Consentful';

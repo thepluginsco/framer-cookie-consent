@@ -379,3 +379,48 @@ test('GPC badge: shown only when gpcHonored AND gpcShowBadge, with a status role
   const notHonored = mountBanner(config, { api: recordingApi(config), autoShow: false, gpcHonored: false });
   assert.equal((notHonored.root.querySelector('.cc-gpc-badge') as HTMLElement).hidden, true);
 });
+
+test('floating re-open button carries the brand mark and opens preferences', () => {
+  setupDom();
+  const config = mergeConfig({ advanced: { floatingButton: true } });
+  const api = recordingApi(config);
+  const ctrl = mountBanner(config, { api, autoShow: false });
+
+  const fab = ctrl.root.querySelector('.cc-fab') as HTMLButtonElement;
+  assert.ok(fab, 'floating button should render');
+
+  // It is an icon button carrying the Consentful brand mark, not text.
+  const mark = fab.querySelector('img.cc-fab__mark') as HTMLImageElement;
+  assert.ok(mark, 'fab should contain the brand-mark image');
+  assert.ok(/logo-mark\.png/.test(mark.getAttribute('src') || ''), 'mark src should be logo-mark.png');
+  assert.equal(fab.textContent, '', 'fab has no visible text label');
+
+  // The accessible name is preserved for screen readers.
+  assert.equal(fab.getAttribute('aria-label'), config.strings.customize);
+
+  // Clicking it opens the preferences modal.
+  fab.dispatchEvent(new (globalThis as any).Event('click', { bubbles: true }));
+  const modal = ctrl.root.querySelector('.cc-modal') as HTMLElement;
+  assert.equal(modal.hidden, false, 'clicking the fab opens the preferences modal');
+  ctrl.destroy();
+});
+
+test('the "Powered by" credit renders in the preferences modal footer, honouring poweredByHidden', () => {
+  setupDom();
+  const shown = mergeConfig();
+  const c1 = mountBanner(shown, { api: recordingApi(shown), autoShow: false });
+  const footerCredit = c1.root.querySelector('.cc-modal__footer .cc-powered--modal');
+  assert.ok(footerCredit, 'modal footer should contain the powered-by credit');
+  assert.ok(footerCredit!.querySelector('.cc-powered__logo'), 'credit should include the wordmark logo');
+  c1.destroy();
+
+  setupDom();
+  const hidden = mergeConfig({ strings: { poweredByHidden: true } });
+  const c2 = mountBanner(hidden, { api: recordingApi(hidden), autoShow: false });
+  assert.equal(
+    c2.root.querySelector('.cc-modal__footer .cc-powered--modal'),
+    null,
+    'poweredByHidden suppresses the modal credit',
+  );
+  c2.destroy();
+});

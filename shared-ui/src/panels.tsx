@@ -432,8 +432,8 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
       <Card style={{ padding: "6px 16px 14px" }}>
         <Eyebrow style={{ margin: "13px 0 2px" }}>Reopen button</Eyebrow>
         <Row
-          title="Floating cookie-settings button"
-          desc="Show a small persistent button so visitors can reopen preferences and withdraw consent at any time — recommended for GDPR."
+          title="Floating preferences button"
+          desc="Show a small round button with the Consentful mark so visitors can reopen preferences and withdraw consent at any time — recommended for GDPR."
           border={cfg.floatingButton}
         >
           <Toggle on={cfg.floatingButton} onClick={() => m.toggle("floatingButton")} />
