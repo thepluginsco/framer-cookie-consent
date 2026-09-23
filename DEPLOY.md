@@ -43,13 +43,20 @@ Progress:
       Not yet imported by boot, so the shipped bundle is unchanged. Inlining it
       later adds ~2 KB → **bump the runtime bundle budget 60 → 64 KB** in
       `runtime/build.mjs` when wiring.
-- [ ] **PORTAL GAP (blocker for fetch-at-boot):** the portal's public API
-      (`/public/validate`, `/public/entitlements`) is **key-authenticated** — for
-      the plugin software, not an anonymous visitor page. There is **no keyless
-      domain-only endpoint.** Build one in `../consentful-portal`, e.g.
-      `GET /public/site-entitlement?domain=<host>` (publishable `x-api-key`, rate
-      limited): look up the license whose `licensed_domains` ⊇ registrable(host),
-      issue a short-lived domain-scoped token; no match → free-tier / 404.
+- [x] **PORTAL ENDPOINT BUILT** in `../consentful-portal` (on disk; that repo is
+      not version-controlled here — **you must commit + deploy it**). Contract now
+      pinned for Phase 2:
+      - `POST /public/site-entitlement`, header `x-api-key: <publishable>`,
+        body `{ "domain": "<hostname>" }`.
+      - Response `{ status, licensed: boolean, plan: {slug,name}|null,
+        featureSet|null, token: string|null, reason: string|null }`.
+      - Dev/preview host → `{ status: "dev", licensed: false, token: null }`;
+        unlicensed/expired domain → `{ licensed: false, token: null }` (HTTP 200,
+        not an error); active seat → `licensed: true` + domain-scoped ES256 token.
+      - Impl: `licenses.findActiveByRegistrableDomain` (new repo method, no
+        migration — column/index already existed) + `resolveSiteEntitlement`
+        service fn (6 unit tests). Needs `SIGNING_PRIVATE_KEY` / `SIGNING_KEY_ID`
+        env on the deployed API for the token to be non-null.
 - [ ] **Phase 2 — wire boot + remove legacy:** add a JWKS-cache + entitlement
       fetch/cache module; render free-tier immediately then upgrade on a verified
       token; add a portal-base-URL config field; bump the bundle budget; delete
