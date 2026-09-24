@@ -108,41 +108,46 @@ browser.
 
 ## 3. Licensing model
 
-Licensing is validated **client-side** using Lemon Squeezy license keys. There
-is no license server of our own — zero paid infrastructure. The same rules apply
-to **every origin** (Framer preview domains, `localhost`, and custom domains
-alike) — there is no "free on staging" special case.
+Licensing is **domain-based and portal-authoritative**. A published site is
+licensed when its registrable domain holds an active seat on the Consentful
+licensing portal (Neon DB, Dodo billing). The runtime learns this by fetching a
+**domain-scoped, signed ES256 token** at boot and verifying it **offline** — it
+never trusts the injected `config.license`, because a visitor could read and
+forge that. A token minted for `example.com` cannot be moved to another domain.
 
 ```
-   Does the injected config.license have a paid tier
-   (lifetime/pro/agency) AND a present, well-formed key?
+   Boot: POST /public/site-entitlement { domain: location.hostname }
+         → verify the returned ES256 token offline (JWKS, cached)
                     │
           ┌─────────┴─────────┐
-         YES                  NO
+     verified token       null (no seat / dev host /
+     for this host        offline / expired / forged)
           │                    │
           ▼                    ▼
     Full banner.        DEGRADE: basic branded
-    White-label         fallback bar (see below) —
-    iff pro/agency.     NOT nothing.
+    White-label iff     fallback bar (see below) —
+    the token's         NOT nothing.
+    white_label flag.
 ```
 
-### Where validation actually happens (two-stage, by design)
+### Where things happen (two stages, by design)
 
-- **Editor (heavyweight, once):** the plugin calls Lemon Squeezy at
-  purchase / activation time, resolves the tier from the store/product/variant,
-  checks activation status, and **bakes the verdict into the injected config**.
-- **Runtime (lightweight, every load):** `runtime/src/license-gate.ts` performs
-  only a **presence / format check** on `config.license` (paid tier + a
-  non-trivial key). It makes **no network calls**. This is a deliberate
-  decision: contacting an API on every visitor's page load would add
-  infrastructure cost and latency for negligible benefit over the editor-time
-  validation. The client-side check is a deterrent + licensing mechanism, not a
-  DRM fortress — an intentional, honest trade-off for a zero-infrastructure
-  product.
+- **Editor / activation (plugin):** the user pastes a license key; the plugin
+  calls the portal's `POST /public/site-activate` with the key + the site's
+  **published domain**, registering (or renewing) a seat. Seat management across
+  sites lives on the portal dashboard.
+- **Runtime (every load):** `runtime/src/entitlement.ts` fetches a domain token
+  from the portal (in parallel with geo, on a bounded timeout), verifies it with
+  the dependency-free ES256/JWKS verifier in `license-token.ts`, and caches the
+  JWKS + token in `localStorage` so a returning visitor unlocks with no network
+  round-trip. `license-gate.ts` then shapes the banner from that verified
+  entitlement. Everything **fails closed** → free banner on any error, timeout,
+  or invalid/expired/wrong-domain token. `config.license.portalApiBaseUrl` may
+  override the API origin (staging); otherwise the baked default is used.
 
-- **The verdict is domain-independent.** A site is licensed by its key, not by
-  where it runs, so previews and production behave identically. To test paid
-  features, enter a valid license key in the plugin.
+- **Compliance never waits on it.** Consent Mode denials + script blocking run
+  before the mount regardless, so awaiting the token (or failing closed) never
+  makes a site *less* safe — only the banner *presentation* degrades.
 
 ### Graceful degradation on an unlicensed site (decision)
 
@@ -170,26 +175,26 @@ styled + white-label banner.
 
 ### White-label entitlement
 
-The "powered by" credit is hidden **only** when the tier is **pro or agency AND
-the site is licensed** (`hasWhiteLabel`). The runtime is authoritative: it
-re-derives this rather than trusting the injected `config.license.whiteLabel`
-flag. `lifetime` and `trial` always show the credit at runtime.
+The "powered by" credit is hidden **only** when the verified entitlement token
+carries the `white_label` feature flag (`hasWhiteLabel`). The runtime is
+authoritative: it derives this from the signed token, never from the injected
+`config.license.whiteLabel` flag. A site with no verified token always shows the
+credit.
 
-### Optional periodic revalidation (seam, disabled)
+### Token freshness
 
-`license-gate.ts` exposes a stubbed `revalidateLicense` hook + a
-`REVALIDATION_ENABLED = false` flag. A future Pro feature *could* phone home to a
-Cloudflare Worker on a long interval to catch refunded/deactivated keys. It is
-intentionally **off and non-networking** to preserve the $0-infra / zero-latency
-guarantee; the seam exists only so the capability can be added without reworking
-the boot path.
+Tokens are short-lived (the portal issues ~24h expiries). The verifier re-checks
+`exp` + `aud` on every read, so a cached-but-expired token — or one copied to
+another domain — fails closed automatically; the next boot fetches a fresh one.
+This is what lets a self-service domain/seat change propagate to a live site
+**without re-publishing**.
 
 ## 4. Folder responsibilities
 
 | Folder | Responsibility |
 | ------ | -------------- |
 | `plugin/`  | The Framer editor plugin (React + TypeScript + Vite). Owns the configuration UI and all interaction with the Framer Plugin API, including writing the loader into the site's custom code. Never ships to visitors. |
-| `runtime/` | The consent runtime (vanilla TypeScript, no framework). Owns banner rendering, consent storage, script-blocking, and Consent Mode v2 signalling. Compiled to a single tiny `consent.min.js` and served from jsDelivr. Must stay dependency-free and ≤ 44 KB minified (≈12 KB gzipped). |
+| `runtime/` | The consent runtime (vanilla TypeScript, no framework). Owns banner rendering, consent storage, script-blocking, and Consent Mode v2 signalling. Compiled to a single tiny `consent.min.js` and served from jsDelivr. Must stay dependency-free and ≤ 64 KB minified (≈18.5 KB gzipped; enforced by `runtime/build.mjs`). |
 | `shared/`  | The **single source of truth** for the config schema (`config-schema.ts`). Imported by both the plugin and the runtime so the produced config and the consumed config can never drift. Contains types, defaults, and (de)serialization — no runtime/UI logic. |
 | `tests/`   | Cross-package integration tests spanning the plugin ⇄ shared ⇄ runtime boundary (schema round-trips, consent-state transitions, script-blocking behaviour, Consent Mode signal emission). |
 

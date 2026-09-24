@@ -1,21 +1,21 @@
 /**
  * The Framer License panel — host-injected into the shared Consentful shell.
  *
- * Licensing is a Framer/portal concern (Lemon Squeezy key validated on-device
- * via {@link useLicense}), so it lives here in the plugin rather than in the
- * shared UI. The shell renders it through `host.LicensePanel` when
- * `host.showLicenseTab` is true. Extracted verbatim from the pre-shared-ui
- * `consentful/panels.tsx`.
+ * Licensing is a portal concern: the user pastes a license key and the plugin
+ * activates the site's published DOMAIN against it (a seat) via
+ * {@link useLicense}; the published runtime then unlocks on its own by verifying
+ * a domain-scoped token at boot. This panel is the Framer-side surface for that
+ * activation. The shell renders it through `host.LicensePanel` when
+ * `host.showLicenseTab` is true.
  */
 
 import { useEffect, useState } from "react"
 
-import type { LicenseTier } from "@framer-cookie-consent/shared"
+import { PORTAL_DASHBOARD_URL, type LicenseTier } from "@framer-cookie-consent/shared"
 import { Button, Card, Eyebrow, Icon, T, type ConsentfulModel } from "@framer-cookie-consent/shared-ui"
 
 import { useLicense, type LicenseStatus } from "../hooks/useLicense"
 import { LICENSE_FEATURES, hasFeature } from "../lib/entitlements"
-import { PRODUCT_URL, isConfigured } from "../lib/licenseConfig"
 
 const STATUS_PILL: Record<LicenseStatus, { color: string; bg: string }> = {
   trial: { color: T.ink3, bg: T.sunken },
@@ -37,11 +37,11 @@ function statusPillText(status: LicenseStatus, tier: LicenseTier): string {
     case "active":
       return `${TIER_LABEL[tier]} · Active`
     case "validating":
-      return "Checking…"
+      return "Activating…"
     case "invalid":
       return "Invalid key"
     case "offline":
-      return "Offline · last verified"
+      return "Offline · last status"
     default:
       return "Free plan"
   }
@@ -59,21 +59,9 @@ export function FramerLicensePanel({ m }: { m: ConsentfulModel }) {
   }, [lic.key])
 
   const pill = STATUS_PILL[lic.status]
-  const configured = isConfigured()
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {!configured ? (
-        <div style={{ display: "flex", gap: 10, background: T.warnSoft, border: `1px solid ${T.warn}33`, borderRadius: T.rLg, padding: "12px 13px" }}>
-          <Icon name="build" size={18} color={T.warn} style={{ marginTop: 1 }} />
-          <div style={{ fontSize: 11.5, color: "#7a5b12", lineHeight: 1.5 }}>
-            Licensing isn't wired up yet — set your Lemon Squeezy store &amp; product ids
-            (via <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>VITE_LS_*</span> env vars or{" "}
-            <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>lib/licenseConfig.ts</span>). Until then every key
-            stays on the free trial.
-          </div>
-        </div>
-      ) : null}
       <Card style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>License key</div>
@@ -97,7 +85,7 @@ export function FramerLicensePanel({ m }: { m: ConsentfulModel }) {
             <Button variant="secondary" onClick={() => void lic.removeKey()}>Remove</Button>
           ) : (
             <Button variant="dark" loading={busy} disabled={!draft.trim()} onClick={() => void lic.enterKey(draft)}>
-              {busy ? "Checking…" : "Activate"}
+              {busy ? "Activating…" : "Activate"}
             </Button>
           )}
         </div>
@@ -109,14 +97,18 @@ export function FramerLicensePanel({ m }: { m: ConsentfulModel }) {
         ) : (
           <div style={{ fontSize: 11, color: T.ink4, marginTop: 9, lineHeight: 1.5 }}>
             {licensed
-              ? "Verified against Lemon Squeezy and cached on-device — it keeps working offline and re-checks weekly."
-              : "Paste the key from your Lemon Squeezy receipt. Validated on-device — no account or server needed."}
+              ? lic.domain
+                ? `Activated for ${lic.domain}. Your live site unlocks automatically — no key is exposed on the page.`
+                : "Activated. Your live site unlocks automatically — no key is exposed on the page."
+              : lic.domain
+                ? `Paste your license key to activate ${lic.domain}. Buy a key on the portal, then activate here.`
+                : "Publish your site, then paste your license key here to activate its domain."}
           </div>
         )}
 
         {licensed ? (
           <button type="button" onClick={() => void lic.refresh()} style={{ marginTop: 10, border: "none", background: "transparent", color: T.accentText, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>
-            Re-check now
+            Re-activate now
           </button>
         ) : null}
       </Card>
@@ -141,17 +133,15 @@ export function FramerLicensePanel({ m }: { m: ConsentfulModel }) {
         </div>
       </Card>
 
-      {!licensed ? (
-        <a
-          href={PRODUCT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: "linear-gradient(150deg,#6a3cf0,#4b23d3)", color: "#fff", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: `0 6px 16px ${T.accent}44` }}
-        >
-          <Icon name="shopping_bag" size={18} />
-          Buy a license
-        </a>
-      ) : null}
+      <a
+        href={PORTAL_DASHBOARD_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: licensed ? T.surface : "linear-gradient(150deg,#6a3cf0,#4b23d3)", color: licensed ? T.ink : "#fff", border: licensed ? `1px solid ${T.border}` : "none", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: licensed ? "none" : `0 6px 16px ${T.accent}44` }}
+      >
+        <Icon name={licensed ? "settings" : "shopping_bag"} size={18} color={licensed ? T.ink3 : "#fff"} />
+        {licensed ? "Manage your license" : "Buy a license"}
+      </a>
     </div>
   )
 }

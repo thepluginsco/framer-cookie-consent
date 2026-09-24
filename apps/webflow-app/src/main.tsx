@@ -12,6 +12,10 @@ import { createRoot } from "react-dom/client"
 import "@framer-cookie-consent/shared-ui/fonts.css"
 import "./styles.css"
 import { WebflowApp } from "./designer/webflow-app"
+import { requestLargeSize } from "./designer/webflow-host"
+
+// Give the shared editor room — request Webflow's largest panel (800×600).
+void requestLargeSize()
 
 const root = document.getElementById("root")
 if (root) {

@@ -32,10 +32,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * per-vendor consent switches gated by the script blocker). It is still
  * deferred and gzips to ~17.5 KB over the wire (the redesigned banner + full
  * preference center — tinted category icons, cookie hero marks, sectioned modal
- * — added ~1.9 KB gzipped), so the honest raw ceiling is 60 KB — the wire cost
- * is what matters, and there is headroom so a careless addition still trips the gate.
+ * — added ~1.9 KB gzipped). The Phase-2 licensing wiring (boot-time entitlement
+ * fetch + JWKS cache + offline ES256/JWKS token verify) adds ~2 KB, so the honest
+ * raw ceiling is now 64 KB — the wire cost is what matters, and there is headroom
+ * so a careless addition still trips the gate.
  */
-const MAX_BYTES = 60 * 1024; // 60 KB (≈17.5 KB gzipped)
+const MAX_BYTES = 64 * 1024; // 64 KB (≈18.5 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 

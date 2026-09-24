@@ -1,18 +1,19 @@
 /**
- * Tests for the runtime license gate (`runtime/src/license-gate.ts`) — the real
- * licensing logic and its graceful-degradation behaviour. Licensing is uniform
- * across every origin (there is no "free on staging" special case): a site is
- * licensed purely by its injected `config.license`. Everything here is
- * CLIENT-SIDE with NO network (that is the whole point of the runtime check),
- * and the DOM assertions run under jsdom.
+ * Tests for the runtime license gate (`runtime/src/license-gate.ts`) — how a
+ * runtime-verified {@link VerifiedEntitlement} (or `null`) shapes the banner.
+ *
+ * Licensing truth is the domain-scoped token fetched + verified at boot (see
+ * `entitlement.ts` / `license-token.ts`), NOT the injected `config.license`.
+ * This gate is a PURE transform of that verdict → banner config; it does no
+ * network I/O. The DOM assertions run under jsdom.
  *
  * Run with `vitest run`.
  *
  * Required coverage:
- * - valid paid tier + present key → licensed → full banner;
- * - no license (or paid tier but missing/short key) → basic branded fallback
- *   banner, white-label OFF, and scripts are STILL blocked (compliance never
- *   degrades).
+ * - a verified entitlement → licensed → full banner (white-label derived from
+ *   the token's feature flag, never the injected config);
+ * - `null` (unlicensed / offline / dev host) → basic branded fallback banner,
+ *   white-label OFF, and scripts are STILL blocked (compliance never degrades).
  */
 
 import { test } from 'vitest';
@@ -25,9 +26,8 @@ import {
   hasWhiteLabel,
   resolveBannerConfig,
   basicBannerConfig,
-  revalidateLicense,
-  REVALIDATION_ENABLED,
 } from '../runtime/src/license-gate.ts';
+import type { VerifiedEntitlement } from '../runtime/src/license-token.ts';
 import { mountBanner } from '../runtime/src/banner.ts';
 import {
   createScriptBlocker,
@@ -40,25 +40,29 @@ import type { ConsentState } from '../runtime/src/consent-state.ts';
 /* Fixtures                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** A plausibly-real Lemon Squeezy key (UUID-ish, passes the format guard). */
-const REAL_KEY = 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890';
+const nowSec = () => Math.floor(Date.now() / 1000);
 
-/** A licensed Pro config. */
-const proLicensed = mergeConfig({
-  banner: { layout: 'card' },
-  license: { tier: 'pro', key: REAL_KEY, whiteLabel: true },
-});
+/** Build a verified entitlement; `whiteLabel` toggles the token feature flag. */
+function entitlement(whiteLabel: boolean): VerifiedEntitlement {
+  return {
+    licenseId: 'lic_1',
+    domain: 'acme.com',
+    status: 'active',
+    type: 'monthly',
+    plan: { slug: whiteLabel ? 'pro' : 'starter', name: whiteLabel ? 'Pro' : 'Starter' },
+    features: whiteLabel ? { white_label: { kind: 'flag', value: true } } : {},
+    iat: nowSec(),
+    exp: nowSec() + 3600,
+  };
+}
 
-/** A licensed Lifetime config (paid, but NOT white-label per the runtime rule). */
-const lifetimeLicensed = mergeConfig({
-  license: { tier: 'lifetime', key: REAL_KEY, whiteLabel: true },
-});
+/** A verified, white-label entitlement (full banner + credit may hide). */
+const WHITE_LABEL = entitlement(true);
+/** A verified entitlement WITHOUT the white-label feature (full banner, credit on). */
+const NO_WHITE_LABEL = entitlement(false);
 
-/** An unlicensed config (default trial, no key). */
-const unlicensed = mergeConfig({ license: { tier: 'trial', key: null } });
-
-/** A paid tier but MISSING key — must not pass the presence check. */
-const proNoKey = mergeConfig({ license: { tier: 'pro', key: null, whiteLabel: true } });
+/** A licensed-intent config (premium card layout) to shape. */
+const proConfig = mergeConfig({ banner: { layout: 'card' } });
 
 /* -------------------------------------------------------------------------- */
 /* jsdom harness (for the banner-mount assertions)                            */
@@ -111,70 +115,39 @@ function noopApi() {
 /* isLicensed                                                                  */
 /* -------------------------------------------------------------------------- */
 
-test('isLicensed: a paid tier + present key is licensed', () => {
-  assert.equal(isLicensed(proLicensed), true);
-  assert.equal(isLicensed(lifetimeLicensed), true);
-  assert.equal(isLicensed(mergeConfig({ license: { tier: 'agency', key: REAL_KEY } })), true);
-});
-
-test('isLicensed: no valid license is NOT licensed, on any origin', () => {
-  assert.equal(isLicensed(unlicensed), false, 'trial + no key');
-  assert.equal(isLicensed(proNoKey), false, 'paid tier but no key');
-  assert.equal(
-    isLicensed(mergeConfig({ license: { tier: 'pro', key: 'short' } })),
-    false,
-    'key too short fails the format guard',
-  );
-  assert.equal(
-    isLicensed(mergeConfig({ license: { tier: 'trial', key: REAL_KEY } })),
-    false,
-    'trial tier is never licensed',
-  );
+test('isLicensed: a verified entitlement is licensed; null is not', () => {
+  assert.equal(isLicensed(WHITE_LABEL), true);
+  assert.equal(isLicensed(NO_WHITE_LABEL), true, 'licensed even without white-label');
+  assert.equal(isLicensed(null), false, 'no token → unlicensed (offline / dev / no seat)');
 });
 
 /* -------------------------------------------------------------------------- */
 /* hasWhiteLabel                                                               */
 /* -------------------------------------------------------------------------- */
 
-test('hasWhiteLabel: only pro/agency AND licensed may hide the credit', () => {
-  assert.equal(hasWhiteLabel(proLicensed), true, 'pro + licensed');
-  assert.equal(
-    hasWhiteLabel(mergeConfig({ license: { tier: 'agency', key: REAL_KEY } })),
-    true,
-    'agency + licensed',
-  );
-  assert.equal(hasWhiteLabel(lifetimeLicensed), false, 'lifetime never white-labels');
-  // Unlicensed → never, regardless of the injected flag.
-  assert.equal(hasWhiteLabel(proNoKey), false, 'pro but unlicensed');
-  assert.equal(hasWhiteLabel(unlicensed), false, 'trial shows the credit');
-});
-
-/* -------------------------------------------------------------------------- */
-/* revalidation seam (disabled)                                                */
-/* -------------------------------------------------------------------------- */
-
-test('revalidation seam is disabled and echoes the local verdict without network', async () => {
-  assert.equal(REVALIDATION_ENABLED, false);
-  assert.equal(await revalidateLicense(proLicensed), true);
-  assert.equal(await revalidateLicense(unlicensed), false);
+test('hasWhiteLabel: only when the verified token carries the white_label flag', () => {
+  assert.equal(hasWhiteLabel(WHITE_LABEL), true, 'flag present + enabled');
+  assert.equal(hasWhiteLabel(NO_WHITE_LABEL), false, 'no flag → credit stays');
+  assert.equal(hasWhiteLabel(null), false, 'unlicensed never white-labels');
 });
 
 /* -------------------------------------------------------------------------- */
 /* resolveBannerConfig — pure shaping                                          */
 /* -------------------------------------------------------------------------- */
 
-test('resolveBannerConfig: licensed keeps the full banner + derived white-label', () => {
-  const full = resolveBannerConfig(proLicensed);
+test('resolveBannerConfig: licensed keeps the full banner + token-derived white-label', () => {
+  const full = resolveBannerConfig(proConfig, WHITE_LABEL);
   assert.equal(full.banner.layout, 'card', 'premium layout preserved');
-  assert.equal(full.license.whiteLabel, true, 'pro white-label derived by the runtime');
+  assert.equal(full.license.whiteLabel, true, 'white-label derived from the token');
 
-  // Lifetime is licensed (full banner) but the runtime forces white-label OFF.
-  const lt = resolveBannerConfig(lifetimeLicensed);
-  assert.equal(lt.license.whiteLabel, false);
+  // Licensed but the token lacks the flag → runtime forces white-label OFF.
+  const noWl = resolveBannerConfig(proConfig, NO_WHITE_LABEL);
+  assert.equal(noWl.banner.layout, 'card', 'still the full banner');
+  assert.equal(noWl.license.whiteLabel, false);
 });
 
-test('resolveBannerConfig: unlicensed degrades to basic branded bar', () => {
-  const basic = resolveBannerConfig(unlicensed);
+test('resolveBannerConfig: unlicensed (null) degrades to the basic branded bar', () => {
+  const basic = resolveBannerConfig(proConfig, null);
   assert.equal(basic.banner.layout, 'bar', 'forced to an unobtrusive bar');
   assert.equal(basic.banner.overlay, false, 'no blocking overlay');
   assert.equal(basic.license.whiteLabel, false, 'white-label off on the free fallback');
@@ -200,9 +173,9 @@ test('basicBannerConfig: preserves all compliance-relevant content', () => {
 /* DOM: licensed → full white-label banner                                     */
 /* -------------------------------------------------------------------------- */
 
-test('DOM: a licensed Pro site renders the full banner AND the "powered by" credit', () => {
+test('DOM: a licensed site renders the full banner AND the "powered by" credit', () => {
   setupDom();
-  const cfg = resolveBannerConfig(proLicensed);
+  const cfg = resolveBannerConfig(proConfig, WHITE_LABEL);
   const ctrl = mountBanner(cfg, { api: noopApi() });
 
   assert.ok(ctrl.root.querySelector('.cc-banner--card'), 'premium card layout rendered');
@@ -217,7 +190,7 @@ test('DOM: a licensed Pro site renders the full banner AND the "powered by" cred
 
 test('DOM: an unlicensed site renders the basic branded bar (credit shown)', () => {
   setupDom();
-  const cfg = resolveBannerConfig(unlicensed);
+  const cfg = resolveBannerConfig(proConfig, null);
   const ctrl = mountBanner(cfg, { api: noopApi() });
 
   assert.ok(ctrl.root.querySelector('.cc-banner--bar'), 'degraded to a bar layout');
@@ -237,9 +210,10 @@ test('DOM: an unlicensed site STILL blocks scripts until consent (compliance nev
 
   // Boot the blocker on the ORIGINAL (unlicensed) config with NO prior consent —
   // exactly what boot() does regardless of the license verdict.
-  const blocker = createScriptBlocker(unlicensed);
+  const cfg = mergeConfig();
+  const blocker = createScriptBlocker(cfg);
   const noConsent: ConsentState = {
-    version: unlicensed.behavior.reconsentVersion,
+    version: cfg.behavior.reconsentVersion,
     timestamp: 1,
     categories: {},
   };

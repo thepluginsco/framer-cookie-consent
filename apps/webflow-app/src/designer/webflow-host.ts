@@ -30,6 +30,19 @@ export function inDesigner(): boolean {
 }
 
 /**
+ * Ask the Designer to show the panel at its largest preset (800×600) so the
+ * shared editor UI — designed for a wide window — has room to breathe. Safe
+ * no-op outside the Designer or on hosts that don't expose the API.
+ */
+export async function requestLargeSize(): Promise<void> {
+  try {
+    await window.webflow?.setExtensionSize?.("large");
+  } catch {
+    /* the panel just stays at its default size */
+  }
+}
+
+/**
  * Resolve the current site id from the Designer host, or `null` when running
  * outside it (local dev), so the caller can fall back to a manual site-id input.
  */

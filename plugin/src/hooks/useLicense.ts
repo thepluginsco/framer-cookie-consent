@@ -1,36 +1,33 @@
 /**
- * `useLicense` — the plugin's license state engine.
+ * `useLicense` — the plugin's license state engine (portal-based).
  *
- * Bridges the Lemon Squeezy License API ({@link module:lib/license}) with the
- * shared config (`config.license`) and a Framer-plugin-data cache
- * ({@link module:lib/licenseCache}). It:
+ * Bridges the Consentful licensing portal ({@link module:lib/portalLicense})
+ * with the shared config (`config.license`). Licensing is now DOMAIN-based: the
+ * user pastes a license key and the plugin ACTIVATES the site's published domain
+ * against it (a "site seat"). The published site's runtime unlocks on its own,
+ * by fetching a domain-scoped signed token at boot — it never trusts the
+ * injected config — so this hook's job is only to:
  *
- * - resolves the current {@link LicenseTier} and derived {@link Entitlements};
- * - lets the UI enter / remove / re-check a key (`enterKey`, `removeKey`,
- *   `refresh`);
- * - writes the resolved `{ key, tier, whiteLabel }` back into `config.license`
- *   (via `useSettings`) so the injected runtime learns its entitlements;
- * - caches successful verdicts and re-validates at most once per
- *   {@link VALIDATION_TTL_MS} (7 days), on demand, or when the key changes;
- * - NEVER hard-crashes on a licensing outage — a network error falls back to the
- *   last known-good cached verdict instead of downgrading a paying user.
+ * - resolve the published domain (from Framer's publish info);
+ * - activate a pasted key against that domain and report the resolved plan;
+ * - write the resolved `{ key, tier, whiteLabel }` back into `config.license` so
+ *   the EDITOR UI unlocks its Pro controls (an editor hint; the runtime re-derives
+ *   entitlement from the token);
+ * - never hard-crash on a licensing outage — a network error keeps the last
+ *   status rather than downgrading a paying user.
+ *
+ * Seat management across sites (freeing/moving a seat) lives on the portal
+ * dashboard, not here.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { getProjectInfo } from "../lib/framer"
+import { getLiveSiteUrl } from "../lib/framer"
 import {
-  createLicenseClient,
-  LicenseNetworkError,
-  type LicenseValidation,
-} from "../lib/license"
-import {
-  clearCachedLicense,
-  isCacheFresh,
-  loadCachedLicense,
-  saveCachedLicense,
-  type CachedLicense,
-} from "../lib/licenseCache"
+  createPortalClient,
+  PortalNetworkError,
+  type ActivationResult,
+} from "../lib/portalLicense"
 import { entitlementsFor, type Entitlements } from "../lib/entitlements"
 import { useSettingsContext } from "@framer-cookie-consent/shared-ui"
 import type { LicenseTier } from "../types"
@@ -41,11 +38,11 @@ import type { LicenseTier } from "../types"
 
 /**
  * The UI-facing license status:
- * - `trial`      — no key entered; running the free (basic) banner.
- * - `validating` — a validate/activate request is in flight.
- * - `active`     — the key validated and unlocked a paid tier.
- * - `invalid`    — the key was rejected (wrong store/product, expired, disabled).
- * - `offline`    — couldn't reach the API; showing the last known-good verdict.
+ * - `trial`      — no key activated; running the free (basic) banner.
+ * - `validating` — an activation request is in flight.
+ * - `active`     — the key activated this domain and unlocked a paid plan.
+ * - `invalid`    — the key was rejected (unknown / expired / seat limit reached).
+ * - `offline`    — couldn't reach the portal; keeping the last known status.
  */
 export type LicenseStatus = "trial" | "validating" | "active" | "invalid" | "offline"
 
@@ -57,15 +54,20 @@ export interface LicenseApi {
   entitlements: Entitlements
   /** The current license key (empty string when none). */
   key: string
-  /** UI status of the last check (see {@link LicenseStatus}). */
+  /** UI status of the last activation (see {@link LicenseStatus}). */
   status: LicenseStatus
   /** Human-readable note for the current status (e.g. a rejection reason), or `null`. */
   message: string | null
-  /** Enter (activate + validate) a key, binding it to this site. */
+  /**
+   * The published domain the key is (or would be) activated for, or `null` when
+   * the site hasn't been published yet (activation needs a live domain).
+   */
+  domain: string | null
+  /** Activate a key, registering the published domain as a seat. */
   enterKey: (key: string) => Promise<void>
-  /** Remove the current key and deactivate its site binding. */
+  /** Remove the key locally (relock the editor). Seat management is on the portal. */
   removeKey: () => Promise<void>
-  /** Force a fresh re-validation of the current key against the API. */
+  /** Re-activate the current key against the current domain. */
   refresh: () => Promise<void>
 }
 
@@ -73,18 +75,21 @@ export interface LicenseApi {
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** Friendly one-liner for a rejected key, based on its Lemon Squeezy status. */
-function invalidMessage(v: LicenseValidation): string {
-  switch (v.status) {
-    case "expired":
-      return "This key has expired. Renew it to keep Pro features."
-    case "disabled":
-      return "This key has been disabled. Contact support if that's unexpected."
-    case "inactive":
-      return "This key isn't active yet."
-    default:
-      return "That key doesn't match this product. Double-check it and try again."
+/** Extract a bare hostname from a URL, or `null` when it isn't parseable. */
+function hostnameOf(url: string | null): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).hostname || null
+  } catch {
+    return null
   }
+}
+
+/** Friendly one-liner for a rejected activation. */
+function rejectionMessage(reason: string | null): string {
+  return reason?.trim()
+    ? reason
+    : "That key couldn't be activated for this site. Double-check it, or manage your seats on the portal."
 }
 
 /* -------------------------------------------------------------------------- */
@@ -102,13 +107,10 @@ export function useLicense(): LicenseApi {
 
   const [status, setStatus] = useState<LicenseStatus>(key ? "active" : "trial")
   const [message, setMessage] = useState<string | null>(null)
+  const [domain, setDomain] = useState<string | null>(null)
 
-  /** The Lemon Squeezy client (real `fetch`), created once. */
-  const client = useMemo(() => createLicenseClient(), [])
-  /** The activation instance id for the current key, loaded from cache. */
-  const instanceIdRef = useRef<string | null>(null)
-  /** Guards the one-shot bootstrap so it doesn't re-run on every render. */
-  const bootstrappedRef = useRef(false)
+  /** The portal client (real `fetch`), created once. */
+  const client = useMemo(() => createPortalClient(), [])
 
   const entitlements = useMemo(() => entitlementsFor(tier), [tier])
 
@@ -120,98 +122,85 @@ export function useLicense(): LicenseApi {
         if (cur.key === next.key && cur.tier === next.tier && cur.whiteLabel === next.whiteLabel) {
           return prev
         }
-        return { ...prev, license: { key: next.key, tier: next.tier, whiteLabel: next.whiteLabel } }
+        return { ...prev, license: { ...prev.license, key: next.key, tier: next.tier, whiteLabel: next.whiteLabel } }
       })
     },
     [update],
   )
 
-  /** Apply a fresh (valid or invalid) verdict to config + cache + UI. */
-  const applyValidation = useCallback(
-    async (k: string, v: LicenseValidation) => {
-      if (v.valid && v.tier) {
-        instanceIdRef.current = v.instanceId ?? instanceIdRef.current
+  /** Resolve (and cache in state) the site's published domain. */
+  const resolveDomain = useCallback(async (): Promise<string | null> => {
+    const host = hostnameOf(await getLiveSiteUrl())
+    setDomain(host)
+    return host
+  }, [])
+
+  /** Apply an activation verdict to config + UI. */
+  const applyActivation = useCallback(
+    (k: string, v: ActivationResult) => {
+      if (v.ok) {
         syncConfig({ key: k, tier: v.tier, whiteLabel: v.whiteLabel })
         setStatus("active")
         setMessage(null)
-        const entry: CachedLicense = {
-          key: k,
-          tier: v.tier,
-          whiteLabel: v.whiteLabel,
-          instanceId: instanceIdRef.current,
-          validatedAt: Date.now(),
-        }
-        // Best-effort persistence; a viewer without write permission just won't cache.
-        try {
-          await saveCachedLicense(entry)
-        } catch {
-          /* caching is non-load-bearing */
-        }
       } else {
-        // Rejected: keep the key visible so the user can see/correct it, but
-        // drop entitlements to the trial and don't cache a failure.
+        // Rejected: keep the key visible so the user can correct it, but relock.
         syncConfig({ key: k || null, tier: "trial", whiteLabel: false })
         setStatus("invalid")
-        setMessage(invalidMessage(v))
+        setMessage(rejectionMessage(v.reason))
       }
     },
     [syncConfig],
   )
 
-  /** Fall back to the last known-good cached verdict when the API is unreachable. */
-  const fallBackOffline = useCallback(
-    (k: string, cached: CachedLicense | null) => {
-      if (cached && cached.key === k) {
-        instanceIdRef.current = cached.instanceId
-        syncConfig({ key: k, tier: cached.tier, whiteLabel: cached.whiteLabel })
-      }
-      setStatus("offline")
-      setMessage("Couldn't reach the license server — using your last verified status.")
-    },
-    [syncConfig],
-  )
-
-  /** The Framer project id, used as the activation instance name (best-effort). */
-  const projectInstanceName = useCallback(async (): Promise<string> => {
-    try {
-      const info = await getProjectInfo()
-      return info.id
-    } catch {
-      return "framer-site"
-    }
-  }, [])
-
-  /**
-   * Validate `k`, binding it to this site on first use. Avoids duplicate
-   * activations: it only activates when validation reports no bound instance.
-   */
-  const bindAndValidate = useCallback(
+  /** Activate `k` against the current published domain. */
+  const activate = useCallback(
     async (k: string): Promise<void> => {
-      const existing = instanceIdRef.current ?? undefined
-      const v = await client.validateKey(k, existing)
-      if (!v.valid) {
-        await applyValidation(k, v)
+      const host = await resolveDomain()
+      if (!host) {
+        // No live domain yet — a seat is registered against a real hostname, so
+        // the user has to publish the site once before activating.
+        setStatus("invalid")
+        setMessage("Publish your site first, then activate — a license is tied to your live domain.")
         return
       }
-      if (v.instanceId) {
-        await applyValidation(k, v)
-        return
-      }
-      // Valid key with no bound instance → activate to tie it to this site.
-      const a = await client.activateKey(k, await projectInstanceName())
-      if (a.valid) {
-        await applyValidation(k, a)
-      } else {
-        // The key is genuine but couldn't be bound (usually the site limit).
-        // Grant the entitlements anyway; just warn we couldn't reserve a seat.
-        await applyValidation(k, v)
-        setMessage("Unlocked, but this key has reached its site limit. Deactivate another site to bind this one.")
-      }
+      const v = await client.activate(k, host)
+      applyActivation(k, v)
     },
-    [client, applyValidation, projectInstanceName],
+    [client, resolveDomain, applyActivation],
   )
 
-  /** Force a network re-validation of the current key. */
+  /** Enter a new key from the UI (trims; empty → remove). */
+  const enterKey = useCallback(
+    async (input: string) => {
+      const k = input.trim()
+      if (!k) {
+        syncConfig({ key: null, tier: "trial", whiteLabel: false })
+        setStatus("trial")
+        setMessage(null)
+        return
+      }
+      setStatus("validating")
+      setMessage(null)
+      try {
+        await activate(k)
+      } catch (error) {
+        if (error instanceof PortalNetworkError) {
+          // Can't verify right now; store the key but stay on trial until we can.
+          syncConfig({ key: k, tier: "trial", whiteLabel: false })
+          setStatus("offline")
+          setMessage("Couldn't reach the licensing server — we'll activate this key next time you're online.")
+        } else {
+          console.warn("[cookie-consent] activation failed:", error)
+          syncConfig({ key: k, tier: "trial", whiteLabel: false })
+          setStatus("invalid")
+          setMessage("Something went wrong activating that key. Please try again.")
+        }
+      }
+    },
+    [activate, syncConfig],
+  )
+
+  /** Force a re-activation of the current key. */
   const refresh = useCallback(async () => {
     const k = key.trim()
     if (!k) {
@@ -222,117 +211,35 @@ export function useLicense(): LicenseApi {
     }
     setStatus("validating")
     setMessage(null)
-    const cached = await loadCachedLicense()
     try {
-      await bindAndValidate(k)
+      await activate(k)
     } catch (error) {
-      if (error instanceof LicenseNetworkError) {
-        fallBackOffline(k, cached)
-      } else {
-        // Unexpected (bug) — don't take the banner offline; keep last status.
-        console.warn("[cookie-consent] license refresh failed:", error)
-        fallBackOffline(k, cached)
+      if (!(error instanceof PortalNetworkError)) {
+        console.warn("[cookie-consent] re-activation failed:", error)
       }
+      setStatus("offline")
+      setMessage("Couldn't reach the licensing server — keeping your last verified status.")
     }
-  }, [key, bindAndValidate, fallBackOffline, syncConfig])
+  }, [key, activate, syncConfig])
 
-  /** Enter a new key from the UI (trims; empty → remove). */
-  const enterKey = useCallback(
-    async (input: string) => {
-      const k = input.trim()
-      if (!k) {
-        syncConfig({ key: null, tier: "trial", whiteLabel: false })
-        instanceIdRef.current = null
-        setStatus("trial")
-        setMessage(null)
-        try {
-          await clearCachedLicense()
-        } catch {
-          /* ignore */
-        }
-        return
-      }
-      // A freshly entered key has no known binding yet.
-      instanceIdRef.current = null
-      setStatus("validating")
-      setMessage(null)
-      try {
-        await bindAndValidate(k)
-      } catch (error) {
-        if (error instanceof LicenseNetworkError) {
-          // Can't verify right now; store the key but stay on trial until we can.
-          syncConfig({ key: k, tier: "trial", whiteLabel: false })
-          setStatus("offline")
-          setMessage("Couldn't reach the license server — we'll verify this key next time you're online.")
-        } else {
-          console.warn("[cookie-consent] license activation failed:", error)
-          syncConfig({ key: k, tier: "trial", whiteLabel: false })
-          setStatus("invalid")
-          setMessage("Something went wrong validating that key. Please try again.")
-        }
-      }
-    },
-    [bindAndValidate, syncConfig],
-  )
-
-  /** Remove the current key + release its site binding. */
+  /** Remove the current key locally (relock the editor). */
   const removeKey = useCallback(async () => {
-    const k = key.trim()
-    const instanceId = instanceIdRef.current
-    // Best-effort deactivation so the freed seat can move to another site.
-    if (k && instanceId) {
-      try {
-        await client.deactivateKey(k, instanceId)
-      } catch {
-        /* offline / already gone — the local removal below still applies */
-      }
-    }
-    instanceIdRef.current = null
     syncConfig({ key: null, tier: "trial", whiteLabel: false })
     setStatus("trial")
     setMessage(null)
-    try {
-      await clearCachedLicense()
-    } catch {
-      /* ignore */
-    }
-  }, [key, client, syncConfig])
+  }, [syncConfig])
 
-  /* ---- Bootstrap on mount: honour a fresh cache, else re-validate --------- */
+  /* ---- Resolve the published domain once on mount (best-effort) ----------- */
   useEffect(() => {
-    if (bootstrappedRef.current) return
-    bootstrappedRef.current = true
-
     let cancelled = false
     void (async () => {
-      const k = key.trim()
-      if (!k) {
-        setStatus("trial")
-        return
-      }
-      const cached = await loadCachedLicense()
-      if (cancelled) return
-      // Seed the known binding before any type-guard narrowing touches `cached`.
-      const seedInstance = cached && cached.key === k ? cached.instanceId : null
-      if (isCacheFresh(cached, k, Date.now())) {
-        // Trusted within the 7-day window — no network call needed.
-        instanceIdRef.current = cached.instanceId
-        syncConfig({ key: k, tier: cached.tier, whiteLabel: cached.whiteLabel })
-        setStatus("active")
-        setMessage(null)
-        return
-      }
-      // Missing or stale cache → re-validate against the API.
-      instanceIdRef.current = seedInstance
-      await refresh()
+      const host = hostnameOf(await getLiveSiteUrl())
+      if (!cancelled) setDomain(host)
     })()
-
     return () => {
       cancelled = true
     }
-    // Intentionally run once on mount; `key` is read fresh inside.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { tier, entitlements, key, status, message, enterKey, removeKey, refresh }
+  return { tier, entitlements, key, status, message, domain, enterKey, removeKey, refresh }
 }

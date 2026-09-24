@@ -24,6 +24,7 @@ import { mergeConfig, type CookieConsentConfig } from '@framer-cookie-consent/sh
 import { checkThemeContrast, contrastRatio, derivePalette, AA_TEXT_CONTRAST } from '../runtime/src/styles.ts';
 import type { RegionInfo } from '../runtime/src/geo.ts';
 import type { ConsentState } from '../runtime/src/consent-state.ts';
+import type { VerifiedEntitlement } from '../runtime/src/license-token.ts';
 
 /* -------------------------------------------------------------------------- */
 /* jsdom harness                                                              */
@@ -120,7 +121,12 @@ async function loadRuntime(): Promise<RuntimeModules> {
 function boot(
   mods: RuntimeModules,
   config: CookieConsentConfig,
-  opts: { region?: RegionInfo; doNotTrack?: boolean } = {},
+  opts: {
+    region?: RegionInfo;
+    doNotTrack?: boolean;
+    /** The runtime-verified entitlement (null = unlicensed, the default). */
+    entitlement?: VerifiedEntitlement | null;
+  } = {},
 ) {
   const { installConsentApi, readConsent, onConsentChange } = mods.consentState;
   const { bootstrapConsentDefaults, updateConsent } = mods.consentMode;
@@ -129,12 +135,13 @@ function boot(
   const { mountBanner } = mods.banner;
   const { isLicensed, resolveBannerConfig } = mods.licenseGate;
 
-  const licensed = isLicensed(config);
+  const entitlement = opts.entitlement ?? null;
+  const licensed = isLicensed(entitlement);
   bootstrapConsentDefaults(config);
   onConsentChange((state) => updateConsent(config, state));
   const api = installConsentApi(config);
   const blocker = installScriptBlocker(config);
-  const bannerConfig = resolveBannerConfig(config);
+  const bannerConfig = resolveBannerConfig(config, entitlement);
   const state = readConsent(config);
   const autoShow = shouldShowBanner(config, state, opts.region, opts.doNotTrack);
   const controller = mountBanner(bannerConfig, { api, autoShow });
@@ -188,8 +195,22 @@ function flush(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** A plausibly-real Lemon Squeezy key (passes the runtime's format guard). */
-const REAL_KEY = 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890';
+/**
+ * A verified, white-label entitlement fixture — the runtime-side verdict the
+ * boot flow now derives licensing from (the injected config is no longer
+ * trusted). Passing it to {@link boot} stands in for a domain-scoped token that
+ * fetched + verified successfully; `null` (the default) is an unlicensed site.
+ */
+const LICENSED: VerifiedEntitlement = {
+  licenseId: 'lic_test',
+  domain: 'acme.com',
+  status: 'active',
+  type: 'monthly',
+  plan: { slug: 'pro', name: 'Pro' },
+  features: { white_label: { kind: 'flag', value: true } },
+  iat: Math.floor(Date.now() / 1000),
+  exp: Math.floor(Date.now() / 1000) + 3600,
+};
 
 const FOUR_SIGNALS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'] as const;
 
@@ -389,19 +410,24 @@ describe('Late-injected scripts (MutationObserver)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('License gate', () => {
-  /** Boot on a given origin + license and report what the banner degraded to. */
-  async function bootOn(url: string, license: Partial<CookieConsentConfig['license']>) {
+  /**
+   * Boot on a given origin with a given runtime-verified entitlement and report
+   * what the banner degraded to. Licensing is now decided by the entitlement
+   * token (fetched + verified at boot), NOT the injected config — so it is
+   * uniform across origins.
+   */
+  async function bootOn(url: string, entitlement: VerifiedEntitlement | null) {
     setupDom(url); // replace the beforeEach dom with the right origin
     const mods = await loadRuntime();
-    const cfg = mergeConfig({ banner: { layout: 'card' }, license });
+    const cfg = mergeConfig({ banner: { layout: 'card' } });
     // A tracker to prove blocking holds regardless of licensing.
     addPlaceholder('analytics', 'analytics');
-    const handles = boot(mods, cfg, { region: EU });
+    const handles = boot(mods, cfg, { region: EU, entitlement });
     return { mods, ...handles };
   }
 
-  test('staging (Framer preview) with no license → basic branded bar, credit shown', async () => {
-    const { controller } = await bootOn('https://my-site.framer.website/', { tier: 'trial', key: null });
+  test('staging (Framer preview) with no verified token → basic branded bar, credit shown', async () => {
+    const { controller } = await bootOn('https://my-site.framer.website/', null);
     expect(controller.root.querySelector('.cc-banner--bar')).toBeTruthy();
     expect(controller.root.querySelector('.cc-powered a')).toBeTruthy();
     // Compliance never degrades: the tracker is still blocked pre-consent.
@@ -409,14 +435,14 @@ describe('License gate', () => {
   });
 
   test('custom domain, unlicensed → identical basic fallback (no "free on staging" asymmetry)', async () => {
-    const { controller } = await bootOn('https://www.acme.com/', { tier: 'trial', key: null });
+    const { controller } = await bootOn('https://www.acme.com/', null);
     expect(controller.root.querySelector('.cc-banner--bar')).toBeTruthy();
     expect(controller.root.querySelector('.cc-powered a')).toBeTruthy();
     expect(ran('analytics')).toBe(false);
   });
 
-  test('custom domain, licensed Pro → full card banner AND the credit (shown on every tier)', async () => {
-    const { controller } = await bootOn('https://www.acme.com/', { tier: 'pro', key: REAL_KEY, whiteLabel: true });
+  test('custom domain, verified entitlement → full card banner AND the credit (shown on every tier)', async () => {
+    const { controller } = await bootOn('https://www.acme.com/', LICENSED);
     expect(controller.root.querySelector('.cc-banner--card')).toBeTruthy();
     // The "powered by" credit now shows on all versions — white-label no longer hides it.
     expect(controller.root.querySelector('.cc-powered')).toBeTruthy();
@@ -464,8 +490,8 @@ describe('Accessibility', () => {
     mods = await loadRuntime();
     const modalCfg = boot(
       mods,
-      mergeConfig({ banner: { layout: 'modal' }, license: { tier: 'pro', key: REAL_KEY } }),
-      { region: EU },
+      mergeConfig({ banner: { layout: 'modal' } }),
+      { region: EU, entitlement: LICENSED },
     );
     modalCfg.controller.openPreferences();
     const blockingModal = modalCfg.controller.root.querySelector('.cc-modal') as HTMLElement;

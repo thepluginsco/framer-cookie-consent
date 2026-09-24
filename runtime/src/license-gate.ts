@@ -1,41 +1,38 @@
 /**
- * License gate — the real, client-side licensing check (replacing the Prompt 7
- * stub).
+ * License gate — turns a runtime-verified {@link VerifiedEntitlement} into the
+ * banner-shaping decisions (full vs. basic banner, white-label on/off).
  *
- * Licensing is uniform across every origin: a site is licensed when — and only
- * when — the injected `config.license` carries a paid tier and a present key.
- * There is no "free on staging" special case; the same rules apply to Framer
- * preview domains, `localhost`, and custom domains alike.
+ * The AUTHORITATIVE source of licensing truth is the domain-scoped ES256 token
+ * fetched + verified at boot ({@link module:entitlement}), NOT the injected
+ * `config.license`. A visitor can read and forge the injected config; a
+ * domain-locked signed token cannot be forged or moved between domains. So this
+ * module takes the *verified entitlement* (or `null` when unlicensed / offline /
+ * on a dev host) and never inspects `config.license.tier`/`key`.
  *
- * This module is **dependency-free** (its only imports are types) and does
- * **zero network I/O**. That is a deliberate architectural decision, not a
- * shortcut:
+ * This module is **dependency-free** (only type imports) and does **zero network
+ * I/O** — the fetch/verify happens once in {@link module:entitlement}; here we
+ * only shape the banner config from its result.
  *
- * - The *heavy* license validation (calling Lemon Squeezy, resolving the tier
- *   from the store/product/variant, checking activation status) happens ONCE, in
- *   the Framer editor, at purchase / activation time. The verdict is baked into
- *   the config that the plugin injects into the published page.
- * - The runtime therefore only performs a *lightweight presence / format* check
- *   on the injected `config.license` block. This keeps the runtime at $0 infra
- *   and zero added latency on every visitor's page load — we never phone home.
- *
- * Because the check is client-side it is a deterrent + licensing mechanism, not
- * a DRM fortress. That trade-off is intentional and documented in ARCHITECTURE.md.
- *
+ * @see ./entitlement.ts   (fetch + verify)
+ * @see ./license-token.ts (ES256/JWKS verifier)
  * @see ../../ARCHITECTURE.md § "Licensing model"
  */
 
-import type { CookieConsentConfig, LicenseTier } from '@framer-cookie-consent/shared';
+import type { CookieConsentConfig } from '@framer-cookie-consent/shared';
+import type { FeatureSet, VerifiedEntitlement } from './license-token.ts';
 
 /* -------------------------------------------------------------------------- */
-/* Lightweight license verdict                                                */
+/* Feature helpers                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Paid tiers that entitle a site to run the full banner. */
-const PAID_TIERS: readonly LicenseTier[] = ['lifetime', 'pro', 'agency'];
+/** Feature id in the entitlement's `features` map that grants white-label. */
+const WHITE_LABEL_FEATURE = 'white_label';
 
-/** Tiers entitled to hide the "powered by" credit (white-label). */
-const WHITE_LABEL_TIERS: readonly LicenseTier[] = ['pro', 'agency'];
+/** Whether a boolean `flag` feature is present and enabled. */
+function flagEnabled(features: FeatureSet, id: string): boolean {
+  const f = features[id];
+  return !!f && f.kind === 'flag' && f.value === true;
+}
 
 /**
  * Neutral theme the basic fallback banner uses (mirrors the shared schema's
@@ -50,79 +47,36 @@ const NEUTRAL_THEME: CookieConsentConfig['theme'] = {
   fontFamily: 'inherit',
 };
 
-/**
- * Lightweight presence/format check on a license key. We do NOT contact Lemon
- * Squeezy here (that happened in the editor); we only require a plausibly-real,
- * non-trivial token so an empty/placeholder value cannot pass as a license.
- *
- * @param key - The key from `config.license.key` (may be `null`).
- * @returns `true` when the key looks like a real, present license key.
- */
-function hasPresentKey(key: string | null): boolean {
-  if (typeof key !== 'string') return false;
-  // Lemon Squeezy keys are UUID-ish (36 chars); require a modest minimum so a
-  // stray "x" or whitespace never counts. This is a format guard, not a checksum.
-  return key.trim().length >= 8;
-}
+/* -------------------------------------------------------------------------- */
+/* Verdict                                                                    */
+/* -------------------------------------------------------------------------- */
 
 /**
- * Whether the current site is entitled to run the paid banner. Licensed only
- * when the injected `config.license` has a paid `tier` (lifetime / pro / agency)
- * AND a present, well-formed key. This is the deliberate lightweight check
- * documented at the top of this file, and it applies to every origin equally.
+ * Whether the current site is entitled to run the paid banner. Licensed when —
+ * and only when — a valid, domain-scoped entitlement token was verified for this
+ * host at boot. `null` (no seat, offline, dev host, or a failed/expired/copied
+ * token) is unlicensed.
  *
- * Synchronous by design: no network, no promises, no per-visitor latency.
- *
- * @param config - The active configuration (its `license` block is inspected).
+ * @param entitlement - The verified entitlement, or `null` (see {@link module:entitlement}).
  * @returns `true` when the site may render the full paid banner.
  */
-export function isLicensed(config: CookieConsentConfig): boolean {
-  const { tier, key } = config.license;
-  return PAID_TIERS.includes(tier) && hasPresentKey(key);
+export function isLicensed(entitlement: VerifiedEntitlement | null): boolean {
+  return entitlement !== null;
 }
 
 /**
- * Whether the "powered by" credit may be hidden (white-label). Entitled ONLY
- * when the tier is pro/agency AND the site is actually licensed.
+ * Whether the "powered by" credit may be hidden (white-label). Entitled only
+ * when the verified token carries the {@link WHITE_LABEL_FEATURE} flag. The
+ * runtime is authoritative here — it never trusts the injected
+ * `config.license.whiteLabel`; {@link resolveBannerConfig} re-derives it from
+ * this function.
  *
- * The runtime is authoritative here: it does not trust `config.license.whiteLabel`
- * blindly — {@link resolveBannerConfig} re-derives it from this function.
- *
- * @param config - The active configuration.
+ * @param entitlement - The verified entitlement, or `null`.
  * @returns `true` when white-label is entitled.
  */
-export function hasWhiteLabel(config: CookieConsentConfig): boolean {
-  if (!isLicensed(config)) return false;
-  return WHITE_LABEL_TIERS.includes(config.license.tier);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Optional periodic revalidation seam (DISABLED)                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * OFF by default. Flip to `true` only alongside a real {@link revalidateLicense}
- * implementation. Kept a `const false` so the dead branch tree-shakes away and
- * the shipped runtime makes zero network calls (preserving $0 infra / zero
- * latency).
- */
-export const REVALIDATION_ENABLED = false as const;
-
-/**
- * Periodic revalidation seam — STUBBED and DISABLED.
- *
- * A future Pro-tier feature could, on a long interval, phone home to a
- * Cloudflare Worker to catch refunded/deactivated keys. We intentionally do NOT
- * ship that: it would add infrastructure and per-visitor latency for negligible
- * benefit over the editor-time validation. This hook exists only to mark the
- * seam; it performs NO network I/O and simply echoes the local verdict.
- *
- * @param config - The active configuration.
- * @returns A promise resolving to the current lightweight {@link isLicensed} verdict.
- */
-export async function revalidateLicense(config: CookieConsentConfig): Promise<boolean> {
-  // DISABLED: no fetch, no Worker call. See REVALIDATION_ENABLED and the docs above.
-  return isLicensed(config);
+export function hasWhiteLabel(entitlement: VerifiedEntitlement | null): boolean {
+  if (!entitlement) return false;
+  return flagEnabled(entitlement.features, WHITE_LABEL_FEATURE);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -160,11 +114,12 @@ export function basicBannerConfig(config: CookieConsentConfig): CookieConsentCon
 
 /**
  * Resolve the config the banner should actually render, applying the license
- * gate and white-label entitlement:
+ * gate + white-label entitlement from the runtime-verified token:
  *
- * - **Licensed** → the full banner, with `license.whiteLabel` re-derived from
- *   {@link hasWhiteLabel} (the runtime, not the injected flag, is authoritative).
- * - **Unlicensed** → the {@link basicBannerConfig} fallback.
+ * - **Licensed** (`entitlement != null`) → the full banner, with
+ *   `license.whiteLabel` re-derived from {@link hasWhiteLabel} (the verified
+ *   token, not the injected flag, is authoritative).
+ * - **Unlicensed** (`entitlement == null`) → the {@link basicBannerConfig} fallback.
  *
  * NOTE: this only shapes the *banner UI*. The compliance machinery (Consent Mode
  * denials + script blocking) always runs on the ORIGINAL config regardless of
@@ -172,12 +127,16 @@ export function basicBannerConfig(config: CookieConsentConfig): CookieConsentCon
  * safe than a licensed one.
  *
  * @param config - The active configuration.
+ * @param entitlement - The verified entitlement, or `null` (unlicensed).
  * @returns The config to hand to {@link module:banner~mountBanner}.
  */
-export function resolveBannerConfig(config: CookieConsentConfig): CookieConsentConfig {
-  if (!isLicensed(config)) return basicBannerConfig(config);
+export function resolveBannerConfig(
+  config: CookieConsentConfig,
+  entitlement: VerifiedEntitlement | null,
+): CookieConsentConfig {
+  if (!isLicensed(entitlement)) return basicBannerConfig(config);
   return {
     ...config,
-    license: { ...config.license, whiteLabel: hasWhiteLabel(config) },
+    license: { ...config.license, whiteLabel: hasWhiteLabel(entitlement) },
   };
 }

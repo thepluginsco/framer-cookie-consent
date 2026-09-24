@@ -506,12 +506,23 @@ export type LicenseTier = 'trial' | 'lifetime' | 'pro' | 'agency';
 
 /** Licensing state embedded in the config. */
 export interface LicenseConfig {
-  /** Lemon Squeezy license key, or `null` on the free trial. */
+  /**
+   * Portal license key the site was activated with, or `null` when unactivated.
+   * Display/reference only — the runtime does NOT gate on this; it fetches and
+   * verifies a domain-scoped token at boot (see the runtime's `entitlement`
+   * module). The plugin uses it to register/renew the site's seat.
+   */
   key: string | null;
-  /** Entitlement tier resolved from the key. */
+  /** Entitlement tier last reported by the portal — an editor-UI hint only. */
   tier: LicenseTier;
-  /** Whether white-labelling (hiding the credit) is entitled. */
+  /** Whether white-labelling was entitled at activation — an editor-UI hint only. */
   whiteLabel: boolean;
+  /**
+   * Optional override for the licensing-API origin the runtime calls (e.g. to
+   * point a specific site at staging). Empty = the runtime's baked production
+   * default. Rarely set.
+   */
+  portalApiBaseUrl?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -707,6 +718,7 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     key: null,
     tier: 'trial',
     whiteLabel: false,
+    portalApiBaseUrl: '',
   },
 };
 
@@ -1097,6 +1109,7 @@ function mergeLicense(d: LicenseConfig, p: DeepPartial<LicenseConfig> | undefine
     key: strOrNull(p?.key, d.key),
     tier: oneOf(p?.tier, TIERS, d.tier),
     whiteLabel: boolOr(p?.whiteLabel, d.whiteLabel),
+    portalApiBaseUrl: strOr(p?.portalApiBaseUrl, d.portalApiBaseUrl ?? ''),
   };
 }
 

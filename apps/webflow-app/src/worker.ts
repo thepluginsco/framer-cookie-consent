@@ -78,10 +78,21 @@ function json(data: unknown, status = 200, extra: Record<string, string> = {}): 
   return new Response(JSON.stringify(data), { status, headers: { ...JSON_HEADERS, ...extra } });
 }
 
+/**
+ * Which origin to echo in the CORS headers. The Designer Extension may be served
+ * from `localhost:1337` (dev) or a `*.webflow-ext.com` host (production), so we
+ * REFLECT the caller's own `Origin` header rather than pinning one. Falls back to
+ * the configured {@link Env.APP_ORIGIN}, then to `*`. Safe because these routes
+ * carry no cookies — they authorize via a server-side, site-keyed token.
+ */
+function resolveOrigin(request: Request, env: Env): string | undefined {
+  return request.headers.get("Origin") ?? env.APP_ORIGIN;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    const origin = env.APP_ORIGIN;
+    const origin = resolveOrigin(request, env);
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -94,13 +105,13 @@ export default {
         case "/callback":
           return handleCallback(url, env);
         case "/api/install":
-          return handleApi(request, env, "install");
+          return handleApi(request, env, "install", origin);
         case "/api/remove":
-          return handleApi(request, env, "remove");
+          return handleApi(request, env, "remove", origin);
         case "/api/status":
-          return handleStatus(url, env);
+          return handleStatus(url, env, origin);
         case "/api/config":
-          return handleConfig(url, env);
+          return handleConfig(url, env, origin);
         default:
           return json({ error: "not_found" }, 404, corsHeaders(origin));
       }
@@ -130,6 +141,15 @@ async function handleCallback(url: URL, env: Env): Promise<Response> {
   const site = url.searchParams.get("state") ?? "";
   if (!code) return json({ error: "missing_code" }, 400);
 
+  // TEMP DIAGNOSTIC — remove after debugging the OAuth invalid_client error.
+  const _cid = env.WEBFLOW_CLIENT_ID ?? "";
+  const _sec = env.WEBFLOW_CLIENT_SECRET ?? "";
+  console.log(
+    `[diag] client_id len=${_cid.length} value=${_cid} | secret len=${_sec.length} ` +
+      `first4=${_sec.slice(0, 4)} last4=${_sec.slice(-4)} | ` +
+      `redirect=${env.WEBFLOW_REDIRECT_URI} | codeLen=${code.length} state=${site || "(empty)"}`,
+  );
+
   const token = await exchangeCodeForToken({
     clientId: env.WEBFLOW_CLIENT_ID,
     clientSecret: env.WEBFLOW_CLIENT_SECRET,
@@ -151,10 +171,10 @@ async function handleCallback(url: URL, env: Env): Promise<Response> {
 }
 
 /** Report whether we hold a token for a site (drives the Designer's connect UI). */
-async function handleStatus(url: URL, env: Env): Promise<Response> {
+async function handleStatus(url: URL, env: Env, origin: string | undefined): Promise<Response> {
   const site = url.searchParams.get("site") ?? "";
   const token = site ? await env.TOKENS.get(`token:${site}`) : null;
-  return json({ connected: Boolean(token) }, 200, corsHeaders(env.APP_ORIGIN));
+  return json({ connected: Boolean(token) }, 200, corsHeaders(origin));
 }
 
 /** Body shape for `/api/install` and `/api/remove`. */
@@ -170,8 +190,9 @@ async function handleApi(
   request: Request,
   env: Env,
   action: "install" | "remove",
+  origin: string | undefined,
 ): Promise<Response> {
-  const cors = corsHeaders(env.APP_ORIGIN);
+  const cors = corsHeaders(origin);
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, cors);
 
   const body = (await request.json().catch(() => ({}))) as ApiBody;
@@ -206,8 +227,8 @@ async function handleApi(
 }
 
 /** Serve a site's stored config back to the Designer panel (or 404). */
-async function handleConfig(url: URL, env: Env): Promise<Response> {
-  const cors = corsHeaders(env.APP_ORIGIN);
+async function handleConfig(url: URL, env: Env, origin: string | undefined): Promise<Response> {
+  const cors = corsHeaders(origin);
   const site = url.searchParams.get("site") ?? "";
   if (!site) return json({ error: "missing_site" }, 400, cors);
   const stored = env.CONFIGS ? await env.CONFIGS.get(`config:${site}`) : null;

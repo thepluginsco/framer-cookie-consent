@@ -26,6 +26,10 @@ function installDom(): void {
   g.document = w.document;
   g.localStorage = w.localStorage;
   g.MutationObserver = w.MutationObserver;
+  // The boot flow fetches a licensing entitlement by hostname. Stub `fetch` to
+  // fail (offline) so the runtime fails closed to the free banner WITHOUT any
+  // real network call — this smoke test only cares that boot mounts the banner.
+  g.fetch = () => Promise.reject(new Error('no network in tests'));
   for (const name of [
     'Event',
     'CustomEvent',
@@ -45,12 +49,18 @@ function installDom(): void {
 
 beforeEach(() => installDom());
 
+/** Let boot's awaited async work (entitlement fetch + mount) settle. */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+}
+
 afterEach(() => {
   dom.window.close();
   for (const k of [
     'window',
     'document',
     'localStorage',
+    'fetch',
     'MutationObserver',
     'Event',
     'CustomEvent',
@@ -77,8 +87,8 @@ test('auto-boot installs window.CookieConsent, denies Consent Mode by default, a
 
   vi.resetModules();
   await import('../runtime/src/index.ts');
-  // boot() runs synchronously on import; give any microtasks a tick anyway.
-  await Promise.resolve();
+  // boot() is async (it awaits the entitlement fetch before mounting); let it settle.
+  await settle();
 
   // The imperative API is installed with a boot handle for manual re-init.
   const api = (dom.window as unknown as { CookieConsent?: Record<string, unknown> }).CookieConsent;
@@ -104,7 +114,7 @@ test('auto-boot is resilient: an invalid embedded config still boots (falls back
 
   vi.resetModules();
   await import('../runtime/src/index.ts');
-  await Promise.resolve();
+  await settle();
 
   // parse() swallows the bad JSON and returns a default config, so the API and
   // Consent Mode wiring still come up rather than the page breaking.

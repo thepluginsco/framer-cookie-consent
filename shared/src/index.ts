@@ -29,6 +29,7 @@ export * from './config-schema.js';
 export * from './ab-test.js';
 export * from './tracker-scan.js';
 export * from './runtime-cdn.js';
+export * from './portal.js';
 export * from './loader.js';
 export * from './adapter.js';
 export * from './embed.js';

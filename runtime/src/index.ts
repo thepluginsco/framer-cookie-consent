@@ -28,7 +28,8 @@ import {
   regionBucket,
 } from './geo.ts';
 import { mountBanner } from './banner.ts';
-import { isLicensed, resolveBannerConfig } from './license-gate.ts';
+import { resolveBannerConfig } from './license-gate.ts';
+import { resolveEntitlement } from './entitlement.ts';
 import { installConsentAnalytics, type AnalyticsContext } from './analytics.ts';
 import { resolveActiveVariant } from './variant.ts';
 import { reportError } from './error-logger.ts';
@@ -134,17 +135,19 @@ function warnUnlicensed(): void {
  * reshuffled — Consent Mode defaults have to be set before any tracker can run:
  *
  * 1. Read the embedded config (partial/old configs are merged forward).
- * 2. License gate — {@link isLicensed}. CRUCIALLY this NEVER skips the
- *    compliance machinery: an unlicensed site still gets Consent Mode denials +
- *    script blocking (steps 3–4), so an unpaid site is never *less* safe than a
- *    paid one. Only the banner UI degrades (step 5).
+ * 2. License gate — kick off {@link resolveEntitlement} (fetch + offline-verify a
+ *    domain-scoped token). CRUCIALLY this NEVER skips the compliance machinery:
+ *    an unlicensed site still gets Consent Mode denials + script blocking (steps
+ *    3–4), so an unpaid site is never *less* safe than a paid one. Only the
+ *    banner UI degrades (step 5). The fetch runs in parallel with geo and is
+ *    awaited just before the mount.
  * 3. `bootstrapConsentDefaults` — push Consent Mode v2 defaults ASAP.
  * 4. Install the script blocker: read existing consent and activate the scripts
  *    of already-consented categories (also starts the MutationObserver).
- * 5. Mount the banner UI once the DOM is ready — but through
- *    {@link resolveBannerConfig}: licensed sites get the full (optionally
- *    white-labelled) banner; unlicensed sites degrade to a basic branded
- *    fallback bar rather than nothing.
+ * 5. Mount the banner UI once the DOM is ready — through
+ *    {@link resolveBannerConfig} with the awaited entitlement: a verified-token
+ *    site gets the full (optionally white-labelled) banner; an unlicensed site
+ *    degrades to a basic branded fallback bar rather than nothing.
  *
  * Never throws: everything is wrapped so a failure degrades to "no banner"
  * rather than a broken host page.
@@ -166,10 +169,20 @@ export async function boot(): Promise<void> {
     const analyticsCtx: AnalyticsContext = {};
     if (active.variantId) analyticsCtx.variant = active.variantId;
 
-    // (b) License gate. Unlicensed only affects the *banner presentation* (see
-    //     step e) — compliance below runs regardless. Warn the owner in console.
-    const licensed = isLicensed(config);
-    if (!licensed) warnUnlicensed();
+    // (b) License gate — start the entitlement fetch NOW so it resolves in
+    //     parallel with the geo lookup below, and awaits together with it before
+    //     the single banner mount (step f). The runtime is authoritative: it asks
+    //     the licensing API (by hostname) for a domain-scoped signed token and
+    //     verifies it offline — the injected config.license is NOT trusted. This
+    //     only affects the *banner presentation*; the compliance machinery below
+    //     runs regardless of the verdict, so an unlicensed site is never *less*
+    //     safe. Fails closed (→ free banner) on any error/timeout.
+    const host = typeof location !== 'undefined' ? location.hostname : '';
+    const apiBaseOverride = config.license.portalApiBaseUrl;
+    const entitlementPromise = resolveEntitlement(
+      host,
+      apiBaseOverride ? { apiBase: apiBaseOverride } : {},
+    );
 
     // (c) Consent Mode defaults — MUST precede any tracker. Then keep the
     //     signals in sync on every future consent change. Always runs, licensed
@@ -254,11 +267,15 @@ export async function boot(): Promise<void> {
       logError(err, 'implied-consent');
     }
 
-    // (f) Render the banner once the DOM is ready. resolveBannerConfig applies
-    //     the license gate + white-label entitlement: full banner when licensed,
-    //     basic branded fallback when unlicensed. The blocker above already keeps
-    //     trackers gated meanwhile.
-    const bannerConfig = resolveBannerConfig(config);
+    // (f) Await the entitlement (started in step b, resolved alongside geo) and
+    //     render the banner ONCE with the resolved presentation: full banner when
+    //     a valid domain token verified, basic branded fallback (+ console nudge)
+    //     otherwise. Awaiting here — rather than mounting free then re-mounting on
+    //     the token — avoids a visible flash; the blocker above already keeps
+    //     trackers gated while we wait, and resolveEntitlement is time-bounded.
+    const entitlement = await entitlementPromise;
+    if (!entitlement) warnUnlicensed();
+    const bannerConfig = resolveBannerConfig(config, entitlement);
     whenDomReady(() => {
       try {
         const state = readConsent(config);

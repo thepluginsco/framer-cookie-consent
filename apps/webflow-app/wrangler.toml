@@ -15,15 +15,15 @@ compatibility_date = "2026-01-01"
 
 # Public/build-time vars (secrets go via `wrangler secret put`).
 [vars]
-WEBFLOW_CLIENT_ID = ""            # set to your Webflow app client id
-WEBFLOW_REDIRECT_URI = ""         # https://<worker-host>/callback (registered on the app)
-APP_ORIGIN = ""                   # the Designer extension origin, for the post-auth bounce + CORS
+WEBFLOW_CLIENT_ID = "738f67eb06d2c4fe0f6c4a2b7c6f7f3257835af0e8977f247750cf572a38162d"
+WEBFLOW_REDIRECT_URI = "https://consentful-webflow.thepluginsco.workers.dev/callback"
+APP_ORIGIN = "http://localhost:1337"   # DEV testing origin (webflow extension serve). Switch to the webflow-ext.com URI for production.
 
 # KV binding for stored per-site tokens (token:<siteId> -> access token).
 # Replace `id` with the id printed by `wrangler kv namespace create TOKENS`.
 [[kv_namespaces]]
 binding = "TOKENS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "e20c9ea7d7c842d89784ff0ade05fd62"
 
 # KV binding for stored per-site config (config:<siteId> -> serialized config),
 # so the Designer panel reopens on the site's live banner (load-on-mount).
@@ -31,4 +31,4 @@ id = "REPLACE_WITH_KV_NAMESPACE_ID"
 #   wrangler kv namespace create CONFIGS
 [[kv_namespaces]]
 binding = "CONFIGS"
-id = "REPLACE_WITH_CONFIGS_KV_NAMESPACE_ID"
+id = "767f914001994134a0769cea8c94c4c3"

@@ -119,8 +119,29 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
       return
     }
     client.connect(id)
-    setNote("Complete the Webflow authorization, then re-check the connection.")
+    setNote("Complete the Webflow authorization in the popup, then click Re-check.")
   }, [siteId])
+
+  // Force a connection re-check — resolves the host site id if we don't have one
+  // yet, then polls the Worker. Lets the user confirm the connection right after
+  // authorizing, without waiting for a full panel reload.
+  const recheck = useCallback(async () => {
+    let id = siteId.trim()
+    if (!id) {
+      const hostSite = await currentSiteId()
+      if (hostSite) {
+        setSiteId(hostSite)
+        setSiteFromHost(true)
+        id = hostSite
+      }
+    }
+    if (!id) {
+      setNote("No site id yet — open this inside the Webflow Designer.")
+      return
+    }
+    setNote("Checking connection…")
+    await checkConnection(id)
+  }, [siteId, checkConnection])
 
   const run = useCallback(async (kind: "install" | "remove", action: () => Promise<string>) => {
     setBusy(kind)
@@ -179,7 +200,10 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {connected !== true ? (
-          <Button variant="secondary" icon="link" onClick={connect}>Connect Webflow</Button>
+          <>
+            <Button variant="secondary" icon="link" onClick={connect}>Connect Webflow</Button>
+            <Button variant="secondary" icon="refresh" onClick={() => void recheck()}>Re-check</Button>
+          </>
         ) : null}
         <Button variant="secondary" disabled={!canWrite} loading={busy === "remove"} onClick={remove}>Remove</Button>
         <Button variant="primary" icon="rocket_launch" disabled={!canWrite} loading={busy === "install"} onClick={install}>

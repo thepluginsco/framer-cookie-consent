@@ -7,21 +7,11 @@ interface ImportMetaEnv {
    */
   readonly VITE_SENTRY_DSN?: string
 
-  /* Lemon Squeezy licensing ids (see `src/lib/licenseConfig.ts` + `.env.example`).
-   * Unset → the plugin runs trial-only until they're provided. */
-  /** Numeric Lemon Squeezy store id. */
-  readonly VITE_LS_STORE_ID?: string
-  /** Public product/checkout URL for the "Buy a license" button. */
-  readonly VITE_LS_PRODUCT_URL?: string
-  /** Lifetime tier product + variant ids. */
-  readonly VITE_LS_LIFETIME_PRODUCT_ID?: string
-  readonly VITE_LS_LIFETIME_VARIANT_ID?: string
-  /** Pro tier product + variant ids. */
-  readonly VITE_LS_PRO_PRODUCT_ID?: string
-  readonly VITE_LS_PRO_VARIANT_ID?: string
-  /** Agency tier product + variant ids. */
-  readonly VITE_LS_AGENCY_PRODUCT_ID?: string
-  readonly VITE_LS_AGENCY_VARIANT_ID?: string
+  /*
+   * Licensing is portal-based (domain activation); the portal API origin +
+   * publishable key are shared constants in `shared/src/portal.ts`, not env vars.
+   * No plugin-side licensing env vars are needed.
+   */
 }
 
 interface ImportMeta {

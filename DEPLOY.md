@@ -13,17 +13,20 @@ Current shipped runtime: **v0.1.10** (live on jsDelivr).
 
 ---
 
-## 0. 🚨 Launch blocker — licensing is currently OFF
+## 0. 🚨 Launch blocker — licensing is currently OFF (final flip pending)
 
-Two testing overrides make every published site unlock **all Pro features for
-free** and bypass validation entirely:
+Two testing overrides remain, unlocking the Pro **editor UI** for free:
 
-- `plugin/src/lib/customCode.ts` → `LICENSING_DISABLED = true`
+- `plugin/src/lib/customCode.ts` → `LICENSING_DISABLED = true` (+ `withTestingLicense` stamp)
 - `shared-ui/src/model.ts` → forced `plan: "pro"`
 
-**Do not flip these in isolation** — the plugin's only current paid gate is the
-legacy LemonSqueezy code, which we are removing. They can only be reverted once
-the portal gate is wired (section 1).
+⚠️ As of Phase 2, the **runtime no longer trusts the injected `config.license`** —
+it fetches + verifies a domain-scoped token at boot (section 1). So the testing
+stamp NO LONGER unlocks the published banner once the new runtime ships; it now
+only affects the editor's Pro controls. Reverting these two overrides
+(**Phase 2 step C**, below) is the final flip that re-gates the editor. It is the
+one remaining code change before licensing is live end-to-end — held for a
+go-ahead so nothing ships half-wired.
 
 ## 1. Wire the Dodo/Neon portal licensing into the plugin  **[decision: portal is authoritative — 2026-09-22]**
 
@@ -57,14 +60,45 @@ Progress:
         migration — column/index already existed) + `resolveSiteEntitlement`
         service fn (6 unit tests). Needs `SIGNING_PRIVATE_KEY` / `SIGNING_KEY_ID`
         env on the deployed API for the token to be non-null.
-- [ ] **Phase 2 — wire boot + remove legacy:** add a JWKS-cache + entitlement
-      fetch/cache module; render free-tier immediately then upgrade on a verified
-      token; add a portal-base-URL config field; bump the bundle budget; delete
-      the plugin's LemonSqueezy files (`plugin/src/lib/license.ts`,
-      `licenseConfig.ts`, `licenseCache.ts`, LS vars in `.env.example`); revert
-      the two overrides in section 0.
-- [ ] **Phase 3 — E2E [you]:** deploy the portal API + the new endpoint; verify on
-      a real domain; create Dodo products, fill `DODO_PRODUCT_*`, wire
+- [x] **Phase 2A — runtime wired (DONE):** `runtime/src/entitlement.ts` fetches a
+      domain token at boot (parallel with geo, bounded timeout, **fail-closed**),
+      verifies it offline via `license-token.ts` + a `localStorage` JWKS/token
+      cache, and `license-gate.ts` now shapes the banner from the *verified
+      entitlement* (not `config.license`). Boot awaits it, then mounts ONCE.
+      Bundle budget bumped 60 → **64 KB** (`runtime/build.mjs`; now ~63 KB). New
+      optional `config.license.portalApiBaseUrl` override (empty = baked default).
+      Tests: `entitlement.test.ts` + rewritten `license-gate.test.ts` / e2e.
+- [x] **Phase 2B — plugin activation (DONE):** LS files deleted
+      (`license.ts`, `licenseConfig.ts`, `licenseCache.ts`, `license.test.ts`,
+      `VITE_LS_*`). New `plugin/src/lib/portalLicense.ts` activation client +
+      rewritten `useLicense.ts` (key + published domain → activate) + updated
+      `FramerLicensePanel.tsx` (activation UI + "Manage your license" →
+      dashboard). `entitlements.ts` kept. Tests: `portal-license.test.ts`.
+- [ ] **Phase 2C — flip the gate on (final code change):** set
+      `LICENSING_DISABLED = false` + drop `withTestingLicense` in
+      `plugin/src/lib/customCode.ts`; restore `plan: tier==="trial"?"free":"pro"`
+      in `shared-ui/src/model.ts`. Then **re-tag the runtime + bump
+      `RUNTIME_VERSION`** in `shared/src/runtime-cdn.ts` so live sites pick up the
+      new gate on re-publish.
+
+**Pinned contracts (portal side — build the matching endpoints in
+`../consentful-portal`; shared constants live in `shared/src/portal.ts`):**
+- **Publishable key + API base:** set `PORTAL_PUBLISHABLE_KEY` (currently the
+  `PUBLISHABLE_KEY_PLACEHOLDER`) in `shared/src/portal.ts`. `PORTAL_API_BASE` =
+  `https://consentful-api.onrender.com` (Render); `PORTAL_DASHBOARD_URL` =
+  `https://consentful.theplugins.co` (Vercel). **[you]**
+- **`GET /.well-known/jwks.json`** — public JWKS (`{ keys: Jwk[] }`), each key
+  with a `kid`, ES256/P-256. The runtime caches it and verifies tokens offline.
+- **`POST /public/site-activate`** — header `x-api-key: <publishable>`, body
+  `{ "licenseKey": "<key>", "domain": "<hostname>" }` → `{ ok: boolean,
+  tier: "lifetime"|"pro"|"agency"|"trial", whiteLabel: boolean,
+  plan: {slug,name}|null, reason: string|null }`. Registers/renews a site seat.
+  A rejected key returns `{ ok:false, reason }` (HTTP 200); 429/5xx are transient.
+- **White-label feature id:** the entitlement token's `features` must carry
+  `white_label` as `{ kind:"flag", value:true }` for the runtime to allow hiding
+  the credit (see `license-gate.ts` `WHITE_LABEL_FEATURE`).
+- [ ] **Phase 3 — E2E [you]:** deploy the portal API (Render) + the new endpoints;
+      verify on a real domain; create Dodo products, fill `DODO_PRODUCT_*`, wire
       billing-webhook → site-license issuance, finish the pricing annual toggle.
 
 ---
