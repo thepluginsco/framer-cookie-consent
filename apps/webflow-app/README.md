@@ -39,10 +39,17 @@ universal embed, WordPress and Shopify emit.
    ```
    The `/callback` URL (`https://<worker-host>/callback`) must be registered as a
    redirect URI on the Webflow app.
-3. Build the Designer Extension, baking in the Worker URL:
+3. Build the Designer Extension, baking in the Worker URL. Vite reads it from a
+   `.env` file (auto-loaded on every OS by both `dev` and `build`), so copy the
+   template and set your Worker host once:
    ```bash
-   VITE_WORKER_BASE=https://<worker-host> npm run build
+   cp .env.example .env      # then edit VITE_WORKER_BASE=https://<worker-host>
+   npm run build             # or `npm run dev` for local dev testing
    ```
+   Without `.env` (or the equivalent env var), `VITE_WORKER_BASE` is empty and the
+   panel calls `/api/status` on its own origin — the Publish pill then shows
+   "Worker unreachable". The inline form `VITE_WORKER_BASE=… npm run build` works
+   in bash but NOT in Windows PowerShell/cmd; prefer the `.env` file.
    Upload `dist/` as the extension bundle (Webflow CLI / App settings).
 
 ## Security note
