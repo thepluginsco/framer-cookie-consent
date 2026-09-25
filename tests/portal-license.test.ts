@@ -1,6 +1,6 @@
 /**
  * Unit tests for the plugin's portal activation client
- * (`plugin/src/lib/portalLicense.ts`).
+ * (`shared-ui/src/license/portal-client.ts`).
  *
  * The client POSTs `{ licenseKey, domain }` to the portal's activation endpoint
  * and normalizes the verdict. A genuine rejection (`ok: false`) is returned as
@@ -14,7 +14,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 
-import { createPortalClient, PortalNetworkError } from '../plugin/src/lib/portalLicense';
+import { createPortalClient, PortalNetworkError } from '../shared-ui/src/license/portal-client';
 
 const BASE = 'https://api.test';
 const KEY = 'pk_test';

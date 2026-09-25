@@ -160,7 +160,7 @@ const embedHost: HostServices = {
   footerStatus: { ok: "Snippet ready", bad: "Snippet unavailable" },
   footerNote: `runtime ${RUNTIME_VERSION} · jsDelivr`,
   publishSubtitle: "Copy the snippet into your site's <head> — re-copy it after any change.",
-  showLicenseTab: false,
+  showLicenseTab: true,
   PublishAction: EmbedPublishAction,
 }
 

@@ -13,7 +13,6 @@ import { getLiveSiteUrl, getProjectInfo, getPluginData, setPluginData, canSetPlu
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
 import { scanSiteForTrackers } from "../lib/scanSite"
 import { useCustomCodeDisabled } from "../hooks/useCustomCodeStatus"
-import { FramerLicensePanel } from "./FramerLicensePanel"
 
 /** Framer's publish action: there's nothing to copy — editing auto-syncs. */
 function FramerPublishAction({ m }: { m: ConsentfulModel }) {
@@ -50,6 +49,5 @@ export const framerHost: HostServices = {
   footerNote: `runtime ${RUNTIME_VERSION} · jsDelivr`,
   publishSubtitle: "Review what's added to your site — it stays in sync automatically.",
   showLicenseTab: true,
-  LicensePanel: FramerLicensePanel,
   PublishAction: FramerPublishAction,
 }

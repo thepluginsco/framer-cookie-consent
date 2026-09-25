@@ -36,7 +36,9 @@ import {
   mergeConfig,
   normalizeWixSiteId,
   removeWixLoader,
+  parse,
   serialize,
+  toPublishedConfig,
   WIX_CONFIG_PATH,
 } from "@framer-cookie-consent/shared";
 import { buildInstallUrl, exchangeCodeForToken } from "./oauth.js";
@@ -185,8 +187,9 @@ async function handleServeConfig(url: URL, env: Env): Promise<Response> {
 
   const stored = await env.CONFIGS.get(`config:${siteId}`);
   if (!stored) return json({ error: "not_found" }, 404, PUBLIC_CORS);
-  // Stored value is already serialized config JSON — serve it verbatim.
-  return new Response(stored, {
+  // Served to every visitor: strip the editor-only license fields (the key must
+  // never be public; the runtime verifies a domain token instead).
+  return new Response(serialize(toPublishedConfig(parse(stored))), {
     status: 200,
     headers: { ...JSON_HEADERS, ...PUBLIC_CORS, "Cache-Control": "public, max-age=60" },
   });

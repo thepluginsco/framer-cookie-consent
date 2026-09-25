@@ -46,7 +46,7 @@ export type EntitlementOptions = {
   apiBase?: string;
   /** Publishable `x-api-key`. Defaults to {@link PORTAL_PUBLISHABLE_KEY}. */
   publishableKey?: string;
-  /** Network timeout per request in ms (default 2000). */
+  /** Network timeout per request in ms (default 3000 — a cold API + DB lookup can take ~2s). */
   timeoutMs?: number;
   /** Injectable `fetch` (defaults to the global) — for tests. */
   fetchFn?: typeof fetch;
@@ -133,32 +133,45 @@ function makeKeyResolver(
   apiBase: string,
   publishableKey: string,
   timeoutMs: number,
-): (kid: string | undefined) => Promise<Jwk | null> {
-  let fetched = false; // fetch the live JWKS at most once per resolve pass.
-  return async (kid) => {
-    const cached = readCache<{ keys: Jwk[] }>(JWKS_KEY);
-    const hit = cached ? selectKey(cached.keys, kid) : null;
-    if (hit) return hit;
-
-    if (fetched) return null;
-    fetched = true;
-    const res = await fetchWithTimeout(
-      fetchFn,
-      apiBase + JWKS_PATH,
-      { method: 'GET', headers: { 'x-api-key': publishableKey, Accept: 'application/json' } },
-      timeoutMs,
-    );
-    if (!res || !res.ok) return null;
-    let body: { keys?: Jwk[] };
-    try {
-      body = (await res.json()) as { keys?: Jwk[] };
-    } catch {
-      return null;
+): { resolve: (kid: string | undefined) => Promise<Jwk | null>; prefetch: () => void } {
+  // The live JWKS is fetched at most once per resolve pass (memoized promise),
+  // so it can be started early — in parallel with the token fetch.
+  let live: Promise<Jwk[] | null> | null = null;
+  const loadLive = (): Promise<Jwk[] | null> => {
+    if (!live) {
+      live = (async () => {
+        const res = await fetchWithTimeout(
+          fetchFn,
+          apiBase + JWKS_PATH,
+          { method: 'GET', headers: { 'x-api-key': publishableKey, Accept: 'application/json' } },
+          timeoutMs,
+        );
+        if (!res || !res.ok) return null;
+        let body: { keys?: Jwk[] };
+        try {
+          body = (await res.json()) as { keys?: Jwk[] };
+        } catch {
+          return null;
+        }
+        const keys = Array.isArray(body.keys) ? body.keys : [];
+        if (keys.length === 0) return null;
+        writeCache(JWKS_KEY, { keys });
+        return keys;
+      })();
     }
-    const keys = Array.isArray(body.keys) ? body.keys : [];
-    if (keys.length === 0) return null;
-    writeCache(JWKS_KEY, { keys });
-    return selectKey(keys, kid);
+    return live;
+  };
+  return {
+    resolve: async (kid) => {
+      const cached = readCache<{ keys: Jwk[] }>(JWKS_KEY);
+      const hit = cached ? selectKey(cached.keys, kid) : null;
+      if (hit) return hit;
+      const keys = await loadLive();
+      return keys ? selectKey(keys, kid) : null;
+    },
+    prefetch: () => {
+      if (!readCache<{ keys: Jwk[] }>(JWKS_KEY)) void loadLive();
+    },
   };
 }
 
@@ -200,11 +213,12 @@ export async function resolveEntitlement(
 ): Promise<VerifiedEntitlement | null> {
   const apiBase = (opts.apiBase ?? PORTAL_API_BASE).replace(/\/+$/, '');
   const publishableKey = opts.publishableKey ?? PORTAL_PUBLISHABLE_KEY;
-  const timeoutMs = opts.timeoutMs ?? 2000;
+  const timeoutMs = opts.timeoutMs ?? 3000;
   const fetchFn = opts.fetchFn ?? (typeof fetch === 'function' ? fetch : undefined);
   if (!fetchFn) return null;
 
-  const resolveKey = makeKeyResolver(fetchFn, apiBase, publishableKey, timeoutMs);
+  const keys = makeKeyResolver(fetchFn, apiBase, publishableKey, timeoutMs);
+  const resolveKey = keys.resolve;
 
   // 1. Cached token — a returning visitor unlocks with no network round-trip.
   //    The verifier re-checks exp + aud, so a stale/expired/copied token still
@@ -216,7 +230,9 @@ export async function resolveEntitlement(
   }
 
   // 2. Fresh token from the licensing API (bounded). Domains without a seat get
-  //    `{ licensed: false, token: null }` (HTTP 200) — not an error.
+  //    `{ licensed: false, token: null }` (HTTP 200) — not an error. A first-time
+  //    visitor has no cached JWKS either, so fetch it in parallel.
+  keys.prefetch();
   const res = await fetchWithTimeout(
     fetchFn,
     apiBase + ENTITLEMENT_PATH,

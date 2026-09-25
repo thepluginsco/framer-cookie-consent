@@ -25,8 +25,12 @@ import type { FeatureSet, VerifiedEntitlement } from './license-token.ts';
 /* Feature helpers                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Feature id in the entitlement's `features` map that grants white-label. */
-const WHITE_LABEL_FEATURE = 'white_label';
+/**
+ * Feature ids in the entitlement's `features` map that grant white-label
+ * (hiding the credit). The portal's catalog names it `remove_powered_by`;
+ * `white_label` is accepted as a legacy alias.
+ */
+const WHITE_LABEL_FEATURES = ['remove_powered_by', 'white_label'];
 
 /** Whether a boolean `flag` feature is present and enabled. */
 function flagEnabled(features: FeatureSet, id: string): boolean {
@@ -66,7 +70,7 @@ export function isLicensed(entitlement: VerifiedEntitlement | null): boolean {
 
 /**
  * Whether the "powered by" credit may be hidden (white-label). Entitled only
- * when the verified token carries the {@link WHITE_LABEL_FEATURE} flag. The
+ * when the verified token carries the {@link WHITE_LABEL_FEATURES} flag. The
  * runtime is authoritative here — it never trusts the injected
  * `config.license.whiteLabel`; {@link resolveBannerConfig} re-derives it from
  * this function.
@@ -76,7 +80,7 @@ export function isLicensed(entitlement: VerifiedEntitlement | null): boolean {
  */
 export function hasWhiteLabel(entitlement: VerifiedEntitlement | null): boolean {
   if (!entitlement) return false;
-  return flagEnabled(entitlement.features, WHITE_LABEL_FEATURE);
+  return WHITE_LABEL_FEATURES.some((id) => flagEnabled(entitlement.features, id));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -119,7 +123,10 @@ export function basicBannerConfig(config: CookieConsentConfig): CookieConsentCon
  * - **Licensed** (`entitlement != null`) → the full banner, with
  *   `license.whiteLabel` re-derived from {@link hasWhiteLabel} (the verified
  *   token, not the injected flag, is authoritative).
- * - **Unlicensed** (`entitlement == null`) → the {@link basicBannerConfig} fallback.
+ * - **Preview host** (`opts.preview`, e.g. `*.framer.website`, `localhost`) →
+ *   the full banner WITHOUT a token, so customers can build before their real
+ *   domain is live; the credit stays on (white-label needs a real seat).
+ * - **Unlicensed** → the {@link basicBannerConfig} fallback.
  *
  * NOTE: this only shapes the *banner UI*. The compliance machinery (Consent Mode
  * denials + script blocking) always runs on the ORIGINAL config regardless of
@@ -128,15 +135,26 @@ export function basicBannerConfig(config: CookieConsentConfig): CookieConsentCon
  *
  * @param config - The active configuration.
  * @param entitlement - The verified entitlement, or `null` (unlicensed).
+ * @param opts - `preview: true` when running on a free preview/staging host.
  * @returns The config to hand to {@link module:banner~mountBanner}.
  */
 export function resolveBannerConfig(
   config: CookieConsentConfig,
   entitlement: VerifiedEntitlement | null,
+  opts: { preview?: boolean } = {},
 ): CookieConsentConfig {
-  if (!isLicensed(entitlement)) return basicBannerConfig(config);
-  return {
-    ...config,
-    license: { ...config.license, whiteLabel: hasWhiteLabel(entitlement) },
-  };
+  if (isLicensed(entitlement)) {
+    return {
+      ...config,
+      license: { ...config.license, whiteLabel: hasWhiteLabel(entitlement) },
+    };
+  }
+  if (opts.preview) {
+    return {
+      ...config,
+      strings: { ...config.strings, poweredByHidden: false },
+      license: { ...config.license, whiteLabel: false },
+    };
+  }
+  return basicBannerConfig(config);
 }

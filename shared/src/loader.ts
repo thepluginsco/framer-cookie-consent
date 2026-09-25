@@ -19,7 +19,7 @@
  */
 
 import type { CookieConsentConfig } from "./config-schema.js";
-import { serialize } from "./config-schema.js";
+import { serialize, toPublishedConfig } from "./config-schema.js";
 import { runtimeScriptUrl } from "./runtime-cdn.js";
 
 /* -------------------------------------------------------------------------- */
@@ -88,7 +88,7 @@ export function escapeForScript(json: string): string {
  * @returns The inline JS body, e.g. `window.__CC_CONFIG__={…};`.
  */
 export function configScriptBody(config: CookieConsentConfig): string {
-  return `window.__CC_CONFIG__=${escapeForScript(serialize(config))};`;
+  return `window.__CC_CONFIG__=${escapeForScript(serialize(toPublishedConfig(config)))};`;
 }
 
 /**

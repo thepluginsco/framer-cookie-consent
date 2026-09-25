@@ -23,7 +23,7 @@
  */
 
 import type { CookieConsentConfig } from "./config-schema.js";
-import { serialize } from "./config-schema.js";
+import { serialize, toPublishedConfig } from "./config-schema.js";
 import { runtimeScriptUrl } from "./runtime-cdn.js";
 import { buildConsentDefaultSnippet, escapeForScript } from "./loader.js";
 
@@ -116,11 +116,11 @@ export function buildEmbedSnippet(config: CookieConsentConfig, options: BuildEmb
       ? [
           includeComment ? EMBED_COMMENT : "",
           consentDefault,
-          `<script src="${runtimeUrl}" data-cc-config="${escapeForAttribute(serialize(config))}" defer></script>`,
+          `<script src="${runtimeUrl}" data-cc-config="${escapeForAttribute(serialize(toPublishedConfig(config)))}" defer></script>`,
         ]
       : [
           includeComment ? EMBED_COMMENT : "",
-          `<script>window.__CC_CONFIG__=${escapeForScript(serialize(config))};</script>`,
+          `<script>window.__CC_CONFIG__=${escapeForScript(serialize(toPublishedConfig(config)))};</script>`,
           consentDefault,
           `<script src="${runtimeUrl}" defer></script>`,
         ];

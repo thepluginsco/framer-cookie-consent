@@ -15,8 +15,8 @@
  * is a PUBLISHABLE (non-secret) key that only authorizes the public read/activate
  * endpoints, which act on a domain the caller already controls.
  *
- * ⚠️ Before shipping a runtime that turns licensing ON, set
- * {@link PORTAL_PUBLISHABLE_KEY} to the real publishable key (tracked in DEPLOY.md §1).
+ * {@link PORTAL_PUBLISHABLE_KEY} must equal the portal API's
+ * `PLUGIN_PUBLIC_API_KEY` env var (DEPLOY.md §1).
  */
 
 /**
@@ -28,11 +28,10 @@ export const PORTAL_API_BASE = 'https://consentful-api.onrender.com';
 
 /**
  * Publishable (non-secret) API key sent as `x-api-key` to the public portal
- * endpoints. Same key for every Consentful site.
- *
- * ⚠️ PLACEHOLDER — replace with the real publishable key at deploy time.
+ * endpoints. Same key for every Consentful site; must match the API's
+ * `PLUGIN_PUBLIC_API_KEY`. Not a secret — it only scopes requests to Consentful.
  */
-export const PORTAL_PUBLISHABLE_KEY = 'PUBLISHABLE_KEY_PLACEHOLDER';
+export const PORTAL_PUBLISHABLE_KEY = 'cnsnt_pk_-u8h4YMytVe1RLH5MEqWyTFI';
 
 /** Customer-facing portal/dashboard origin (where users buy + manage licenses). */
 export const PORTAL_DASHBOARD_URL = 'https://consentful.theplugins.co';
@@ -49,3 +48,44 @@ export const JWKS_PATH = '/.well-known/jwks.json';
  * `{ ok, plan, tier, whiteLabel, reason }` (see the plugin's portal client).
  */
 export const ACTIVATE_PATH = '/public/site-activate';
+
+/**
+ * Free preview / staging / local hosts. They run the FULL banner without a
+ * license token and never use a site slot — so customers can build before their
+ * real domain is live. Mirrors the portal's `normalizeDomain` dev list
+ * (`consentful-portal/packages/utils/src/domain.ts`); keep the two in sync.
+ */
+const PREVIEW_SUFFIXES = [
+  '.framer.app',
+  '.framer.website',
+  '.framer.media',
+  '.webflow.io',
+  '.wixsite.com',
+  '.editorx.io',
+  '.wixstudio.io',
+  '.squarespace.com',
+  '.myshopify.com',
+  '.wpengine.com',
+  '.wpenginepowered.com',
+  '.local',
+  '.test',
+  '.localhost',
+];
+const PREVIEW_EXACT = ['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'];
+
+/**
+ * Whether `host` is a free preview/staging/local host (see {@link PREVIEW_SUFFIXES}).
+ * Bare IPv4 addresses count too (self-hosted staging boxes).
+ *
+ * @param host - A hostname as reported by `location.hostname` (any case).
+ */
+export function isPreviewHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/\.$/, '');
+  if (!h) return false;
+  if (PREVIEW_EXACT.indexOf(h) !== -1) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return true;
+  for (const s of PREVIEW_SUFFIXES) {
+    if (h === s.slice(1) || h.endsWith(s)) return true;
+  }
+  return false;
+}

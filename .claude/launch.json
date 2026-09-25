@@ -4,62 +4,148 @@
     {
       "name": "plugin",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "plugin", "dev"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "plugin",
+        "dev"
+      ],
       "port": 5173,
       "autoPort": true
     },
     {
       "name": "design-ref",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "serve", "design", "-l", "4599"],
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "design",
+        "-l",
+        "4599"
+      ],
       "port": 4599
     },
     {
       "name": "plugin-dist",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "serve", "plugin/dist", "-l", "4610"],
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "plugin/dist",
+        "-l",
+        "4610"
+      ],
       "port": 4610
     },
     {
       "name": "plugin-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "plugin", "preview:standalone"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "plugin",
+        "preview:standalone"
+      ],
       "port": 5273
     },
     {
       "name": "embed-config",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "apps/embed-config", "dev", "--", "--port", "5300"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "apps/embed-config",
+        "dev",
+        "--",
+        "--port",
+        "5300"
+      ],
       "port": 5300,
       "autoPort": true
     },
     {
       "name": "webflow-app",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "apps/webflow-app", "dev", "--", "--port", "5310"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "apps/webflow-app",
+        "dev",
+        "--",
+        "--port",
+        "5310"
+      ],
       "port": 5310,
       "autoPort": true
     },
     {
       "name": "wordpress-plugin",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "apps/wordpress-plugin", "dev", "--", "--port", "5320"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "apps/wordpress-plugin",
+        "dev",
+        "--",
+        "--port",
+        "5320"
+      ],
       "port": 5320,
       "autoPort": true
     },
     {
       "name": "shopify-app",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "apps/shopify-app", "dev", "--", "--port", "5330"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "apps/shopify-app",
+        "dev",
+        "--",
+        "--port",
+        "5330"
+      ],
       "port": 5330,
       "autoPort": true
     },
     {
       "name": "wix-app",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "--workspace", "apps/wix-app", "dev", "--", "--port", "5340"],
+      "runtimeArgs": [
+        "run",
+        "--workspace",
+        "apps/wix-app",
+        "dev",
+        "--",
+        "--port",
+        "5340"
+      ],
       "port": 5340,
       "autoPort": true
+    },
+    {
+      "name": "portal-api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        "../consentful-portal",
+        "--filter",
+        "@repo/api",
+        "dev"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "portal-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        "../consentful-portal",
+        "--filter",
+        "@repo/web",
+        "dev"
+      ],
+      "port": 3000
     }
   ]
 }

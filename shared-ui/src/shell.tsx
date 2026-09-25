@@ -15,6 +15,8 @@ import { useHost } from "./host"
 import { T, focusRing } from "./tokens"
 import { Icon, HoverButton, Spinner } from "./ui"
 import { useConsentful } from "./model"
+import { LicensePanel } from "./license/LicensePanel"
+import { useLicense } from "./license/use-license"
 import {
   BehaviorPanel,
   CategoriesPanel,
@@ -73,6 +75,8 @@ export function ConsentfulShell() {
   const host = useHost()
   const m = useConsentful()
   const codeDisabled = host.useCodeDisabled()
+  // Re-verify a saved license once on start-up (relocks a lapsed plan).
+  useLicense({ autoCheck: true })
 
   const [tab, setTab] = useState<TabId>("categories")
   const [previewMode, setPreviewMode] = useState<PreviewMode>("banner")
@@ -291,7 +295,7 @@ export function ConsentfulShell() {
               </div>
             )}
             {tab === "insights" && <InsightsPanel m={m} />}
-            {tab === "license" && host.LicensePanel && <host.LicensePanel m={m} />}
+            {tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} />)}
             {tab === "preview" && <PublishPanel m={m} />}
           </div>
         </main>

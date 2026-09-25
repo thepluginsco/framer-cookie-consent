@@ -65,9 +65,9 @@ export interface HostServices {
    */
   publishSubtitle: string
 
-  /** Whether to show the License tab (hosts without a portal hide it). */
+  /** Whether to show the License tab (every Consentful host does). */
   showLicenseTab: boolean
-  /** The platform's License panel (only read when {@link showLicenseTab}). */
+  /** Override the shared License panel (rarely needed; defaults to `LicensePanel`). */
   LicensePanel?: ComponentType<{ m: ConsentfulModel }>
 
   /**

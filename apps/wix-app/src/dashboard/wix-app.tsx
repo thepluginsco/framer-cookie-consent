@@ -229,7 +229,7 @@ const wixHost: HostServices = {
   footerStatus: { ok: "Ready to install", bad: "Not connected" },
   footerNote: `runtime ${RUNTIME_VERSION} · Wix`,
   publishSubtitle: "Connect your Wix site, then install the banner from here.",
-  showLicenseTab: false,
+  showLicenseTab: true,
   PublishAction: WixPublishAction,
 }
 
@@ -249,8 +249,13 @@ function WixSettingsProvider({ children }: { children: ReactNode }) {
         setStatus("loading")
         const remote = await client.loadConfig(site)
         if (active && remote) {
-          setConfig(remote)
-          saveConfig(remote)
+          // The stored copy is public (license stripped) — keep this browser's
+          // activated license rather than wiping it on every load.
+          setConfig((prev) => {
+            const next = remote.license.key ? remote : { ...remote, license: prev.license }
+            saveConfig(next)
+            return next
+          })
         }
       } catch {
         /* keep the local draft */

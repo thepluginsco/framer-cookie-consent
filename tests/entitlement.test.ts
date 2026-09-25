@@ -133,12 +133,23 @@ test('a valid domain token resolves to its verified entitlement', async () => {
   assert.equal(calls.jwks, 1, 'JWKS fetched to verify the fresh token');
 });
 
+test('with a cached JWKS, no key fetch happens at all', async () => {
+  const { priv, jwk } = await makeKey();
+  const token = await signToken(priv);
+  localStorage.setItem('cc:ent:jwks', JSON.stringify({ keys: [jwk] }));
+  const { fetch, calls } = mockFetch({ token, keys: [jwk] });
+  const ent = await resolveEntitlement('acme.com', { apiBase: API, publishableKey: KEY, fetchFn: fetch });
+  assert.ok(ent);
+  assert.equal(calls.jwks, 0);
+});
+
 test('a dev / unlicensed host (no token) fails closed to null', async () => {
   const { fetch, calls } = mockFetch({ token: null });
   const ent = await resolveEntitlement('acme.com', { apiBase: API, publishableKey: KEY, fetchFn: fetch });
   assert.equal(ent, null);
   assert.equal(calls.entitlement, 1);
-  assert.equal(calls.jwks, 0, 'no token → never fetches keys');
+  // First visit: the JWKS is prefetched in parallel with the token (at most once).
+  assert.ok(calls.jwks <= 1, 'JWKS fetched at most once');
 });
 
 test('a token minted for another domain is rejected (fails closed)', async () => {

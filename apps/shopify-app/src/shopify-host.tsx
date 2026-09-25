@@ -163,7 +163,7 @@ const shopifyHost: HostServices = {
   footerStatus: { ok: "Block ready", bad: "Block unavailable" },
   footerNote: `runtime ${RUNTIME_VERSION} · Shopify CDN`,
   publishSubtitle: "Copy or download the app-embed block, then deploy it with the Shopify CLI.",
-  showLicenseTab: false,
+  showLicenseTab: true,
   PublishAction: ShopifyPublishAction,
 }
 

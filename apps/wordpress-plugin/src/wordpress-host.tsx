@@ -164,7 +164,7 @@ const wordpressHost: HostServices = {
   footerStatus: { ok: wpStore ? "Ready to publish" : "Preview only", bad: "Not connected" },
   footerNote: `runtime ${RUNTIME_VERSION} · wp_head`,
   publishSubtitle: "Publish writes the banner into your site's <head> — update it any time from here.",
-  showLicenseTab: false,
+  showLicenseTab: true,
   PublishAction: WordPressPublishAction,
 }
 

@@ -1166,6 +1166,20 @@ export function serialize(config: CookieConsentConfig): string {
 }
 
 /**
+ * The config as it may appear on a PUBLISHED page: the editor-only license
+ * fields are stripped. The license key must never ship in page source (anyone
+ * could copy it and spend the owner's site slots), and the runtime ignores the
+ * injected tier anyway — it verifies a domain-scoped signed token at boot. Only
+ * the optional `portalApiBaseUrl` override survives. Pure.
+ *
+ * @param config - The editor config.
+ * @returns A copy safe to embed in public HTML / serve to visitors.
+ */
+export function toPublishedConfig(config: CookieConsentConfig): CookieConsentConfig {
+  return { ...config, license: { ...config.license, key: null, tier: "trial", whiteLabel: false } };
+}
+
+/**
  * Parse a serialized config back into a complete, valid {@link CookieConsentConfig}.
  * Runs the result through {@link mergeConfig}, so missing fields are filled and
  * older schemas are migrated. On malformed JSON it returns a fresh default

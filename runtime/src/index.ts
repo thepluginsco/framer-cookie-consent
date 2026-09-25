@@ -11,7 +11,7 @@
  * loader the Framer plugin injects.
  */
 
-import { parse, mergeConfig, type CookieConsentConfig, type DeepPartial } from '@framer-cookie-consent/shared';
+import { parse, mergeConfig, isPreviewHost, type CookieConsentConfig, type DeepPartial } from '@framer-cookie-consent/shared';
 import { installConsentApi, readConsent, onConsentChange, type CookieConsentApi } from './consent-state.ts';
 import { bootstrapConsentDefaults, updateConsent } from './consent-mode.ts';
 import { installScriptBlocker } from './script-blocker.ts';
@@ -122,8 +122,8 @@ function warnUnlicensed(): void {
     // eslint-disable-next-line no-console
     console.warn(
       '[cookie-consent] No valid license — showing the basic free banner ' +
-        '(visitors stay protected). Add your license key in the Framer plugin ' +
-        'to unlock the full styled + white-label banner.',
+        '(visitors stay protected). Add this domain to your Consentful license ' +
+        '(consentful.theplugins.co) to unlock the full design.',
     );
   } catch {
     /* console unavailable */
@@ -177,12 +177,14 @@ export async function boot(): Promise<void> {
     //     only affects the *banner presentation*; the compliance machinery below
     //     runs regardless of the verdict, so an unlicensed site is never *less*
     //     safe. Fails closed (→ free banner) on any error/timeout.
+    //     Free preview/staging hosts (*.framer.website, localhost, …) skip the
+    //     network entirely: they run the full design without a seat.
     const host = typeof location !== 'undefined' ? location.hostname : '';
+    const preview = isPreviewHost(host);
     const apiBaseOverride = config.license.portalApiBaseUrl;
-    const entitlementPromise = resolveEntitlement(
-      host,
-      apiBaseOverride ? { apiBase: apiBaseOverride } : {},
-    );
+    const entitlementPromise = preview
+      ? Promise.resolve(null)
+      : resolveEntitlement(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
 
     // (c) Consent Mode defaults — MUST precede any tracker. Then keep the
     //     signals in sync on every future consent change. Always runs, licensed
@@ -274,8 +276,8 @@ export async function boot(): Promise<void> {
     //     the token — avoids a visible flash; the blocker above already keeps
     //     trackers gated while we wait, and resolveEntitlement is time-bounded.
     const entitlement = await entitlementPromise;
-    if (!entitlement) warnUnlicensed();
-    const bannerConfig = resolveBannerConfig(config, entitlement);
+    if (!entitlement && !preview) warnUnlicensed();
+    const bannerConfig = resolveBannerConfig(config, entitlement, { preview });
     whenDomReady(() => {
       try {
         const state = readConsent(config);

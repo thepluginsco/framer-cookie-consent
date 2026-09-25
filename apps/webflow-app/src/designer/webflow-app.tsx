@@ -254,7 +254,7 @@ const webflowHost: HostServices = {
   footerStatus: { ok: "Ready to publish", bad: "Not connected" },
   footerNote: `runtime ${RUNTIME_VERSION} · jsDelivr`,
   publishSubtitle: "Connect your Webflow site, then publish the banner into its custom code from here.",
-  showLicenseTab: false,
+  showLicenseTab: true,
   PublishAction: WebflowPublishAction,
 }
 
@@ -274,8 +274,13 @@ function WebflowSettingsProvider({ children }: { children: ReactNode }) {
         setStatus("loading")
         const remote = await client.loadConfig(site)
         if (active && remote) {
-          setConfig(remote)
-          saveConfig(remote)
+          // The stored copy is public (license stripped) — keep this browser's
+          // activated license rather than wiping it on every load.
+          setConfig((prev) => {
+            const next = remote.license.key ? remote : { ...remote, license: prev.license }
+            saveConfig(next)
+            return next
+          })
         }
       } catch {
         /* keep the local draft */

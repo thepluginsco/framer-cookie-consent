@@ -9,99 +9,81 @@ Runtime is served from jsDelivr pinned to the tag in
 embed **at publish time**, so a new runtime only reaches a live site when that
 surface is **re-published**.
 
-Current shipped runtime: **v0.1.10** (live on jsDelivr).
+Current shipped runtime: **v0.1.10** (live on jsDelivr). v0.1.11 (licensing on) is built but NOT tagged — see §1 step 6.
 
 ---
 
-## 0. 🚨 Launch blocker — licensing is currently OFF (final flip pending)
+## 0. Licensing — code COMPLETE + verified in dev (2026-09-25); production deploy pending
 
-Two testing overrides remain, unlocking the Pro **editor UI** for free:
+The testing overrides are gone (`LICENSING_DISABLED` / `withTestingLicense` deleted,
+`plan` derived from the activated tier). Licensing is live in code on every surface:
 
-- `plugin/src/lib/customCode.ts` → `LICENSING_DISABLED = true` (+ `withTestingLicense` stamp)
-- `shared-ui/src/model.ts` → forced `plan: "pro"`
+- **Runtime** fetches + verifies a domain-scoped ES256 token at boot
+  (`runtime/src/entitlement.ts`, 3 s budget, JWKS fetched in parallel, both cached
+  in `localStorage`). Licensed → full design (+ white-label via the portal's
+  `remove_powered_by` flag). **Preview hosts** (`*.framer.website`, `*.webflow.io`,
+  `*.myshopify.com`, `*.wixsite.com`, localhost, `*.local`, IPs …) → full design
+  with the credit, no network, no slot (`isPreviewHost` in `shared/src/portal.ts`,
+  mirrors the portal's dev list). Anything else → basic bar + credit (fail-closed).
+- **License key never ships in page HTML** — `toPublishedConfig()` strips it in the
+  loader, the embed snippet and the Wix public config endpoint.
+- **Every editor** (Framer, Webflow, WordPress, Shopify, Wix, universal embed) has the
+  shared License tab (`shared-ui/src/license/`): key + domain → `POST /public/site-activate`;
+  re-checks a saved key on editor start-up so a lapsed plan relocks.
+- **Publishable key** is real: `PORTAL_PUBLISHABLE_KEY` in `shared/src/portal.ts` ==
+  `PLUGIN_PUBLIC_API_KEY` in the portal `.env`.
 
-⚠️ As of Phase 2, the **runtime no longer trusts the injected `config.license`** —
-it fetches + verifies a domain-scoped token at boot (section 1). So the testing
-stamp NO LONGER unlocks the published banner once the new runtime ships; it now
-only affects the editor's Pro controls. Reverting these two overrides
-(**Phase 2 step C**, below) is the final flip that re-gates the editor. It is the
-one remaining code change before licensing is live end-to-end — held for a
-go-ahead so nothing ships half-wired.
+Portal (`../consentful-portal`, not a git repo yet) — built this pass:
+`/public/site-activate`; open CORS on `/public/*` + `/.well-known/*`; JWKS alias
+`/.well-known/jwks.json` (+ 5-min memo); paid-plan-only tokens (free/trial keys never
+unlock); oldest-N-sites rule after a downgrade; per-domain entitlement cache (5 min
+licensed / 60 s unlicensed, cleared on activation, dashboard add/remove and every
+billing webhook); webhook issues site-mode licenses with the plan's site cap
+(Solo 1 · Studio 5 · Agency 25 · Lifetime 3); lifetime 250-code counter (claimed on
+purchase, checkout refuses when sold out, shown live on pricing); 30-day site-swap
+cooldown (24 h typo grace) + ownership check on site removal (was an IDOR);
+Consentful pricing page (Monthly/Yearly toggle with real yearly prices, lifetime
+card), marketing copy, billing/dashboard cleanup, checkout intent carried through
+signup. API 48 tests, web build + typecheck clean.
 
-## 1. Wire the Dodo/Neon portal licensing into the plugin  **[decision: portal is authoritative — 2026-09-22]**
+Dev E2E verified against the real Neon DB (test rows removed afterwards): webhook →
+Studio license (cap 5) → activate `www.acme.lvh.me` → runtime on `acme.lvh.me` renders
+the full card design with the credit hidden, token + JWKS cached; unlicensed domain →
+basic bar; subscription lapse → free, editor relocks on open with an upgrade message;
+Lifetime → cap 3 (4th site refused, `.co.uk` normalized), counter 250→249→250.
 
-The sibling `../consentful-portal` holds the live licensing engine (Neon DB,
-ES256/JWKS entitlement tokens) and a `plugin-sdk` verifier. **This repo does not
-import it yet.**
+**Performance note:** a cold lookup (Neon wake-up) took ~2 s locally, warm ≈150 ms.
+Keep the API on an always-on Render plan in the DB's region (render.yaml now:
+`consentful-api`, `starter`, `singapore`).
 
-**Architecture decided (2026-09-23): fetch-at-boot by hostname.** The runtime
-fetches a domain-scoped signed token at load, verifies it via WebCrypto against
-the portal JWKS, caches it (fail-closed on expiry), and derives entitlement.
-Chosen because tokens are short-lived (24h) and self-service domain changes must
-propagate without re-publishing.
+## 1. Production deploy — needs your accounts  **[you]**
 
-Progress:
-- [x] **Phase 1 — runtime verifier** ported into `runtime/src/license-token.ts`
-      (dependency-free ES256/JWKS, mirrors the portal verifier) + 9 unit tests.
-      Not yet imported by boot, so the shipped bundle is unchanged. Inlining it
-      later adds ~2 KB → **bump the runtime bundle budget 60 → 64 KB** in
-      `runtime/build.mjs` when wiring.
-- [x] **PORTAL ENDPOINT BUILT** in `../consentful-portal` (on disk; that repo is
-      not version-controlled here — **you must commit + deploy it**). Contract now
-      pinned for Phase 2:
-      - `POST /public/site-entitlement`, header `x-api-key: <publishable>`,
-        body `{ "domain": "<hostname>" }`.
-      - Response `{ status, licensed: boolean, plan: {slug,name}|null,
-        featureSet|null, token: string|null, reason: string|null }`.
-      - Dev/preview host → `{ status: "dev", licensed: false, token: null }`;
-        unlicensed/expired domain → `{ licensed: false, token: null }` (HTTP 200,
-        not an error); active seat → `licensed: true` + domain-scoped ES256 token.
-      - Impl: `licenses.findActiveByRegistrableDomain` (new repo method, no
-        migration — column/index already existed) + `resolveSiteEntitlement`
-        service fn (6 unit tests). Needs `SIGNING_PRIVATE_KEY` / `SIGNING_KEY_ID`
-        env on the deployed API for the token to be non-null.
-- [x] **Phase 2A — runtime wired (DONE):** `runtime/src/entitlement.ts` fetches a
-      domain token at boot (parallel with geo, bounded timeout, **fail-closed**),
-      verifies it offline via `license-token.ts` + a `localStorage` JWKS/token
-      cache, and `license-gate.ts` now shapes the banner from the *verified
-      entitlement* (not `config.license`). Boot awaits it, then mounts ONCE.
-      Bundle budget bumped 60 → **64 KB** (`runtime/build.mjs`; now ~63 KB). New
-      optional `config.license.portalApiBaseUrl` override (empty = baked default).
-      Tests: `entitlement.test.ts` + rewritten `license-gate.test.ts` / e2e.
-- [x] **Phase 2B — plugin activation (DONE):** LS files deleted
-      (`license.ts`, `licenseConfig.ts`, `licenseCache.ts`, `license.test.ts`,
-      `VITE_LS_*`). New `plugin/src/lib/portalLicense.ts` activation client +
-      rewritten `useLicense.ts` (key + published domain → activate) + updated
-      `FramerLicensePanel.tsx` (activation UI + "Manage your license" →
-      dashboard). `entitlements.ts` kept. Tests: `portal-license.test.ts`.
-- [ ] **Phase 2C — flip the gate on (final code change):** set
-      `LICENSING_DISABLED = false` + drop `withTestingLicense` in
-      `plugin/src/lib/customCode.ts`; restore `plan: tier==="trial"?"free":"pro"`
-      in `shared-ui/src/model.ts`. Then **re-tag the runtime + bump
-      `RUNTIME_VERSION`** in `shared/src/runtime-cdn.ts` so live sites pick up the
-      new gate on re-publish.
-
-**Pinned contracts (portal side — build the matching endpoints in
-`../consentful-portal`; shared constants live in `shared/src/portal.ts`):**
-- **Publishable key + API base:** set `PORTAL_PUBLISHABLE_KEY` (currently the
-  `PUBLISHABLE_KEY_PLACEHOLDER`) in `shared/src/portal.ts`. `PORTAL_API_BASE` =
-  `https://consentful-api.onrender.com` (Render); `PORTAL_DASHBOARD_URL` =
-  `https://consentful.theplugins.co` (Vercel). **[you]**
-- **`GET /.well-known/jwks.json`** — public JWKS (`{ keys: Jwk[] }`), each key
-  with a `kid`, ES256/P-256. The runtime caches it and verifies tokens offline.
-- **`POST /public/site-activate`** — header `x-api-key: <publishable>`, body
-  `{ "licenseKey": "<key>", "domain": "<hostname>" }` → `{ ok: boolean,
-  tier: "lifetime"|"pro"|"agency"|"trial", whiteLabel: boolean,
-  plan: {slug,name}|null, reason: string|null }`. Registers/renews a site seat.
-  A rejected key returns `{ ok:false, reason }` (HTTP 200); 429/5xx are transient.
-- **White-label feature id:** the entitlement token's `features` must carry
-  `white_label` as `{ kind:"flag", value:true }` for the runtime to allow hiding
-  the credit (see `license-gate.ts` `WHITE_LABEL_FEATURE`).
-- [ ] **Phase 3 — E2E [you]:** deploy the portal API (Render) + the new endpoints;
-      verify on a real domain; create Dodo products, fill `DODO_PRODUCT_*`, wire
-      billing-webhook → site-license issuance, finish the pricing annual toggle.
-
----
+1. **Portal repo:** `cd ../consentful-portal && git init && git add -A && git commit`,
+   push to a private GitHub repo (branch `main`). `.env` is git-ignored — keep it so.
+2. **API on Render:** New → Blueprint → that repo (`render.yaml`). Set env from your
+   local `.env`: `PLUGIN_SLUG`, `LICENSE_KEY_PREFIX`, `DATABASE_URL`,
+   `API_URL=https://consentful-api.onrender.com`, `WEB_URL=https://consentful.theplugins.co`,
+   `CORS_ALLOWED_ORIGINS=https://consentful.theplugins.co`, `BETTER_AUTH_URL`,
+   `AUTH_TRUSTED_ORIGINS`, `EMAIL_FROM`, `RESEND_API_KEY`, `PLUGIN_PUBLIC_API_KEY`,
+   **`SIGNING_PRIVATE_KEY` + `SIGNING_KEY_ID`** (without them tokens are null and
+   every site stays on the basic bar), the Dodo vars below.
+   The service must be reachable at `https://consentful-api.onrender.com` (the
+   runtime's baked default) — or change `PORTAL_API_BASE` before tagging.
+3. **Web on Vercel:** project root `apps/web`, env `NEXT_PUBLIC_API_URL=https://consentful-api.onrender.com`
+   (+ the `[web]`/`[both]` vars from `.env.example`); add domain
+   `consentful.theplugins.co` and its DNS record.
+4. **Dodo Payments:** create 7 products (Solo/Studio/Agency × monthly+yearly, Lifetime
+   one-time) → paste ids into `DODO_PRODUCT_*` (Render env AND your local `.env`),
+   then run `pnpm --filter @repo/db db:sync-products` (try `--dry-run` first) so the
+   prod plan rows carry the ids — checkout reads them from the DB. Do NOT run
+   `db:seed` on prod: it never updates existing plans and inserts demo data.
+   Webhook → `https://consentful-api.onrender.com/webhooks/billing`, secret →
+   `DODO_PAYMENTS_WEBHOOK_SECRET`. Test mode first.
+5. **Tell me when 2–4 are live** → I smoke-test prod (health, JWKS, site-entitlement,
+   CORS, a test-mode checkout → license → activation) and then:
+6. **Release runtime v0.1.11** — bump `RUNTIME_VERSION`, regenerate the Shopify
+   `consentful.liquid` pin, tag + push. ⚠️ Do NOT tag before the API is live: sites
+   republished on v0.1.11 would fall back to the basic bar.
 
 ## 2. Deploy the surfaces (make v0.1.10 reach live sites)
 

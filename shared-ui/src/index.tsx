@@ -17,3 +17,13 @@ export * from "./preview"
 export * from "./panels"
 export * from "./modals"
 export { ConsentfulShell } from "./shell"
+export { LicensePanel } from "./license/LicensePanel"
+export { useLicense, hostnameOf, type LicenseApi, type LicenseStatus } from "./license/use-license"
+export {
+  createPortalClient,
+  PortalNetworkError,
+  type ActivationResult,
+  type PortalClient,
+  type PortalClientDeps,
+  type PortalPlan,
+} from "./license/portal-client"
