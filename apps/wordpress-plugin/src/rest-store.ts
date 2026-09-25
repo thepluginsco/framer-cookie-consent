@@ -63,7 +63,8 @@ export class WordPressRestStore implements WordPressLoaderStore {
   constructor(options: RestStoreOptions) {
     this.base = options.restBase.replace(/\/$/, "");
     this.nonce = options.nonce;
-    this.doFetch = options.fetchImpl ?? fetch;
+    // Bind: a bare `fetch` stored on `this` throws "Illegal invocation" when called as a method.
+    this.doFetch = options.fetchImpl ?? fetch.bind(globalThis);
   }
 
   /** Read the stored head option, or `""` when unset/empty (per the seam). */

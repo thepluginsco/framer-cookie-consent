@@ -80,7 +80,8 @@ export class WebflowApiClient implements WebflowClient {
     this.token = options.token;
     this.siteId = options.siteId;
     this.baseUrl = options.baseUrl ?? WEBFLOW_API_BASE;
-    this.doFetch = options.fetchImpl ?? fetch;
+    // Bind: a bare `fetch` stored on `this` throws "Illegal invocation" when called as a method.
+    this.doFetch = options.fetchImpl ?? fetch.bind(globalThis);
     this.publishToWebflowSubdomain = options.publishToWebflowSubdomain ?? true;
     if (options.customDomains) this.customDomains = options.customDomains;
   }

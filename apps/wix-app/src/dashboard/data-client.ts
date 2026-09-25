@@ -33,7 +33,8 @@ export class WixDataClient {
 
   constructor(options: DataClientOptions) {
     this.base = options.workerBase.replace(/\/$/, "");
-    this.doFetch = options.fetchImpl ?? fetch;
+    // Bind: a bare `fetch` stored on `this` throws "Illegal invocation" when called as a method.
+    this.doFetch = options.fetchImpl ?? fetch.bind(globalThis);
   }
 
   /** True when the Worker holds a token for `siteId`. */

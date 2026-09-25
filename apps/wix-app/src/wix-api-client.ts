@@ -68,7 +68,8 @@ export class WixApiClient implements WixClient {
   constructor(options: WixApiClientOptions) {
     this.token = options.token;
     this.baseUrl = options.baseUrl ?? WIX_API_BASE;
-    this.doFetch = options.fetchImpl ?? fetch;
+    // Bind: a bare `fetch` stored on `this` throws "Illegal invocation" when called as a method.
+    this.doFetch = options.fetchImpl ?? fetch.bind(globalThis);
   }
 
   /**
