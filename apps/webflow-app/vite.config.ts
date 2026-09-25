@@ -14,9 +14,17 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "./",
   plugins: [react()],
+  // No source static dir — the whole bundle is generated. Leaving Vite's default
+  // `publicDir: "public"` on would make it copy the previous build back into the
+  // output, so disable it explicitly.
+  publicDir: false,
   build: {
     target: "es2022",
-    outDir: "dist",
+    // Emit straight into the folder the Webflow CLI serves/bundles
+    // (`webflow extension serve` → `public/`), so a plain `npm run build` is
+    // picked up by the Designer with no copy step.
+    outDir: "public",
+    emptyOutDir: true,
     // The Worker is bundled by Wrangler, not Vite — keep it out of the SPA build.
     rollupOptions: { input: "index.html" },
   },
