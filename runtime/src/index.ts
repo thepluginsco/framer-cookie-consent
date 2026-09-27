@@ -29,7 +29,7 @@ import {
 } from './geo.ts';
 import { mountBanner } from './banner.ts';
 import { resolveBannerConfig } from './license-gate.ts';
-import { resolveEntitlement } from './entitlement.ts';
+import { resolveSiteStatus, type SiteStatus } from './entitlement.ts';
 import { installConsentAnalytics, type AnalyticsContext } from './analytics.ts';
 import { resolveActiveVariant } from './variant.ts';
 import { reportError } from './error-logger.ts';
@@ -117,13 +117,13 @@ function logError(err: unknown, context = 'boot'): void {
  * Warn (once) that an unlicensed site is running the free fallback. Non-fatal
  * and best-effort — purely a nudge in the console for the site owner.
  */
-function warnUnlicensed(): void {
+function warnUnlicensed(activated: boolean | null): void {
   try {
     // eslint-disable-next-line no-console
     console.warn(
-      '[cookie-consent] No valid license — showing the basic free banner ' +
-        '(visitors stay protected). Add this domain to your Consentful license ' +
-        '(consentful.theplugins.co) to unlock the full design.',
+      '[cookie-consent] ' +
+        (activated === false ? 'Domain not activated: no banner. Get a free key' : 'Free plan: basic banner. Upgrade') +
+        ' at consentful.theplugins.co',
     );
   } catch {
     /* console unavailable */
@@ -146,8 +146,9 @@ function warnUnlicensed(): void {
  *    of already-consented categories (also starts the MutationObserver).
  * 5. Mount the banner UI once the DOM is ready — through
  *    {@link resolveBannerConfig} with the awaited entitlement: a verified-token
- *    site gets the full (optionally white-labelled) banner; an unlicensed site
- *    degrades to a basic branded fallback bar rather than nothing.
+ *    site gets the full (optionally white-labelled) banner; a free-activated site
+ *    (or an unknown/offline verdict) gets the basic branded bar; a live domain
+ *    the API reports as NOT activated gets no banner at all.
  *
  * Never throws: everything is wrapped so a failure degrades to "no banner"
  * rather than a broken host page.
@@ -182,9 +183,9 @@ export async function boot(): Promise<void> {
     const host = typeof location !== 'undefined' ? location.hostname : '';
     const preview = isPreviewHost(host);
     const apiBaseOverride = config.license.portalApiBaseUrl;
-    const entitlementPromise = preview
-      ? Promise.resolve(null)
-      : resolveEntitlement(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
+    const statusPromise: Promise<SiteStatus> = preview
+      ? Promise.resolve({ entitlement: null, activated: true })
+      : resolveSiteStatus(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
 
     // (c) Consent Mode defaults — MUST precede any tracker. Then keep the
     //     signals in sync on every future consent change. Always runs, licensed
@@ -275,8 +276,12 @@ export async function boot(): Promise<void> {
     //     otherwise. Awaiting here — rather than mounting free then re-mounting on
     //     the token — avoids a visible flash; the blocker above already keeps
     //     trackers gated while we wait, and resolveEntitlement is time-bounded.
-    const entitlement = await entitlementPromise;
-    if (!entitlement && !preview) warnUnlicensed();
+    //     A live domain the API explicitly reports as NOT activated (no free or
+    //     paid key) gets no banner at all; compliance above keeps running, so
+    //     trackers stay blocked. An unknown verdict (offline) still mounts.
+    const { entitlement, activated } = await statusPromise;
+    if (!entitlement && !preview) warnUnlicensed(activated);
+    if (activated === false) return;
     const bannerConfig = resolveBannerConfig(config, entitlement, { preview });
     whenDomReady(() => {
       try {

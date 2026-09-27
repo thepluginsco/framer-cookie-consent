@@ -18,7 +18,7 @@
 import { test, beforeEach, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 
-import { resolveEntitlement } from '../runtime/src/entitlement.ts';
+import { resolveEntitlement, resolveSiteStatus } from '../runtime/src/entitlement.ts';
 import type { Jwk } from '../runtime/src/license-token.ts';
 
 const subtle = globalThis.crypto.subtle;
@@ -80,6 +80,8 @@ function mockFetch(opts: {
   keys?: Jwk[];
   fail?: boolean;
   badJson?: boolean;
+  /** Raw body override for the entitlement endpoint (activation-status tests). */
+  body?: Record<string, unknown>;
 }): { fetch: typeof fetch; calls: Calls } {
   const calls: Calls = { entitlement: 0, jwks: 0 };
   const fn = (async (url: string, init?: RequestInit) => {
@@ -92,6 +94,7 @@ function mockFetch(opts: {
     if (u.endsWith('/public/site-entitlement')) {
       calls.entitlement++;
       if (opts.badJson) return new Response('not json', { status: 200 });
+      if (opts.body) return new Response(JSON.stringify(opts.body), { status: 200 });
       const body = JSON.parse(String(init?.body ?? '{}')) as { domain?: string };
       const token = typeof opts.token === 'function' ? opts.token(body.domain ?? '') : opts.token ?? null;
       return new Response(JSON.stringify({ status: token ? 'active' : 'dev', licensed: !!token, token }), {
@@ -195,4 +198,55 @@ test('a cached token is reused on the next visit without re-hitting the entitlem
   const second = await resolveEntitlement('acme.com', { apiBase: API, publishableKey: KEY, fetchFn: fetch });
   assert.ok(second, 'still licensed from cache');
   assert.equal(calls.entitlement, 1, 'entitlement endpoint not hit again');
+});
+
+/* --------------------------- activation status ---------------------------- */
+
+const opts = (fetchFn: typeof fetch) => ({ apiBase: API, publishableKey: KEY, fetchFn });
+
+test('a FREE-activated domain (no token) is activated → basic banner', async () => {
+  const { fetch } = mockFetch({ body: { status: 'free', licensed: false, activated: true, token: null } });
+  const s = await resolveSiteStatus('acme.com', opts(fetch));
+  assert.equal(s.entitlement, null);
+  assert.equal(s.activated, true);
+});
+
+test('an explicitly NOT-activated domain reports activated:false → no banner', async () => {
+  const { fetch } = mockFetch({ body: { status: 'unlicensed', licensed: false, activated: false, token: null } });
+  const s = await resolveSiteStatus('acme.com', opts(fetch));
+  assert.equal(s.activated, false);
+});
+
+test('a portal "dev" verdict never hides the banner', async () => {
+  const { fetch } = mockFetch({ body: { status: 'dev', licensed: false, activated: false, token: null } });
+  assert.equal((await resolveSiteStatus('acme.com', opts(fetch))).activated, null);
+});
+
+test('an older API without `activated` is unknown (never hides the banner)', async () => {
+  const { fetch } = mockFetch({ body: { status: 'unlicensed', licensed: false, token: null } });
+  assert.equal((await resolveSiteStatus('acme.com', opts(fetch))).activated, null);
+});
+
+test('offline / malformed responses are unknown, not "not activated"', async () => {
+  assert.equal((await resolveSiteStatus('acme.com', opts(mockFetch({ fail: true }).fetch))).activated, null);
+  assert.equal((await resolveSiteStatus('acme.com', opts(mockFetch({ badJson: true }).fetch))).activated, null);
+});
+
+test('a paid token counts as activated', async () => {
+  const { priv, jwk } = await makeKey();
+  const { fetch } = mockFetch({ token: await signToken(priv), keys: [jwk] });
+  const s = await resolveSiteStatus('acme.com', opts(fetch));
+  assert.ok(s.entitlement);
+  assert.equal(s.activated, true);
+});
+
+test('a free activation is cached per host, so repeat visits skip the API', async () => {
+  const { fetch, calls } = mockFetch({ body: { status: 'free', licensed: false, activated: true, token: null } });
+  await resolveSiteStatus('acme.com', opts(fetch));
+  const again = await resolveSiteStatus('acme.com', opts(fetch));
+  assert.equal(again.activated, true);
+  assert.equal(calls.entitlement, 1);
+  // A different host never reuses it.
+  await resolveSiteStatus('other.com', opts(fetch));
+  assert.equal(calls.entitlement, 2);
 });

@@ -65,7 +65,7 @@ const TITLES: Record<TabId, [string, string]> = {
   scripts: ["Scripts", "Manage third-party tags that stay blocked until consent is given."],
   theme: ["Theme", "Match the banner to your brand — colour, layout and shape — and write its copy."],
   insights: ["Insights", "See how visitors respond to your banner — accept, reject and grant rates."],
-  license: ["License", "Activate your key to unlock Pro features across all your sites."],
+  license: ["License", "Activate this site with your free or paid key — the live banner only shows once activated."],
   preview: ["Publish", "Review what's added to your site — it stays in sync automatically."],
 }
 

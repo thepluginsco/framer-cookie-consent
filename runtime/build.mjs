@@ -35,9 +35,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * — added ~1.9 KB gzipped). The Phase-2 licensing wiring (boot-time entitlement
  * fetch + JWKS cache + offline ES256/JWKS token verify) adds ~2 KB, so the honest
  * raw ceiling is now 64 KB — the wire cost is what matters, and there is headroom
- * so a careless addition still trips the gate.
+ * so a careless addition still trips the gate. Free-key activation (activated
+ * status, free-activation cache, no-banner-when-unactivated) pushed it just past
+ * 64 KB, so the ceiling is 65 KB.
  */
-const MAX_BYTES = 64 * 1024; // 64 KB (≈18.5 KB gzipped)
+const MAX_BYTES = 65 * 1024; // 65 KB (≈18.6 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 

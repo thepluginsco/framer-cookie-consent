@@ -54,7 +54,7 @@ function statusPillText(status: LicenseStatus, tier: LicenseTier): string {
     case "offline":
       return "Offline · last status"
     default:
-      return "Free plan"
+      return "Not activated"
   }
 }
 
@@ -77,6 +77,8 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
   void m
   const lic = useLicense()
   const licensed = lic.status === "active"
+  /** Activated on a paid plan (Free keys activate too, but unlock nothing). */
+  const paid = licensed && lic.tier !== "trial"
   const busy = lic.status === "validating"
 
   const [draft, setDraft] = useState(lic.key)
@@ -150,10 +152,10 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
             {licensed
               ? lic.isDev
                 ? `Preview domain ${lic.domain ?? ""} — runs the full banner free. Add your real domain on the dashboard (or activate again after publishing to it).`
-                : `Activated for ${lic.domain ?? "this site"} and all its subdomains. Your live site unlocks automatically — the key is never shown on the page.`
-              : lic.domain
-                ? `Paste your license key to activate ${lic.domain}. Preview domains (*.framer.website, *.webflow.io, localhost…) are always free.`
-                : "Paste your license key to activate this site's domain."}
+                : paid
+                  ? `Activated for ${lic.domain ?? "this site"} and all its subdomains. Your live site unlocks automatically — the key is never shown on the page.`
+                  : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner with the Consentful credit. Upgrade to unlock the full design.`
+              : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here. Preview domains (*.framer.website, *.webflow.io, localhost…) always show the banner.`}
           </div>
         )}
 
@@ -165,10 +167,10 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
       </Card>
 
       <Card style={{ padding: "6px 16px 12px" }}>
-        <Eyebrow style={{ margin: "13px 0 4px" }}>{licensed ? `${TIER_LABEL[lic.tier]} unlocks` : "Unlock with any paid plan"}</Eyebrow>
+        <Eyebrow style={{ margin: "13px 0 4px" }}>{paid ? `${TIER_LABEL[lic.tier]} unlocks` : "Unlock with any paid plan"}</Eyebrow>
         {PRO_FEATURES.map((f, i) => (
-          <div key={f.label} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderBottom: i < PRO_FEATURES.length - 1 ? `1px solid ${T.hairline}` : "none", opacity: licensed ? 1 : 0.62 }}>
-            <Icon name={licensed ? "check_circle" : "lock"} size={18} color={licensed ? T.accent : "#b9bec6"} style={{ marginTop: 1 }} />
+          <div key={f.label} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderBottom: i < PRO_FEATURES.length - 1 ? `1px solid ${T.hairline}` : "none", opacity: paid ? 1 : 0.62 }}>
+            <Icon name={paid ? "check_circle" : "lock"} size={18} color={paid ? T.accent : "#b9bec6"} style={{ marginTop: 1 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>{f.label}</div>
               <div style={{ fontSize: 11, color: T.ink3, marginTop: 1, lineHeight: 1.4 }}>{f.description}</div>
@@ -177,20 +179,20 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
         ))}
         <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 11, fontSize: 11.5, color: T.ink3 }}>
           <Icon name="devices" size={16} color={T.ink4} />
-          {licensed && lic.maxSites !== null
+          {paid && lic.maxSites !== null
             ? `${lic.maxSites} ${lic.maxSites === 1 ? "site" : "sites"} on your plan · any platform`
-            : "Solo 1 site · Studio 5 · Agency 25 · Lifetime 3 — any platform"}
+            : "Free 1 site · Solo 1 · Studio 5 · Agency 25 · Lifetime 3 — any platform"}
         </div>
       </Card>
 
       <a
-        href={licensed ? `${PORTAL_DASHBOARD_URL}/licenses` : `${PORTAL_DASHBOARD_URL}/pricing`}
+        href={paid ? `${PORTAL_DASHBOARD_URL}/licenses` : licensed ? `${PORTAL_DASHBOARD_URL}/pricing` : `${PORTAL_DASHBOARD_URL}/signup`}
         target="_blank"
         rel="noopener noreferrer"
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: licensed ? T.surface : "linear-gradient(150deg,#6a3cf0,#4b23d3)", color: licensed ? T.ink : "#fff", border: licensed ? `1px solid ${T.border}` : "none", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: licensed ? "none" : `0 6px 16px ${T.accent}44` }}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: paid ? T.surface : "linear-gradient(150deg,#6a3cf0,#4b23d3)", color: paid ? T.ink : "#fff", border: paid ? `1px solid ${T.border}` : "none", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: paid ? "none" : `0 6px 16px ${T.accent}44` }}
       >
-        <Icon name={licensed ? "settings" : "shopping_bag"} size={18} color={licensed ? T.ink3 : "#fff"} />
-        {licensed ? "Manage your sites" : "Buy a license"}
+        <Icon name={paid ? "settings" : licensed ? "shopping_bag" : "key"} size={18} color={paid ? T.ink3 : "#fff"} />
+        {paid ? "Manage your sites" : licensed ? "Upgrade to Pro" : "Get a free key"}
       </a>
     </div>
   )

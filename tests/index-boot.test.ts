@@ -122,3 +122,37 @@ test('auto-boot is resilient: an invalid embedded config still boots (falls back
   const dl = (dom.window as unknown as { dataLayer?: unknown[] }).dataLayer ?? [];
   expect(dl.length).toBeGreaterThan(0);
 });
+
+/** Serve a fixed `/public/site-entitlement` body (JWKS empty). */
+function stubEntitlement(body: Record<string, unknown>): void {
+  g.fetch = async (url: string) =>
+    new Response(JSON.stringify(String(url).endsWith('/site-entitlement') ? body : { keys: [] }), { status: 200 });
+}
+
+test('a live domain the API reports NOT activated gets no banner, but trackers stay denied', async () => {
+  stubEntitlement({ status: 'unlicensed', licensed: false, activated: false, token: null });
+  (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = { behavior: { showMode: 'everywhere' } };
+
+  vi.resetModules();
+  await import('../runtime/src/index.ts');
+  await settle();
+
+  expect(dom.window.document.querySelector('.cc-root')).toBeNull();
+  const dl = (dom.window as unknown as { dataLayer?: unknown[] }).dataLayer ?? [];
+  const def = dl.map((a) => Array.from(a as ArrayLike<unknown>)).find((c) => c[0] === 'consent' && c[1] === 'default');
+  expect((def![2] as Record<string, unknown>).analytics_storage).toBe('denied');
+});
+
+test('a FREE-activated domain gets the basic bar', async () => {
+  stubEntitlement({ status: 'free', licensed: false, activated: true, token: null });
+  (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = {
+    behavior: { showMode: 'everywhere' },
+    banner: { layout: 'card' },
+  };
+
+  vi.resetModules();
+  await import('../runtime/src/index.ts');
+  await settle();
+
+  expect(dom.window.document.querySelector('.cc-banner--bar')).toBeTruthy();
+});

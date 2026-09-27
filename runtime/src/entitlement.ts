@@ -199,6 +199,24 @@ async function verify(
 }
 
 /**
+ * A site's licensing status:
+ * - `entitlement` — the verified PAID entitlement, or `null`.
+ * - `activated` — whether the domain is activated on any key (free or paid):
+ *   `true` → a free site with no token renders the basic banner; `false` → the
+ *   API explicitly said "not activated" → render NO banner; `null` → unknown
+ *   (offline, timeout, bad response) → the basic banner, so a licensing outage
+ *   never strips a customer's banner.
+ */
+export type SiteStatus = {
+  entitlement: VerifiedEntitlement | null;
+  activated: boolean | null;
+};
+
+/** Cache of a FREE activation (no token to cache), so repeat visits skip the API. */
+const FREE_KEY = 'cc:ent:free';
+const FREE_TTL_MS = 60 * 60 * 1000;
+
+/**
  * Resolve this site's entitlement for `host`. Tries the cached token first (an
  * instant, offline verify), then a bounded live fetch of a fresh token. Returns
  * the verified entitlement, or `null` (free tier) on ANY failure.
@@ -211,11 +229,27 @@ export async function resolveEntitlement(
   host: string,
   opts: EntitlementOptions = {},
 ): Promise<VerifiedEntitlement | null> {
+  return (await resolveSiteStatus(host, opts)).entitlement;
+}
+
+/**
+ * Resolve this site's full {@link SiteStatus}: the paid entitlement (cached token
+ * first, then a bounded live fetch) plus whether the domain is activated at all.
+ *
+ * @param host - The current hostname (typically `location.hostname`).
+ * @param opts - API base / key / timeout / fetch overrides (see {@link EntitlementOptions}).
+ * @returns The site status; never throws.
+ */
+export async function resolveSiteStatus(
+  host: string,
+  opts: EntitlementOptions = {},
+): Promise<SiteStatus> {
+  const unknown: SiteStatus = { entitlement: null, activated: null };
   const apiBase = (opts.apiBase ?? PORTAL_API_BASE).replace(/\/+$/, '');
   const publishableKey = opts.publishableKey ?? PORTAL_PUBLISHABLE_KEY;
   const timeoutMs = opts.timeoutMs ?? 3000;
   const fetchFn = opts.fetchFn ?? (typeof fetch === 'function' ? fetch : undefined);
-  if (!fetchFn) return null;
+  if (!fetchFn) return unknown;
 
   const keys = makeKeyResolver(fetchFn, apiBase, publishableKey, timeoutMs);
   const resolveKey = keys.resolve;
@@ -226,7 +260,11 @@ export async function resolveEntitlement(
   const cached = readCache<{ token: string; host: string }>(TOKEN_KEY);
   if (cached && cached.host === host && typeof cached.token === 'string') {
     const ent = await verify(cached.token, host, resolveKey, opts.issuer);
-    if (ent) return ent;
+    if (ent) return { entitlement: ent, activated: true };
+  }
+  const free = readCache<{ host: string; at: number }>(FREE_KEY);
+  if (free && free.host === host && Date.now() - free.at < FREE_TTL_MS) {
+    return { entitlement: null, activated: true };
   }
 
   // 2. Fresh token from the licensing API (bounded). Domains without a seat get
@@ -247,18 +285,21 @@ export async function resolveEntitlement(
     },
     timeoutMs,
   );
-  if (!res || !res.ok) return null;
+  if (!res || !res.ok) return unknown;
 
-  let body: { token?: string | null };
+  let body: { token?: string | null; activated?: boolean; status?: string };
   try {
-    body = (await res.json()) as { token?: string | null };
+    body = (await res.json()) as typeof body;
   } catch {
-    return null;
+    return unknown;
   }
+  // Only an explicit `activated: false` hides the banner; a `dev` verdict (the
+  // portal's preview list can be wider than ours) or an older API never does.
+  const activated =
+    body.activated === true ? true : body.activated === false && body.status !== 'dev' ? false : null;
   const token = typeof body.token === 'string' ? body.token : null;
-  if (!token) return null; // dev/unlicensed host → free tier.
-
-  const ent = await verify(token, host, resolveKey, opts.issuer);
+  const ent = token ? await verify(token, host, resolveKey, opts.issuer) : null;
   if (ent) writeCache(TOKEN_KEY, { token, host });
-  return ent;
+  else if (activated) writeCache(FREE_KEY, { host, at: Date.now() });
+  return { entitlement: ent, activated: ent ? true : activated };
 }
