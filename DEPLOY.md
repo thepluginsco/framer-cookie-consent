@@ -9,7 +9,7 @@ Runtime is served from jsDelivr pinned to the tag in
 embed **at publish time**, so a new runtime only reaches a live site when that
 surface is **re-published**.
 
-Current shipped runtime: **v0.1.10** (live on jsDelivr). v0.1.11 (licensing on) is bumped + built + committed, awaiting tag push — see §1 step 6.
+Current shipped runtime: **v0.1.11** (licensing on, live on jsDelivr 2026-09-27). Sites pick it up when re-published.
 
 ---
 
