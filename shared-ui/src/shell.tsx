@@ -17,6 +17,7 @@ import { Icon, HoverButton, Spinner } from "./ui"
 import { useConsentful } from "./model"
 import { LicensePanel } from "./license/LicensePanel"
 import { useLicense } from "./license/use-license"
+import { ActivationGate } from "./license/ActivationGate"
 import {
   BehaviorPanel,
   CategoriesPanel,
@@ -75,8 +76,9 @@ export function ConsentfulShell() {
   const host = useHost()
   const m = useConsentful()
   const codeDisabled = host.useCodeDisabled()
-  // Re-verify a saved license once on start-up (relocks a lapsed plan).
-  useLicense({ autoCheck: true })
+  // Re-verify a saved license once on start-up (relocks a lapsed plan). This is
+  // also the instance the activation gate drives, so activating unlocks at once.
+  const lic = useLicense({ autoCheck: true })
 
   const [tab, setTab] = useState<TabId>("categories")
   const [previewMode, setPreviewMode] = useState<PreviewMode>("banner")
@@ -147,6 +149,19 @@ export function ConsentfulShell() {
   // The Publish tab describes how *this* platform ships, so its subtitle is
   // host-owned (Framer auto-syncs; the embed copies; Wix/Webflow/WP install).
   const panelDesc = tab === "preview" ? host.publishSubtitle : desc
+
+  // Activation gate (LingoLens / MediaGrabber pattern): no editor UI until this
+  // site has an activated key. A key is only saved once the portal accepts it,
+  // and a rejected re-check clears it, so "has a key" means "activated". Wait
+  // for the saved config first so an activated site never flashes the gate.
+  if (host.showLicenseTab && m.status === "loading" && !lic.key) {
+    return (
+      <div className="cf-app" style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.ground }}>
+        <Spinner />
+      </div>
+    )
+  }
+  if (host.showLicenseTab && !lic.key) return <ActivationGate lic={lic} />
 
   return (
     <div
@@ -250,7 +265,7 @@ export function ConsentfulShell() {
             padding: "10px 10px 12px",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 13, overflowY: "auto", margin: "0 -4px", padding: "0 4px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 13, overflowY: "auto", minHeight: 0, flex: "0 1 auto", margin: "0 -4px", padding: "0 4px" }}>
             {NAV_GROUPS.map((group) => (
               <div key={group.label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <div
@@ -273,7 +288,7 @@ export function ConsentfulShell() {
               </div>
             ))}
           </div>
-          <div style={{ flex: 1, minHeight: 12 }} />
+          <div style={{ flex: "1 0 12px" }} />
           {isPro ? <ProBadge /> : <UpgradeCard onClick={() => setTab("license")} />}
         </nav>
 
@@ -651,6 +666,9 @@ function UpgradeCard({ onClick }: { onClick: () => void }) {
       style={{
         position: "relative",
         overflow: "hidden",
+        // Never squeezed by a short window — the nav list above scrolls instead,
+        // otherwise overflow:hidden clips the button and the rounded corners.
+        flexShrink: 0,
         background: T.indigoSurface,
         borderRadius: T.rXl,
         padding: 14,
@@ -705,7 +723,7 @@ function UpgradeCard({ onClick }: { onClick: () => void }) {
           Unlock everything
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginBottom: 12 }}>
-          Accurate geo-targeting, A/B copy and unlimited domains.
+          Every banner design, geo-targeting, A/B testing and no credit.
         </div>
         <HoverButton
           onClick={onClick}
@@ -745,6 +763,7 @@ function ProBadge() {
       style={{
         position: "relative",
         overflow: "hidden",
+        flexShrink: 0,
         display: "flex",
         alignItems: "center",
         gap: 10,

@@ -168,8 +168,9 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
         setStatus("active")
         setMessage(null)
       } else {
-        // Rejected: keep the key visible so the user can correct it, but relock.
-        syncConfig({ key: k || null, tier: "trial", whiteLabel: false })
+        // Rejected: drop the key so the editor relocks behind the activation
+        // gate (which keeps the typed key in its own field for correction).
+        syncConfig({ key: null, tier: "trial", whiteLabel: false })
         setStatus("invalid")
         setMessage(rejectionMessage(v.reason))
       }
@@ -207,14 +208,13 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
       try {
         await activate(k)
       } catch (error) {
+        // A key is only saved once the portal accepts it, so a failed attempt
+        // never unlocks the editor; any previously verified key is kept.
         if (error instanceof PortalNetworkError) {
-          // Can't verify right now; keep the key but don't unlock until we can.
-          syncConfig({ key: k, tier: "trial", whiteLabel: false })
           setStatus("offline")
           setMessage("Couldn't reach the licensing server. Try again in a moment.")
         } else {
           console.warn("[consentful] activation failed:", error)
-          syncConfig({ key: k, tier: "trial", whiteLabel: false })
           setStatus("invalid")
           setMessage("Something went wrong activating that key. Please try again.")
         }
