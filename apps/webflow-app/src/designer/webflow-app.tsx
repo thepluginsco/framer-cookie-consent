@@ -40,7 +40,7 @@ import {
 } from "@framer-cookie-consent/shared-ui"
 
 import { WebflowDataClient } from "./data-client"
-import { currentSiteId, inDesigner } from "./webflow-host"
+import { currentSiteId, currentSiteUrl, inDesigner } from "./webflow-host"
 
 const STORAGE_KEY = "consentful.webflow.config"
 const WORKER_BASE = (import.meta.env?.VITE_WORKER_BASE as string | undefined) ?? ""
@@ -277,7 +277,7 @@ const webflowHost: HostServices = {
   platformLabel: "Webflow",
   runtimeVersion: RUNTIME_VERSION,
   scanSite: scanUnsupported,
-  getLiveSiteUrl: async () => null,
+  getLiveSiteUrl: currentSiteUrl,
   getSiteName: async () => null,
   data: localStorageDataStore("consentful.webflow."),
   useCodeDisabled: () => false,

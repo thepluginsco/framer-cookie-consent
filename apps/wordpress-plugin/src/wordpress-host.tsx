@@ -190,7 +190,7 @@ const wordpressHost: HostServices = {
   platformLabel: "WordPress",
   runtimeVersion: RUNTIME_VERSION,
   scanSite: scanUnsupported,
-  getLiveSiteUrl: async () => null,
+  getLiveSiteUrl: async () => boot?.siteUrl ?? null,
   getSiteName: async () => null,
   data: localStorageDataStore("consentful.wordpress."),
   useCodeDisabled: () => false,

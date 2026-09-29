@@ -59,6 +59,8 @@ export interface LicenseApi {
   domainFromHost: boolean
   /** Set the domain manually (hosts that can't detect it, e.g. the embed). */
   setDomain: (domain: string) => void
+  /** Register a domain on the already-activated key (uses a site slot). */
+  bindDomain: (domain: string) => Promise<void>
   /** Production sites the plan allows, when known from the last activation. */
   maxSites: number | null
   /** Whether the activated domain is a free preview/staging host. */
@@ -89,6 +91,15 @@ function rejectionMessage(reason: string | null): string {
     ? reason
     : "That key couldn't be activated for this site. Double-check it, or manage your sites on the dashboard."
 }
+
+/**
+ * A free preview host the portal validates WITHOUT binding a site slot — used to
+ * verify a key when the editor can't tell which domain it's for.
+ */
+const KEY_CHECK_HOST = "localhost"
+
+const NO_DOMAIN_NOTE =
+  "Key activated. This editor can't detect your site's domain — add it below (or under Sites on your dashboard) so your live banner shows."
 
 /** Per-browser memory of a manually entered domain (embed host). */
 const DOMAIN_KEY = "consentful:license-domain"
@@ -178,17 +189,18 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
     [syncConfig],
   )
 
-  /** Activate `k` against the current domain. */
+  /**
+   * Activate `k` against the current domain. When the host can't tell us its
+   * domain (and none was typed), the key is verified against a preview host —
+   * which checks it without using a site slot — and the user is asked to add
+   * their domain afterwards (License tab or dashboard).
+   */
   const activate = useCallback(
     async (k: string): Promise<void> => {
       const d = await resolveDomain()
-      if (!d) {
-        setStatus("invalid")
-        setMessage("Enter your site's domain (or publish the site), then activate — a license is tied to a domain.")
-        return
-      }
-      const v = await client.activate(k, d)
+      const v = await client.activate(k, d ?? KEY_CHECK_HOST)
       applyActivation(k, v)
+      if (!d && v.ok) setMessage(NO_DOMAIN_NOTE)
     },
     [client, resolveDomain, applyActivation],
   )
@@ -259,6 +271,34 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
     if (h) saveDomain(h)
   }, [])
 
+  /** Register `input` as this site's domain on the current key (uses a site slot). */
+  const bindDomain = useCallback(
+    async (input: string) => {
+      const h = hostnameOf(input)
+      const k = key.trim()
+      if (!h || !k) return
+      setTypedDomain(h)
+      saveDomain(h)
+      setStatus("validating")
+      setMessage(null)
+      try {
+        const v = await client.activate(k, h)
+        if (v.ok) {
+          applyActivation(k, v)
+        } else {
+          // The key is still valid — only this domain was refused (e.g. the
+          // plan's site limit). Keep the editor unlocked and say why.
+          setStatus("active")
+          setMessage(rejectionMessage(v.reason))
+        }
+      } catch {
+        setStatus("offline")
+        setMessage("Couldn't reach the licensing server. Try again in a moment.")
+      }
+    },
+    [key, client, applyActivation],
+  )
+
   /* ---- Resolve the domain on mount (for display) --------------------------- */
   useEffect(() => {
     void resolveDomain()
@@ -277,9 +317,10 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
     checkedKey.current = key
     void (async () => {
       const d = await resolveDomain()
-      if (!d) return
       try {
-        applyActivation(key, await client.activate(key, d))
+        const v = await client.activate(key, d ?? KEY_CHECK_HOST)
+        applyActivation(key, v)
+        if (!d && v.ok) setMessage(NO_DOMAIN_NOTE)
       } catch {
         /* offline — keep the saved status */
       }
@@ -295,6 +336,7 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
     domain,
     domainFromHost: hostDomain !== null,
     setDomain,
+    bindDomain,
     maxSites,
     isDev,
     enterKey,

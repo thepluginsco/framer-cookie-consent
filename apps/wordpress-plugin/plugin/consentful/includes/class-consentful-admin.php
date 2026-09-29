@@ -87,6 +87,9 @@ class Consentful_Admin {
 				'restBase'      => esc_url_raw( rest_url( Consentful_Rest::NAMESPACE ) ),
 				'nonce'         => wp_create_nonce( 'wp_rest' ),
 				'activePlugins' => array_values( $active ),
+				// The public site URL, so license activation can bind this domain
+				// without asking the user for it.
+				'siteUrl'       => esc_url_raw( home_url( '/' ) ),
 			)
 		);
 	}

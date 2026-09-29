@@ -110,15 +110,25 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
         {!lic.domainFromHost ? (
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11.5, fontWeight: 600, color: T.ink2, marginBottom: 6 }}>Site domain</div>
-            <input
-              type="text"
-              placeholder="example.com"
-              value={domainDraft}
-              disabled={busy || licensed}
-              onChange={(e) => setDomainDraft(e.target.value)}
-              onBlur={() => domainDraft.trim() && lic.setDomain(domainDraft)}
-              style={{ ...inputStyle(busy || licensed, false), width: "100%" }}
-            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text"
+                placeholder="example.com"
+                value={domainDraft}
+                disabled={busy}
+                onChange={(e) => setDomainDraft(e.target.value)}
+                onBlur={() => !licensed && domainDraft.trim() && lic.setDomain(domainDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && licensed && domainDraft.trim()) void lic.bindDomain(domainDraft)
+                }}
+                style={inputStyle(busy, false)}
+              />
+              {licensed ? (
+                <Button variant="secondary" disabled={busy || !domainDraft.trim()} onClick={() => void lic.bindDomain(domainDraft)}>
+                  Save domain
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 

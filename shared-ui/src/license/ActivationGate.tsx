@@ -8,19 +8,19 @@
  * successful activation unlocks the shell immediately.
  */
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { PORTAL_DASHBOARD_URL } from "@framer-cookie-consent/shared"
 
 import logoUrl from "../assets/logo.png"
 import { T } from "../tokens"
-import { Button, Icon } from "../ui"
+import { Button } from "../ui"
 import type { LicenseApi } from "./use-license"
 
 const STEPS: Array<[string, string]> = [
   ["Create a free account", "Sign up on the Consentful dashboard — no card needed."],
   ["Copy your license key", "Your free key is issued right after sign-up (paid plans work too)."],
-  ["Paste it here", "Enter the key below, with your site's domain if it isn't detected."],
-  ["Activate", "One key = one site on Free. Upgrade any time for more sites and Pro."],
+  ["Paste it here", "Paste the key below and click Activate."],
+  ["Your site is connected", "One key = one site on Free. Upgrade any time for more sites and Pro."],
 ]
 
 const fieldStyle = (disabled: boolean, mono: boolean) => ({
@@ -40,18 +40,11 @@ const fieldStyle = (disabled: boolean, mono: boolean) => ({
 export function ActivationGate({ lic }: { lic: LicenseApi }) {
   const busy = lic.status === "validating"
   const [key, setKey] = useState(lic.key)
-  const [domain, setDomain] = useState(lic.domain ?? "")
   const [showSteps, setShowSteps] = useState(false)
-  useEffect(() => {
-    if (lic.domain && !domain) setDomain(lic.domain)
-  }, [lic.domain, domain])
 
-  const needsDomain = !lic.domainFromHost
-  const canSubmit = !!key.trim() && (!needsDomain || !!domain.trim()) && !busy
+  const canSubmit = !!key.trim() && !busy
   const submit = () => {
-    if (!canSubmit) return
-    if (needsDomain) lic.setDomain(domain)
-    void lic.enterKey(key)
+    if (canSubmit) void lic.enterKey(key)
   }
   const error = lic.status === "invalid" || lic.status === "offline" ? lic.message : null
 
@@ -91,26 +84,6 @@ export function ActivationGate({ lic }: { lic: LicenseApi }) {
             Every site needs a license key — Free or paid. Your key stays in the editor and is never shown on your site.
           </p>
 
-          {needsDomain ? (
-            <label style={{ display: "block", marginBottom: 12 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink2, marginBottom: 6 }}>Site domain</div>
-              <input
-                type="text"
-                placeholder="example.com"
-                value={domain}
-                disabled={busy}
-                onChange={(e) => setDomain(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
-                style={fieldStyle(busy, false)}
-              />
-            </label>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: T.ink2, marginBottom: 12 }}>
-              <Icon name="language" size={16} color={T.ink4} />
-              Activating <strong style={{ color: T.ink }}>{lic.domain}</strong>
-            </div>
-          )}
-
           <label style={{ display: "block" }}>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink2, marginBottom: 6 }}>License key</div>
             <input
@@ -129,7 +102,7 @@ export function ActivationGate({ lic }: { lic: LicenseApi }) {
             <div style={{ fontSize: 12, color: lic.status === "offline" ? T.warn : T.danger, lineHeight: 1.5, marginTop: 10 }}>{error}</div>
           ) : (
             <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5, marginTop: 10 }}>
-              Preview domains (*.framer.website, *.webflow.io, localhost…) activate free without using a site.
+              Your site's domain is picked up automatically where possible — otherwise add it later on the License tab.
             </div>
           )}
 

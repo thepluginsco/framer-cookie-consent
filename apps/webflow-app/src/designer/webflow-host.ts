@@ -11,7 +11,13 @@
 
 /** The subset of the Webflow Designer API we use. */
 export interface WebflowDesignerApi {
-  getSiteInfo(): Promise<{ siteId: string; shortName?: string; siteName?: string }>;
+  getSiteInfo(): Promise<{
+    siteId: string;
+    shortName?: string;
+    siteName?: string;
+    /** The site's domains (custom + `*.webflow.io`), when the API provides them. */
+    domains?: Array<{ url?: string; default?: boolean; stage?: string }>;
+  }>;
   /** Short-lived token the Worker can resolve to the authorized user + site. */
   getIdToken?(): Promise<string>;
   /** Resize the extension panel (nice-to-have; optional). */
@@ -43,8 +49,27 @@ export async function requestLargeSize(): Promise<void> {
 }
 
 /**
+ * The site's live URL from the Designer host (custom domain preferred), or
+ * `null` outside the Designer — lets license activation bind the domain
+ * without asking the user for it.
+ */
+export async function currentSiteUrl(): Promise<string | null> {
+  if (!inDesigner()) return null;
+  try {
+    const { domains = [], shortName } = await window.webflow!.getSiteInfo();
+    const urls = domains.map((d) => d.url).filter((u): u is string => !!u);
+    // Prefer a custom (production) domain; the *.webflow.io staging host is a
+    // free preview domain that never needs a site slot.
+    const custom = urls.find((u) => !/\.webflow\.io\b/i.test(u));
+    return custom ?? urls[0] ?? (shortName ? `${shortName}.webflow.io` : null);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve the current site id from the Designer host, or `null` when running
- * outside it (local dev), so the caller can fall back to a manual site-id input.
+ * outside it (local dev).
  */
 export async function currentSiteId(): Promise<string | null> {
   if (!inDesigner()) return null;
