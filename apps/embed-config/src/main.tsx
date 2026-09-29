@@ -11,12 +11,15 @@ import { createRoot } from "react-dom/client"
 import "@framer-cookie-consent/shared-ui/fonts.css"
 import "./styles.css"
 import { EmbedApp } from "./embed-host"
+import { PortalApp, portalSiteId } from "./portal-host"
 
+// Opened from the dashboard (?site=cs_…) → edit that website; else standalone.
+const siteId = portalSiteId()
 const root = document.getElementById("root")
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <EmbedApp />
+      {siteId ? <PortalApp siteId={siteId} /> : <EmbedApp />}
     </StrictMode>,
   )
 }

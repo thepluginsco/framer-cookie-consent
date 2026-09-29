@@ -24,7 +24,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --build --dry"
+    "typecheck": "tsc --build --dry",
+    "build:portal-builder": "node scripts/build-portal-builder.mjs"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.9",
