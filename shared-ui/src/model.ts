@@ -26,6 +26,7 @@ import {
   type LocaleStrings,
   type ManagedScript,
   type ScriptType,
+  type ShowRegion,
   type ThemeMode,
   type TrackerCategoryId,
 } from "@framer-cookie-consent/shared"
@@ -128,6 +129,8 @@ export interface Cfg {
   saveLabel: string
   privacyUrl: string
   showWhen: ShowWhen
+  /** Regions that see the banner when `showWhen` is `geo` (Pro). */
+  showRegions: ShowRegion[]
   /**
    * The consent model to enforce: GDPR opt-in, CCPA-style opt-out (implied
    * consent), or region-aware `auto` (opt-in in regulated regions, opt-out
@@ -270,6 +273,7 @@ export function toCfg(c: CookieConsentConfig): Cfg {
     saveLabel: c.strings.savePreferences,
     privacyUrl: c.strings.privacyPolicyUrl,
     showWhen: MODE_TO_SHOW_WHEN[c.behavior.showMode],
+    showRegions: [...c.behavior.showRegions],
     consentModel: c.behavior.consentModel,
     geoEndpoint: c.geo.endpoint,
     analyticsEndpoint: c.analytics.endpoint,
@@ -594,6 +598,9 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
       break
     case "showWhen":
       next.behavior = { ...prev.behavior, showMode: SHOW_WHEN_TO_MODE[value as ShowWhen] }
+      break
+    case "showRegions":
+      next.behavior = { ...prev.behavior, showRegions: value as ShowRegion[] }
       break
     case "consentModel":
       next.behavior = { ...prev.behavior, consentModel: value as ConsentModel }

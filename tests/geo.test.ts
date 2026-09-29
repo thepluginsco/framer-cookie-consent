@@ -398,3 +398,35 @@ test('resolveRegion: merges an endpoint answer over the heuristic', async () => 
   assert.equal(r.isEU, true);
   assert.equal(r.certain, true);
 });
+
+/* ------------------------------ by-region rule ----------------------------- */
+
+const byRegion = (showRegions: string[]) =>
+  mergeConfig({ behavior: { showMode: 'by-region', showRegions: showRegions as never } });
+
+test('by-region shows only in the chosen regions', () => {
+  const cfg = byRegion(['EU', 'CA']);
+  assert.equal(shouldShowBanner(cfg, null, regionFromCountry('DE'), false), true);
+  assert.equal(shouldShowBanner(cfg, null, regionFromCountry('CA'), false), true);
+  assert.equal(shouldShowBanner(cfg, null, regionFromCountry('GB'), false), false);
+  assert.equal(shouldShowBanner(cfg, null, regionFromCountry('US'), false), false);
+});
+
+test('by-region: US-CA, rest of US and rest of world are distinct', () => {
+  assert.equal(shouldShowBanner(byRegion(['US-CA']), null, regionFromCountry('US', 'US-CA'), false), true);
+  assert.equal(shouldShowBanner(byRegion(['US-CA']), null, regionFromCountry('US'), false), false);
+  assert.equal(shouldShowBanner(byRegion(['US']), null, regionFromCountry('US'), false), true);
+  assert.equal(shouldShowBanner(byRegion(['OTHER']), null, regionFromCountry('JP'), false), true);
+  assert.equal(shouldShowBanner(byRegion(['OTHER']), null, regionFromCountry('IN'), false), false);
+  assert.equal(shouldShowBanner(byRegion(['OTHER']), null, regionFromCountry('DE'), false), false);
+});
+
+test('by-region fails safe when the region cannot be detected', () => {
+  assert.equal(shouldShowBanner(byRegion([]), null, regionFromCountry(null), false), true);
+});
+
+test('showRegions is validated and ordered on merge', () => {
+  const cfg = mergeConfig({ behavior: { showRegions: ['IN', 'bogus', 'EU'] as never } });
+  assert.deepEqual(cfg.behavior.showRegions, ['EU', 'IN']);
+  assert.deepEqual(mergeConfig().behavior.showRegions, ['EU', 'UK', 'CH', 'US-CA']);
+});

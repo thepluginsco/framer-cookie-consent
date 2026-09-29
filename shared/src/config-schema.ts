@@ -98,9 +98,21 @@ export interface ConsentModeConfig {
  * When the banner is shown to visitors.
  * - `everywhere` — every visitor, worldwide.
  * - `eu-only`    — only visitors detected in the EU / EEA (+ UK / CH / CA).
- * - `by-region`  — a custom region rule (Pro).
+ * - `by-region`  — only visitors in the chosen {@link BehaviorConfig.showRegions} (Pro).
  */
 export type ShowMode = 'everywhere' | 'eu-only' | 'by-region';
+
+/**
+ * A region the `by-region` rule can target. Zones: `EU` (EU/EEA), `UK`, `CH`,
+ * `US-CA` (California), `US` (rest of the US), `OTHER` (rest of the world).
+ * The country codes (`CA` Canada, `BR` Brazil, `AU` Australia, `IN` India)
+ * need the accurate geo endpoint — the offline time-zone heuristic only
+ * recognises the EU/EEA, UK, Switzerland and the US.
+ */
+export type ShowRegion = 'EU' | 'UK' | 'CH' | 'US-CA' | 'US' | 'CA' | 'BR' | 'AU' | 'IN' | 'OTHER';
+
+/** Every {@link ShowRegion}, in picker order. */
+export const SHOW_REGIONS: readonly ShowRegion[] = ['EU', 'UK', 'CH', 'US-CA', 'US', 'CA', 'BR', 'AU', 'IN', 'OTHER'];
 
 /**
  * How consent is obtained — the legal model the banner enforces. Orthogonal to
@@ -122,6 +134,12 @@ export type ConsentModel = 'opt-in' | 'opt-out' | 'auto';
 export interface BehaviorConfig {
   /** Who sees the banner (see {@link ShowMode}). */
   showMode: ShowMode;
+  /**
+   * Regions that see the banner when `showMode` is `by-region` (Pro). Defaults
+   * to the regulated set (EU/EEA, UK, Switzerland, California). Ignored by the
+   * other show modes.
+   */
+  showRegions: ShowRegion[];
   /**
    * The consent model to enforce (see {@link ConsentModel}). `opt-in` is the
    * GDPR-safe default; `auto` adapts opt-in vs opt-out to the visitor's region.
@@ -651,6 +669,7 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
   },
   behavior: {
     showMode: 'eu-only',
+    showRegions: ['EU', 'UK', 'CH', 'US-CA'],
     consentModel: 'opt-in',
     respectDoNotTrack: true,
     respectGpc: true,
@@ -855,6 +874,9 @@ function mergeConsentMode(
 function mergeBehavior(d: BehaviorConfig, p: DeepPartial<BehaviorConfig> | undefined): BehaviorConfig {
   return {
     showMode: oneOf(p?.showMode, SHOW_MODES, d.showMode),
+    showRegions: Array.isArray(p?.showRegions)
+      ? SHOW_REGIONS.filter((r) => (p.showRegions as unknown[]).includes(r))
+      : [...d.showRegions],
     consentModel: oneOf(p?.consentModel, CONSENT_MODELS, d.consentModel),
     respectDoNotTrack: boolOr(p?.respectDoNotTrack, d.respectDoNotTrack),
     respectGpc: boolOr(p?.respectGpc, d.respectGpc),

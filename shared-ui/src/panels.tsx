@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 
-import { buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus } from "@framer-cookie-consent/shared"
+import { buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
 import { useSettingsContext } from "./settings-context"
 import { T, focusRing, tint } from "./tokens"
@@ -343,7 +343,84 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
 const SHOW_WHEN_HINT: Record<string, string> = {
   all: "The banner appears for every visitor, worldwide.",
   eea: "Only visitors detected in the EU / EEA see the banner; others get analytics by default.",
-  geo: "Show based on a custom region rule — configurable with Pro.",
+  geo: "Only visitors in the regions you pick below see the banner. If a visitor's region can't be detected, the banner still shows.",
+}
+
+/** `by-region` targets, in picker order (see `ShowRegion`). */
+const REGION_OPTIONS: Array<{ code: ShowRegion; label: string; needsGeo?: boolean }> = [
+  { code: "EU", label: "EU / EEA" },
+  { code: "UK", label: "United Kingdom" },
+  { code: "CH", label: "Switzerland" },
+  { code: "US-CA", label: "California" },
+  { code: "US", label: "Rest of US" },
+  { code: "CA", label: "Canada", needsGeo: true },
+  { code: "BR", label: "Brazil", needsGeo: true },
+  { code: "AU", label: "Australia", needsGeo: true },
+  { code: "IN", label: "India", needsGeo: true },
+  { code: "OTHER", label: "Rest of world" },
+]
+
+/** Region chips for the `by-region` show rule (Pro). */
+function RegionPicker({ m }: { m: ConsentfulModel }) {
+  const { cfg } = m
+  const isPro = cfg.plan === "pro"
+  const selected = new Set(cfg.showRegions)
+  const toggle = (code: ShowRegion) => {
+    const next = new Set(selected)
+    if (next.has(code)) next.delete(code)
+    else next.add(code)
+    m.set("showRegions", REGION_OPTIONS.map((o) => o.code).filter((c) => next.has(c)))
+  }
+  const picksCountry = REGION_OPTIONS.some((o) => o.needsGeo && selected.has(o.code))
+  return (
+    <div style={{ marginTop: 13, paddingTop: 13, borderTop: `1px solid ${T.hairline}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: T.ink2 }}>Show the banner in</span>
+        {isPro ? null : <ProChip />}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, opacity: isPro ? 1 : 0.55 }}>
+        {REGION_OPTIONS.map((o) => {
+          const on = selected.has(o.code)
+          return (
+            <button
+              key={o.code}
+              type="button"
+              disabled={!isPro}
+              aria-pressed={on}
+              onClick={() => toggle(o.code)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                height: 28,
+                padding: "0 10px",
+                borderRadius: T.rPill,
+                border: `1px solid ${on ? T.accentBorder : T.border}`,
+                background: on ? T.accentSoft : T.surface,
+                color: on ? T.accentText : T.ink2,
+                fontSize: 11.5,
+                fontWeight: 700,
+                fontFamily: "inherit",
+                cursor: isPro ? "pointer" : "not-allowed",
+              }}
+            >
+              {on ? <Icon name="check" size={14} color={T.accentText} /> : null}
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: selected.size === 0 ? T.warn : T.ink4, lineHeight: 1.5, marginTop: 9 }}>
+        {!isPro
+          ? "Choosing regions is a Pro feature — Free sites show the banner in the EU/EEA, UK, Switzerland and California."
+          : selected.size === 0
+            ? "No regions selected — the banner will only show when a visitor's region can't be detected."
+            : picksCountry && !cfg.geoEndpoint
+              ? "Canada, Brazil, Australia and India need the accurate geo endpoint (below) — without it they're detected as “Rest of world”."
+              : "Detection uses the visitor's time zone, or the accurate geo endpoint below when set."}
+      </div>
+    </div>
+  )
 }
 
 const CONSENT_MODEL_HINT: Record<string, string> = {
@@ -376,6 +453,7 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
           ]}
         />
         <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{SHOW_WHEN_HINT[cfg.showWhen]}</div>
+        {cfg.showWhen === "geo" ? <RegionPicker m={m} /> : null}
       </Card>
 
       <Card>

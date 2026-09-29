@@ -542,7 +542,9 @@ export function needsReconsent(config: CookieConsentConfig, state: ConsentState 
  * 2. `respectDoNotTrack` + a DNT signal → do NOT show; the runtime should
  *    instead persist a reject-by-default decision (only necessary cookies).
  * 3. `showMode: 'everywhere'` → always show (when consent is needed).
- * 4. `showMode: 'eu-only'` → show only for regulated regions
+ * 4. `showMode: 'by-region'` → show only in the chosen `showRegions` (an
+ *    undetectable region still shows — fail safe).
+ * 5. `showMode: 'eu-only'` → show only for regulated regions
  *    (EU/EEA, UK, Switzerland, California), and — critically — also whenever
  *    detection is uncertain, failing safe toward privacy.
  *
@@ -571,8 +573,42 @@ export function shouldShowBanner(
   // 3. Show to everyone.
   if (config.behavior.showMode === 'everywhere') return true;
 
-  // 4. eu-only: regulated regions OR any uncertain detection (fail safe).
+  // 4. by-region: the author's chosen regions. An undetectable region still
+  //    shows (fail safe); a best guess (e.g. California from the Pacific zone)
+  //    is matched as-is so a deselected region really stays silent.
+  if (config.behavior.showMode === 'by-region') {
+    return region.region === 'UNKNOWN' || config.behavior.showRegions.some((r) => inShowRegion(region, r));
+  }
+
+  // 5. eu-only: regulated regions OR any uncertain detection (fail safe).
   return isRegulated(region) || !region.certain;
+}
+
+/** Named country codes in {@link ShowRegion} (everything else is `OTHER`). */
+const NAMED_COUNTRIES = ['CA', 'BR', 'AU', 'IN'];
+
+/**
+ * Whether `r` falls in the `by-region` target `code` (see `ShowRegion`):
+ * zones by classification, countries by ISO code, `OTHER` = none of them.
+ */
+export function inShowRegion(r: RegionInfo, code: string): boolean {
+  switch (code) {
+    case 'EU':
+      return r.isEU;
+    case 'UK':
+      return r.isUK;
+    case 'US-CA':
+      return r.isCalifornia;
+    case 'US':
+      return r.region === 'US';
+    case 'OTHER':
+      return (
+        !r.isEU && !r.isUK && !r.isCalifornia && r.region !== 'CH' && r.region !== 'US' &&
+        !NAMED_COUNTRIES.includes(r.region)
+      );
+    default:
+      return r.region === code;
+  }
 }
 
 /**
