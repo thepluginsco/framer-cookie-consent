@@ -13,7 +13,7 @@ import type { CSSProperties } from "react"
 import logoUrl from "./assets/logo.png"
 import { useHost } from "./host"
 import { T, focusRing } from "./tokens"
-import { Icon, HoverButton, Spinner } from "./ui"
+import { Button, Icon, HoverButton, Spinner } from "./ui"
 import { useConsentful } from "./model"
 import { LicensePanel } from "./license/LicensePanel"
 import { useLicense } from "./license/use-license"
@@ -658,31 +658,15 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
           <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{pill.text}</span>
         </span>
       ) : null}
-      <HoverButton
+      <Button
+        variant="primary"
+        icon="rocket_launch"
         title="Publish your banner to the live site"
+        loading={busy}
         onClick={() => void publish()}
-        base={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: T.control,
-          padding: "0 13px",
-          borderRadius: T.rMd,
-          border: "none",
-          background: state.dirty ? "linear-gradient(150deg,#6a3cf0,#4b23d3)" : T.surface,
-          color: state.dirty ? "#fff" : T.ink2,
-          outline: state.dirty ? "none" : `1px solid ${T.border}`,
-          fontSize: 12,
-          fontWeight: 700,
-          cursor: busy ? "wait" : "pointer",
-          opacity: busy ? 0.75 : 1,
-          boxShadow: state.dirty ? `0 4px 12px ${T.accent}40` : T.shSm,
-        }}
-        hover={state.dirty ? { filter: "brightness(1.06)" } : { background: T.sunken, color: T.ink }}
       >
-        {busy ? <Spinner color={state.dirty ? "#fff" : T.ink2} size={14} /> : <Icon name="rocket_launch" size={16} />}
-        {busy ? "Publishing…" : "Publish"}
-      </HoverButton>
+        Publish
+      </Button>
     </div>
   )
 }
