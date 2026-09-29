@@ -18,6 +18,8 @@ import { useConsentful } from "./model"
 import { LicensePanel } from "./license/LicensePanel"
 import { useLicense } from "./license/use-license"
 import { ActivationGate } from "./license/ActivationGate"
+import { useSettingsContext } from "./settings-context"
+import { markPublished, setPublishedSnapshot, usePublishState, type HostPublisher } from "./publish-state"
 import {
   BehaviorPanel,
   CategoriesPanel,
@@ -102,6 +104,22 @@ export function ConsentfulShell() {
     host.getLiveSiteUrl()
       .then((url) => {
         if (active) setLiveUrl(url)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [host])
+
+  // What's live right now (publish-button hosts only) — drives the header's
+  // "Unpublished changes" state. Unknown (offline / not connected) hides it.
+  useEffect(() => {
+    if (!host.publisher) return
+    let active = true
+    host.publisher
+      .loadPublished()
+      .then((live) => {
+        if (active) setPublishedSnapshot(live)
       })
       .catch(() => {})
     return () => {
@@ -224,6 +242,7 @@ export function ConsentfulShell() {
           <SaveStatus saving={saving} errored={errored} error={m.error} />
           <div style={{ width: 1, height: 20, background: T.border }} />
           <PreviewToggle open={previewOpen} onClick={() => setPreviewOpen((v) => !v)} />
+          {host.publisher ? <HeaderPublish publisher={host.publisher} onNeedsSetup={() => setTab("preview")} /> : null}
           <HoverButton
             title="Setup guide"
             ariaLabel="Setup guide"
@@ -564,6 +583,107 @@ function SitePill({ name, liveUrl }: { name: string; liveUrl: string | null }) {
     <span title={`${name} — not published yet`} style={base}>
       {inner}
     </span>
+  )
+}
+
+/**
+ * Header publish control for hosts with an explicit publish step (WordPress,
+ * Webflow, Wix): a status pill ("Unpublished changes" / "Not published" /
+ * "Live") and a one-click Publish. When the host can't publish in one click
+ * (site not connected yet), it opens the Publish tab instead.
+ */
+function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; onNeedsSetup: () => void }) {
+  const { config } = useSettingsContext()
+  const state = usePublishState(config)
+  const [busy, setBusy] = useState(false)
+  const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    if (!flash) return
+    const t = window.setTimeout(() => setFlash(null), 4000)
+    return () => window.clearTimeout(t)
+  }, [flash])
+
+  const publish = async () => {
+    setBusy(true)
+    setFlash(null)
+    try {
+      const r = await publisher.publish(config)
+      if (r.ok) markPublished(config)
+      if (r.needsSetup) onNeedsSetup()
+      setFlash({ ok: r.ok, text: r.message })
+    } catch (err) {
+      setFlash({ ok: false, text: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pill = flash
+    ? { text: flash.text, color: flash.ok ? T.successText : T.danger, bg: flash.ok ? T.successSoft : T.dangerSoft, icon: flash.ok ? "check_circle" : "error" }
+    : !state.known
+      ? null
+      : state.dirty
+        ? {
+            text: state.diff === "never" ? "Not published" : state.diff === "outdated" ? "Runtime update available" : "Unpublished changes",
+            color: T.warn,
+            bg: T.warnSoft,
+            icon: state.diff === "outdated" ? "system_update_alt" : "pending",
+          }
+        : { text: "Live", color: T.successText, bg: T.successSoft, icon: "check_circle" }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {pill ? (
+        <span
+          title={pill.text}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            maxWidth: 220,
+            height: 26,
+            padding: "0 10px",
+            borderRadius: T.rPill,
+            background: pill.bg,
+            color: pill.color,
+            fontSize: 11.5,
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          <Icon name={pill.icon} size={15} color={pill.color} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{pill.text}</span>
+        </span>
+      ) : null}
+      <HoverButton
+        title="Publish your banner to the live site"
+        onClick={() => void publish()}
+        base={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          height: T.control,
+          padding: "0 13px",
+          borderRadius: T.rMd,
+          border: "none",
+          background: state.dirty ? "linear-gradient(150deg,#6a3cf0,#4b23d3)" : T.surface,
+          color: state.dirty ? "#fff" : T.ink2,
+          outline: state.dirty ? "none" : `1px solid ${T.border}`,
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: busy ? "wait" : "pointer",
+          opacity: busy ? 0.75 : 1,
+          boxShadow: state.dirty ? `0 4px 12px ${T.accent}40` : T.shSm,
+        }}
+        hover={state.dirty ? { filter: "brightness(1.06)" } : { background: T.sunken, color: T.ink }}
+      >
+        {busy ? <Spinner color={state.dirty ? "#fff" : T.ink2} size={14} /> : <Icon name="rocket_launch" size={16} />}
+        {busy ? "Publishing…" : "Publish"}
+      </HoverButton>
+    </div>
   )
 }
 

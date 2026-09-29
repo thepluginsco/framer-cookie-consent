@@ -28,11 +28,14 @@ import {
   HostProvider,
   Icon,
   localStorageDataStore,
+  markPublished,
+  markUnpublished,
   SettingsContext,
   T,
   useSettingsContext,
   type ConfigUpdater,
   type ConsentfulModel,
+  type HostPublisher,
   type HostServices,
   type ScanResult,
   type SettingsApi,
@@ -61,6 +64,35 @@ function saveConfig(config: CookieConsentConfig): void {
   } catch {
     /* ignore */
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Publisher — one-click publish + "what's live" for the header               */
+/* -------------------------------------------------------------------------- */
+
+const wordpressPublisher: HostPublisher = {
+  async publish(config) {
+    if (!wpStore) {
+      return { ok: false, needsSetup: true, message: "Open this screen inside WordPress to publish." }
+    }
+    try {
+      const wrote = await installWordPressLoader(wpStore, config, runtimeOpts)
+      // Persist the config too, so reopening the screen reloads this banner.
+      await wpStore.writeConfigOption(serialize(config))
+      return { ok: true, message: wrote ? "Published ✓ Your banner is live." : "Already up to date." }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) }
+    }
+  },
+  async loadPublished() {
+    if (!wpStore) throw new Error("Not inside WordPress")
+    const [stored, head] = await Promise.all([wpStore.readConfigOption(), wpStore.readHeadOption()])
+    if (!stored || !head.trim()) return { config: null }
+    // The head pins a runtime URL at publish time; an older pin means the live
+    // site misses runtime fixes until it's republished.
+    const current = runtimeOpts.runtimeUrl ?? `@${RUNTIME_VERSION}/`
+    return { config: parse(stored), outdated: !head.includes(current) }
+  },
 }
 
 /* -------------------------------------------------------------------------- */
@@ -98,10 +130,10 @@ function WordPressPublishAction({ m }: { m: ConsentfulModel }) {
   const publish = useCallback(() => {
     if (!wpStore) return
     void run("publish", async () => {
-      const wrote = await installWordPressLoader(wpStore, config, runtimeOpts)
-      // Persist the config too, so reopening the screen reloads this banner.
-      await wpStore.writeConfigOption(serialize(config))
-      return wrote ? "Published ✓ Your banner is live." : "Already up to date — nothing to publish."
+      const r = await wordpressPublisher.publish(config)
+      if (!r.ok) throw new Error(r.message)
+      markPublished(config)
+      return r.message
     })
   }, [config, run])
 
@@ -111,6 +143,7 @@ function WordPressPublishAction({ m }: { m: ConsentfulModel }) {
       const removed = await removeWordPressLoader(wpStore)
       // Drop the stored config too, so the next open starts clean.
       await wpStore.writeConfigOption(null)
+      markUnpublished()
       return removed ? "Removed ✓ The banner is no longer on your site." : "Nothing to remove — no banner was published."
     })
   }, [run])
@@ -166,6 +199,7 @@ const wordpressHost: HostServices = {
   publishSubtitle: "Publish writes the banner into your site's <head> — update it any time from here.",
   showLicenseTab: true,
   PublishAction: WordPressPublishAction,
+  publisher: wordpressPublisher,
 }
 
 function WordPressSettingsProvider({ children }: { children: ReactNode }) {

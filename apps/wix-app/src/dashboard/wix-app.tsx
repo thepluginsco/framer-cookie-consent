@@ -26,11 +26,14 @@ import {
   HostProvider,
   Icon,
   localStorageDataStore,
+  markPublished,
+  markUnpublished,
   SettingsContext,
   T,
   useSettingsContext,
   type ConfigUpdater,
   type ConsentfulModel,
+  type HostPublisher,
   type HostServices,
   type ScanResult,
   type SettingsApi,
@@ -64,6 +67,31 @@ function saveConfig(config: CookieConsentConfig): void {
 /* -------------------------------------------------------------------------- */
 /* Install action — connect + install/remove via the Data Client Worker       */
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* Publisher — one-click publish + "what's live" for the header               */
+/* -------------------------------------------------------------------------- */
+
+const wixPublisher: HostPublisher = {
+  async publish(config) {
+    const siteId = await currentSiteId()
+    if (!siteId) return { ok: false, needsSetup: true, message: "Open this inside your Wix dashboard to publish." }
+    try {
+      if (!(await client.isConnected(siteId))) {
+        return { ok: false, needsSetup: true, message: "Connect your Wix site on the Publish tab first." }
+      }
+      await client.install(siteId, config)
+      return { ok: true, message: "Published ✓ Your banner is live." }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) }
+    }
+  },
+  async loadPublished() {
+    const siteId = await currentSiteId()
+    if (!siteId) throw new Error("No site")
+    return { config: await client.loadConfig(siteId) }
+  },
+}
 
 function WixPublishAction({ m }: { m: ConsentfulModel }) {
   void m
@@ -135,6 +163,7 @@ function WixPublishAction({ m }: { m: ConsentfulModel }) {
   const install = useCallback(() => {
     void run("install", async () => {
       const r = await client.install(siteId.trim(), config)
+      markPublished(config)
       return r.changed ? "Banner installed." : "Config saved (banner already installed)."
     })
   }, [config, siteId, run])
@@ -142,6 +171,7 @@ function WixPublishAction({ m }: { m: ConsentfulModel }) {
   const remove = useCallback(() => {
     void run("remove", async () => {
       const r = await client.remove(siteId.trim())
+      markUnpublished()
       return r.changed ? "Banner removed." : "Nothing to remove."
     })
   }, [siteId, run])
@@ -231,6 +261,7 @@ const wixHost: HostServices = {
   publishSubtitle: "Connect your Wix site, then install the banner from here.",
   showLicenseTab: true,
   PublishAction: WixPublishAction,
+  publisher: wixPublisher,
 }
 
 function WixSettingsProvider({ children }: { children: ReactNode }) {

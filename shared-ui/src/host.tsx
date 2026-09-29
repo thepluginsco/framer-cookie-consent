@@ -17,6 +17,7 @@ import type { ComponentType, ReactNode } from "react"
 import type { DetectedTracker } from "@framer-cookie-consent/shared"
 
 import type { ConsentfulModel } from "./model"
+import type { HostPublisher } from "./publish-state"
 
 /** Outcome of scanning the host site for third-party trackers. */
 export type ScanResult =
@@ -77,6 +78,14 @@ export interface HostServices {
    * Wix/Webflow/WordPress/Shopify show their install/publish button.
    */
   PublishAction: ComponentType<{ m: ConsentfulModel }>
+
+  /**
+   * One-click publisher for hosts that publish with an explicit button
+   * (WordPress, Webflow, Wix). When present, the header shows "Unpublished
+   * changes" + a Publish button. Omitted by auto-syncing (Framer) and
+   * copy-based (Shopify, universal embed) hosts.
+   */
+  publisher?: HostPublisher
 }
 
 const HostContext = createContext<HostServices | null>(null)

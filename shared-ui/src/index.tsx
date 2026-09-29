@@ -17,6 +17,19 @@ export * from "./preview"
 export * from "./panels"
 export * from "./modals"
 export { ConsentfulShell } from "./shell"
+export {
+  markPublished,
+  markUnpublished,
+  setPublishedSnapshot,
+  usePublishState,
+  publishFingerprint,
+  type HostPublisher,
+  type PublishOutcome,
+  type PublishedSnapshot,
+  type PublishDiff,
+  type PublishState,
+  getPublishState,
+} from "./publish-state"
 export { LicensePanel } from "./license/LicensePanel"
 export { useLicense, hostnameOf, type LicenseApi, type LicenseStatus } from "./license/use-license"
 export {
