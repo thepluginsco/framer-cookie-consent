@@ -17,7 +17,9 @@ compatibility_date = "2026-01-01"
 [vars]
 WEBFLOW_CLIENT_ID = "738f67eb06d2c4fe0f6c4a2b7c6f7f3257835af0e8977f247750cf572a38162d"
 WEBFLOW_REDIRECT_URI = "https://consentful-webflow.thepluginsco.workers.dev/callback"
-APP_ORIGIN = "http://localhost:1337"   # DEV testing origin (webflow extension serve). Switch to the webflow-ext.com URI for production.
+# APP_ORIGIN is deliberately unset: Connect opens OAuth in a new tab, so /callback
+# shows a "connected — close this window" page instead of redirecting that tab to
+# the extension origin. CORS reflects the caller's Origin and doesn't need it.
 
 # KV binding for stored per-site tokens (token:<siteId> -> access token).
 # Replace `id` with the id printed by `wrangler kv namespace create TOKENS`.

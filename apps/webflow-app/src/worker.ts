@@ -103,15 +103,15 @@ export default {
         case "/authorize":
           return handleAuthorize(url, env);
         case "/callback":
-          return handleCallback(url, env);
+          return await handleCallback(url, env);
         case "/api/install":
-          return handleApi(request, env, "install", origin);
+          return await handleApi(request, env, "install", origin);
         case "/api/remove":
-          return handleApi(request, env, "remove", origin);
+          return await handleApi(request, env, "remove", origin);
         case "/api/status":
-          return handleStatus(url, env, origin);
+          return await handleStatus(url, env, origin);
         case "/api/config":
-          return handleConfig(url, env, origin);
+          return await handleConfig(url, env, origin);
         default:
           return json({ error: "not_found" }, 404, corsHeaders(origin));
       }
@@ -140,15 +140,6 @@ async function handleCallback(url: URL, env: Env): Promise<Response> {
   const code = url.searchParams.get("code");
   const site = url.searchParams.get("state") ?? "";
   if (!code) return json({ error: "missing_code" }, 400);
-
-  // TEMP DIAGNOSTIC — remove after debugging the OAuth invalid_client error.
-  const _cid = env.WEBFLOW_CLIENT_ID ?? "";
-  const _sec = env.WEBFLOW_CLIENT_SECRET ?? "";
-  console.log(
-    `[diag] client_id len=${_cid.length} value=${_cid} | secret len=${_sec.length} ` +
-      `first4=${_sec.slice(0, 4)} last4=${_sec.slice(-4)} | ` +
-      `redirect=${env.WEBFLOW_REDIRECT_URI} | codeLen=${code.length} state=${site || "(empty)"}`,
-  );
 
   const token = await exchangeCodeForToken({
     clientId: env.WEBFLOW_CLIENT_ID,

@@ -51,6 +51,17 @@ export interface WebflowApiClientOptions {
   baseUrl?: string;
 }
 
+/** A non-2xx Webflow API response, carrying the HTTP status for callers to branch on. */
+export class WebflowHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "WebflowHttpError";
+  }
+}
+
 /** Shape of the "list registered scripts" response. */
 interface RegisteredScriptsResponse {
   registeredScripts?: WebflowRegisteredScript[];
@@ -103,7 +114,10 @@ export class WebflowApiClient implements WebflowClient {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`Webflow ${method} ${path} failed (${res.status}): ${detail}`);
+      throw new WebflowHttpError(
+        `Webflow ${method} ${path} failed (${res.status}): ${detail}`,
+        res.status,
+      );
     }
     // Some endpoints (publish) may return an empty body; tolerate it.
     const text = await res.text();
@@ -115,8 +129,15 @@ export class WebflowApiClient implements WebflowClient {
   }
 
   async getAppliedScripts(): Promise<WebflowAppliedScript[]> {
-    const data = await this.request<CustomCodeResponse>("GET", this.sitePath("/custom_code"));
-    return data.scripts ?? [];
+    try {
+      const data = await this.request<CustomCodeResponse>("GET", this.sitePath("/custom_code"));
+      return data.scripts ?? [];
+    } catch (err) {
+      // A site that has never had custom code applied has no "custom code block"
+      // yet — Webflow answers 404 resource_not_found rather than `{ scripts: [] }`.
+      if (err instanceof WebflowHttpError && err.status === 404) return [];
+      throw err;
+    }
   }
 
   async applyScripts(scripts: WebflowAppliedScript[]): Promise<void> {

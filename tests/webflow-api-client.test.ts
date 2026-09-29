@@ -68,6 +68,15 @@ describe("WebflowApiClient — endpoint mapping", () => {
     expect(calls[0]!.url).toBe(`${WEBFLOW_API_BASE}/sites/${SITE}/custom_code`);
   });
 
+  it("GET custom_code treats 404 (no custom code block yet) as an empty list", async () => {
+    const { impl } = fakeFetch(() => ({
+      status: 404,
+      json: { message: "Requested resource not found: Custom code block not found", code: "resource_not_found" },
+    }));
+    const client = new WebflowApiClient({ token: "TOK", siteId: SITE, fetchImpl: impl });
+    expect(await client.getAppliedScripts()).toEqual([]);
+  });
+
   it("PUT custom_code sends the complete scripts list", async () => {
     const { impl, calls } = fakeFetch(() => ({ json: { scripts: [] } }));
     const client = new WebflowApiClient({ token: "TOK", siteId: SITE, fetchImpl: impl });
