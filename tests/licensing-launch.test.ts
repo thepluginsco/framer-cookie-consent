@@ -100,3 +100,22 @@ test('portal feature id remove_powered_by grants white-label', () => {
   assert.equal(hasWhiteLabel(ent), true);
   assert.equal(hasWhiteLabel({ ...ent, features: { remove_powered_by: { kind: 'flag', value: false } } }), false);
 });
+
+test('licensed Pro site still shows the "Powered by" credit (no plan hides it)', () => {
+  const ent: VerifiedEntitlement = {
+    licenseId: 'lic',
+    domain: 'acme.com',
+    status: 'active',
+    type: 'subscription',
+    plan: { slug: 'studio-yearly', name: 'Studio' },
+    features: { remove_powered_by: { kind: 'flag', value: true } },
+    iat: 0,
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  };
+  const out = resolveBannerConfig(
+    mergeConfig({ banner: { layout: 'card' }, strings: { poweredByHidden: true } }),
+    ent,
+  );
+  assert.equal(out.banner.layout, 'card'); // full Pro design kept
+  assert.equal(out.strings.poweredByHidden, false); // …but the credit stays on
+});

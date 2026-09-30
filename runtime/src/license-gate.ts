@@ -146,6 +146,9 @@ export function resolveBannerConfig(
   if (isLicensed(entitlement)) {
     return {
       ...config,
+      // The "Powered by Consentful" credit shows on every plan, Pro included —
+      // a hand-edited `poweredByHidden` in the published config can't hide it.
+      strings: { ...config.strings, poweredByHidden: false },
       license: { ...config.license, whiteLabel: hasWhiteLabel(entitlement) },
     };
   }

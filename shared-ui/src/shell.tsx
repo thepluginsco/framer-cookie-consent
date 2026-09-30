@@ -844,7 +844,7 @@ function UpgradeCard({ onClick }: { onClick: () => void }) {
           Unlock everything
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginBottom: 12 }}>
-          Every banner design, geo-targeting, A/B testing and no credit.
+          Every banner design, geo-targeting, A/B testing and more.
         </div>
         <HoverButton
           onClick={onClick}

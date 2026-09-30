@@ -36,7 +36,7 @@ model, and how everything fits together.
   `ad_user_data`, `ad_personalization`) default to `denied` and flip to
   `granted` only on acceptance.
 - **Real script-blocking** before consent — not a cosmetic overlay.
-- **One license, everywhere:** the full styled + white-label banner unlocks with
+- **One license, everywhere:** the full styled banner unlocks with
   a valid license key, on every domain (previews and production alike). Without a
   key, sites run a basic branded fallback banner — still fully compliant.
 - **Accessible:** focus-trapped modal, keyboard navigation, WCAG AA contrast,
