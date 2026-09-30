@@ -2,10 +2,10 @@
  * The Wix host adapter.
  *
  * The authoring UI is the shared Consentful shell; what's Wix-specific is the
- * install action — resolve the site (from the Wix dashboard host, or a manual
- * id), connect via OAuth if needed, then install/remove through the Data Client
- * Worker (which owns the token AND the per-site config store the published-site
- * bootstrap fetches). Config persists in localStorage in the panel.
+ * install action — the Worker verifies the signed instance Wix gave this page
+ * and installs/removes through it (it mints the Wix token AND owns the per-site
+ * config store the published-site bootstrap fetches). The draft persists in
+ * localStorage in the panel.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -40,11 +40,14 @@ import {
 } from "@framer-cookie-consent/shared-ui"
 
 import { WixDataClient } from "./data-client"
-import { currentSiteId, inWixHost } from "./wix-host"
+import { inWixHost, signedInstance } from "./wix-host"
 
 const STORAGE_KEY = "consentful.wix.config"
+// Empty = same origin: the Worker serves this dashboard page. Set for local dev.
 const WORKER_BASE = (import.meta.env?.VITE_WORKER_BASE as string | undefined) ?? ""
 const client = new WixDataClient({ workerBase: WORKER_BASE })
+
+const NOT_IN_WIX = "Open Consentful from your Wix dashboard to publish."
 
 function loadConfig(): CookieConsentConfig {
   try {
@@ -64,9 +67,35 @@ function saveConfig(config: CookieConsentConfig): void {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Install action — connect + install/remove via the Data Client Worker       */
-/* -------------------------------------------------------------------------- */
+/** The verified session (site key), resolved once per page load; null outside Wix / invalid. */
+interface Session {
+  instance: string
+  siteKey: string
+  siteUrl?: string
+  siteName?: string
+}
+let sessionPromise: Promise<Session | null> | null = null
+function session(): Promise<Session | null> {
+  const instance = signedInstance()
+  if (!instance) return Promise.resolve(null)
+  sessionPromise ??= client
+    .session(instance)
+    .then((s): Session | null =>
+      s.connected && s.siteKey
+        ? {
+            instance,
+            siteKey: s.siteKey,
+            ...(s.siteUrl ? { siteUrl: s.siteUrl } : {}),
+            ...(s.siteName ? { siteName: s.siteName } : {}),
+          }
+        : null,
+    )
+    .catch(() => {
+      sessionPromise = null
+      return null
+    })
+  return sessionPromise
+}
 
 /* -------------------------------------------------------------------------- */
 /* Publisher — one-click publish + "what's live" for the header               */
@@ -74,80 +103,46 @@ function saveConfig(config: CookieConsentConfig): void {
 
 const wixPublisher: HostPublisher = {
   async publish(config) {
-    const siteId = await currentSiteId()
-    if (!siteId) return { ok: false, needsSetup: true, message: "Open this inside your Wix dashboard to publish." }
+    const s = await session()
+    if (!s) return { ok: false, needsSetup: true, message: NOT_IN_WIX }
     try {
-      if (!(await client.isConnected(siteId))) {
-        return { ok: false, needsSetup: true, message: "Connect your Wix site on the Publish tab first." }
-      }
-      await client.install(siteId, config)
+      await client.install(s.instance, config)
       return { ok: true, message: "Published ✓ Your banner is live." }
     } catch (err) {
       return { ok: false, message: err instanceof Error ? err.message : String(err) }
     }
   },
   async loadPublished() {
-    const siteId = await currentSiteId()
-    if (!siteId) throw new Error("No site")
-    return { config: await client.loadConfig(siteId) }
+    const s = await session()
+    if (!s) throw new Error("No site")
+    return { config: await client.loadConfig(s.siteKey) }
   },
 }
+
+/* -------------------------------------------------------------------------- */
+/* Install action — install/remove via the Data Client Worker                 */
+/* -------------------------------------------------------------------------- */
 
 function WixPublishAction({ m }: { m: ConsentfulModel }) {
   void m
   const { config } = useSettingsContext()
 
-  const [siteId, setSiteId] = useState("")
-  const [siteFromHost, setSiteFromHost] = useState(false)
-  const [connected, setConnected] = useState<boolean | null>(null)
+  const [connected, setConnected] = useState<boolean | null>(inWixHost() ? null : false)
   const [busy, setBusy] = useState<null | "install" | "remove">(null)
-  const [note, setNote] = useState("")
-
-  const checkConnection = useCallback(async (id: string) => {
-    if (!id) {
-      setConnected(null)
-      return
-    }
-    try {
-      setConnected(await client.isConnected(id))
-    } catch {
-      setConnected(null)
-      setNote("Worker unreachable — check VITE_WORKER_BASE.")
-    }
-  }, [])
+  const [note, setNote] = useState(inWixHost() ? "" : NOT_IN_WIX)
 
   useEffect(() => {
+    if (!inWixHost()) return
     let active = true
-    void (async () => {
-      const hostSite = await currentSiteId()
-      if (active && hostSite) {
-        setSiteId(hostSite)
-        setSiteFromHost(true)
-        await checkConnection(hostSite)
-      }
-    })()
+    void session().then((s) => {
+      if (!active) return
+      setConnected(s !== null)
+      if (!s) setNote("Couldn't verify this Wix site. Reopen Consentful from your Wix dashboard.")
+    })
     return () => {
       active = false
     }
-  }, [checkConnection])
-
-  const onSiteInput = useCallback(
-    (v: string) => {
-      setSiteId(v)
-      void checkConnection(v.trim())
-    },
-    [checkConnection],
-  )
-
-  const connect = useCallback(() => {
-    const id = siteId.trim()
-    if (!id) {
-      setNote("Enter a site id first.")
-      return
-    }
-    client.connect(id)
-    setNote("Complete the Wix installation, then re-check the connection.")
-  }, [siteId])
+  }, [])
 
   const run = useCallback(async (kind: "install" | "remove", action: () => Promise<string>) => {
     setBusy(kind)
@@ -162,21 +157,25 @@ function WixPublishAction({ m }: { m: ConsentfulModel }) {
 
   const install = useCallback(() => {
     void run("install", async () => {
-      const r = await client.install(siteId.trim(), config)
+      const s = await session()
+      if (!s) return NOT_IN_WIX
+      const r = await client.install(s.instance, config)
       markPublished(config)
-      return r.changed ? "Banner installed." : "Config saved (banner already installed)."
+      return r.changed ? "Banner installed. Publish your Wix site to see it live." : "Published — your banner is up to date."
     })
-  }, [config, siteId, run])
+  }, [config, run])
 
   const remove = useCallback(() => {
     void run("remove", async () => {
-      const r = await client.remove(siteId.trim())
+      const s = await session()
+      if (!s) return NOT_IN_WIX
+      const r = await client.remove(s.instance)
       markUnpublished()
       return r.changed ? "Banner removed." : "Nothing to remove."
     })
-  }, [siteId, run])
+  }, [run])
 
-  const canWrite = connected === true && !!siteId.trim() && busy === null
+  const canWrite = connected === true && busy === null
 
   return (
     <Card style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -190,26 +189,13 @@ function WixPublishAction({ m }: { m: ConsentfulModel }) {
         <ConnectionPill connected={connected} />
       </div>
 
-      {!siteFromHost ? (
-        <input
-          type="text"
-          value={siteId}
-          placeholder="Wix site id"
-          onChange={(e) => onSiteInput(e.target.value)}
-          style={{ height: T.control, boxSizing: "border-box", padding: `0 ${T.controlPadX}px`, border: `1px solid ${T.border}`, borderRadius: T.rMd, background: T.surface, fontFamily: T.mono, fontSize: 12, color: T.ink, outline: "none" }}
-        />
-      ) : null}
-
       <div style={{ fontSize: 11.5, color: T.ink3, lineHeight: 1.5 }}>
         {inWixHost()
-          ? "Author your consent banner and install it on this Wix site. Turn off Wix's built-in cookie banner first — only one consent app per site."
-          : "Preview mode — open inside the Wix dashboard, or enter a site id, to install."}
+          ? "Install your consent banner on this Wix site. Turn off Wix's built-in cookie banner first — only one consent app per site."
+          : "Preview mode — open Consentful from your Wix dashboard to install."}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {connected !== true ? (
-          <Button variant="secondary" icon="link" onClick={connect}>Connect Wix</Button>
-        ) : null}
         <Button variant="secondary" disabled={!canWrite} loading={busy === "remove"} onClick={remove}>Remove</Button>
         <Button variant="primary" icon="rocket_launch" disabled={!canWrite} loading={busy === "install"} onClick={install}>
           Install banner
@@ -226,7 +212,7 @@ function ConnectionPill({ connected }: { connected: boolean | null }) {
     connected === true
       ? ["Connected", T.successText, T.successSoft]
       : connected === false
-        ? ["Not connected", T.warn, T.warnSoft]
+        ? ["Not in Wix", T.warn, T.warnSoft]
         : ["Checking…", T.ink3, T.sunken]
   return (
     <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".02em", padding: "4px 10px", borderRadius: T.rPill, color, background: bg }}>
@@ -252,13 +238,13 @@ const wixHost: HostServices = {
   platformLabel: "Wix",
   runtimeVersion: RUNTIME_VERSION,
   scanSite: scanUnsupported,
-  getLiveSiteUrl: async () => null,
-  getSiteName: async () => null,
+  getLiveSiteUrl: async () => (await session())?.siteUrl ?? null,
+  getSiteName: async () => (await session())?.siteName ?? null,
   data: localStorageDataStore("consentful.wix."),
   useCodeDisabled: () => false,
-  footerStatus: { ok: "Ready to install", bad: "Not connected" },
+  footerStatus: { ok: "Ready to install", bad: "Open in Wix" },
   footerNote: `runtime ${RUNTIME_VERSION} · Wix`,
-  publishSubtitle: "Connect your Wix site, then install the banner from here.",
+  publishSubtitle: "Install the banner on this Wix site from here, then publish your site.",
   showLicenseTab: true,
   PublishAction: WixPublishAction,
   publisher: wixPublisher,
@@ -275,10 +261,10 @@ function WixSettingsProvider({ children }: { children: ReactNode }) {
     let active = true
     void (async () => {
       try {
-        const site = await currentSiteId()
-        if (!site) return
+        const s = await session()
+        if (!s) return
         setStatus("loading")
-        const remote = await client.loadConfig(site)
+        const remote = await client.loadConfig(s.siteKey)
         if (active && remote) {
           // The stored copy is public (license stripped) — keep this browser's
           // activated license rather than wiping it on every load.

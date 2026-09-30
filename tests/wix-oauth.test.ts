@@ -1,72 +1,69 @@
 /**
- * Tests for the Wix OAuth helpers (Phase 3.5 App shell): building the install URL
- * and exchanging / refreshing tokens. Pure request-shape assertions against an
- * injected fetch — no live Wix app.
+ * Tests for Wix app auth (Phase 3.5): the OAuth client-credentials token call
+ * and signed-app-instance verification (the dashboard's proof of which site it
+ * is — the Worker's only trust anchor).
  */
 
+import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildInstallUrl,
-  exchangeCodeForToken,
-  refreshAccessToken,
-  WIX_INSTALL_URL,
-  WIX_TOKEN_URL,
-} from "../apps/wix-app/src/oauth.js";
+import { createAccessToken, verifyInstance, WIX_TOKEN_URL } from "../apps/wix-app/src/oauth.js";
 
-describe("buildInstallUrl", () => {
-  it("targets Wix's installer with appId, redirectUrl and state", () => {
-    const url = new URL(buildInstallUrl({ appId: "app_1", redirectUrl: "https://w/callback", state: "site_9" }));
-    expect(url.origin + url.pathname).toBe(WIX_INSTALL_URL);
-    expect(url.searchParams.get("appId")).toBe("app_1");
-    expect(url.searchParams.get("redirectUrl")).toBe("https://w/callback");
-    expect(url.searchParams.get("state")).toBe("site_9");
-  });
+const SECRET = "app-secret-123";
 
-  it("omits state when not provided", () => {
-    const url = new URL(buildInstallUrl({ appId: "app_1", redirectUrl: "https://w/callback" }));
-    expect(url.searchParams.has("state")).toBe(false);
-  });
-});
+/** Sign a payload the way Wix does: base64url(HMAC-SHA256(secret, b64payload)) + "." + b64payload, no padding. */
+export function signInstance(payload: object, secret = SECRET): string {
+  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = createHmac("sha256", secret).update(data).digest("base64url");
+  return `${sig}.${data}`;
+}
 
-describe("exchangeCodeForToken", () => {
-  it("POSTs an authorization_code grant and returns the tokens", async () => {
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init!.body));
-      expect(body).toEqual({
-        grant_type: "authorization_code",
-        client_id: "app_1",
-        client_secret: "shh",
-        code: "code_123",
-      });
-      return new Response(JSON.stringify({ access_token: "AT", refresh_token: "RT", expires_in: 300 }), {
-        status: 200,
-      });
-    }) as unknown as typeof fetch;
-
-    const out = await exchangeCodeForToken({ clientId: "app_1", clientSecret: "shh", code: "code_123", fetchImpl });
-    expect(out.access_token).toBe("AT");
-    expect(out.refresh_token).toBe("RT");
-    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toBe(WIX_TOKEN_URL);
+describe("createAccessToken", () => {
+  it("POSTs a client_credentials grant with the instance id and returns the token", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ access_token: "TOK", expires_in: 14400 })));
+    const token = await createAccessToken({
+      appId: "app-1",
+      appSecret: SECRET,
+      instanceId: "inst-1",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(token).toBe("TOK");
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(WIX_TOKEN_URL);
+    expect(url).toBe("https://www.wixapis.com/oauth2/token");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      grant_type: "client_credentials",
+      client_id: "app-1",
+      client_secret: SECRET,
+      instance_id: "inst-1",
+    });
   });
 
   it("throws with the status + body on failure", async () => {
-    const fetchImpl = vi.fn(async () => new Response("nope", { status: 400 })) as unknown as typeof fetch;
+    const fetchImpl = (async () => new Response("bad client", { status: 401 })) as unknown as typeof fetch;
     await expect(
-      exchangeCodeForToken({ clientId: "a", clientSecret: "b", code: "c", fetchImpl }),
-    ).rejects.toThrow(/400/);
+      createAccessToken({ appId: "a", appSecret: "s", instanceId: "i", fetchImpl }),
+    ).rejects.toThrow(/401.*bad client/);
   });
 });
 
-describe("refreshAccessToken", () => {
-  it("POSTs a refresh_token grant", async () => {
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init!.body));
-      expect(body.grant_type).toBe("refresh_token");
-      expect(body.refresh_token).toBe("RT");
-      return new Response(JSON.stringify({ access_token: "AT2", refresh_token: "RT" }), { status: 200 });
-    }) as unknown as typeof fetch;
+describe("verifyInstance", () => {
+  it("returns the payload for a correctly signed instance", async () => {
+    const inst = signInstance({ instanceId: "2f8e-41ab", siteOwnerId: "owner" });
+    expect(await verifyInstance(inst, SECRET)).toMatchObject({ instanceId: "2f8e-41ab" });
+  });
 
-    const out = await refreshAccessToken({ clientId: "a", clientSecret: "b", refreshToken: "RT", fetchImpl });
-    expect(out.access_token).toBe("AT2");
+  it("rejects a wrong secret, a tampered payload, or garbage", async () => {
+    const inst = signInstance({ instanceId: "2f8e-41ab" });
+    expect(await verifyInstance(inst, "other-secret")).toBeNull();
+    const [sig] = inst.split(".");
+    const forged = Buffer.from(JSON.stringify({ instanceId: "someone-else" })).toString("base64url");
+    expect(await verifyInstance(`${sig}.${forged}`, SECRET)).toBeNull();
+    expect(await verifyInstance("not-an-instance", SECRET)).toBeNull();
+    expect(await verifyInstance(inst, "")).toBeNull();
+  });
+
+  it("rejects a validly signed payload with no instanceId", async () => {
+    expect(await verifyInstance(signInstance({ siteOwnerId: "x" }), SECRET)).toBeNull();
   });
 });

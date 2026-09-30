@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build:bridge": "node build-bridge.mjs",
-    "build": "npm run build:bridge && vite build",
+    "build": "vite build && npm run build:bridge",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "deploy:worker": "wrangler deploy"

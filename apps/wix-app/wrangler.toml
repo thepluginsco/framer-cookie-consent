@@ -1,36 +1,32 @@
-# Cloudflare Worker config for the Wix Data Client (Phase 3.5 App shell).
+# Cloudflare Worker for Consentful on Wix (Phase 3.5 App shell).
 #
-# This is the credential-holding half AND the per-site config store (Wix is not
-# ∅-infra): it owns the OAuth client_secret + app-instance tokens (in the TOKENS
-# KV), stores each site's config (in the CONFIGS KV) and serves it to the
-# published-site bootstrap, and runs the shared installWixLoader/removeWixLoader
-# engine against the live Wix REST APIs.
+# One origin serves everything: the dashboard page Wix iframes, the consent
+# bridge asset, the per-site config store the published-site bootstrap fetches
+# (Wix is not ∅-infra), and the app API. Wix calls use OAuth client credentials
+# minted per request from the site's signed app instance — no tokens stored.
 #
 # Before deploying, set the secret (never commit it):
 #   wrangler secret put WIX_APP_SECRET
-# and create the KV namespaces, pasting their ids below:
-#   wrangler kv namespace create TOKENS
-#   wrangler kv namespace create CONFIGS
+# Build first so the dashboard + bridge are in dist/:
+#   npm run build && npm run deploy:worker
 
 name = "consentful-wix"
 main = "src/worker.ts"
 compatibility_date = "2026-01-01"
 
-# Public/build-time vars (secrets go via `wrangler secret put`).
+# The built dashboard (index.html + assets) and consentful-wix-bridge.js.
+# Requests that match no file fall through to the Worker (the /api routes).
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/runtime.js"]
+
+# Public vars (the secret goes via `wrangler secret put`).
 [vars]
-WIX_APP_ID = ""            # set to your Wix app id (OAuth client_id)
-WIX_REDIRECT_URL = ""      # https://<worker-host>/callback (registered on the app)
-APP_ORIGIN = ""            # the dashboard app origin, for the post-install bounce + CORS
+WIX_APP_ID = "8e3924a2-1065-41e3-b69b-b5869300378c"   # Wix app id (OAuth client_id)
 
-# KV binding for stored per-site tokens (token:<siteId> -> {access_token, refresh_token}).
-# Replace `id` with the id printed by `wrangler kv namespace create TOKENS`.
-[[kv_namespaces]]
-binding = "TOKENS"
-id = "REPLACE_WITH_TOKENS_KV_ID"
-
-# KV binding for the per-site config store (config:<siteId> -> serialized config JSON).
-# The published-site bootstrap fetches from GET /api/wix/config/<siteId>.
-# Replace `id` with the id printed by `wrangler kv namespace create CONFIGS`.
+# Per-site config store (config:<siteKey> -> serialized config JSON), served to
+# the published-site bootstrap at GET /api/wix/config/<siteKey>.
 [[kv_namespaces]]
 binding = "CONFIGS"
-id = "REPLACE_WITH_CONFIGS_KV_ID"
+id = "6a70edb169bd4bc18a631c33b90df7fe"   # consentful-wix-configs

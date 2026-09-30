@@ -29,15 +29,16 @@ describe("WixApiClient.getEmbeddedScript", () => {
     expect(await client.getEmbeddedScript()).toEqual({ parameters: { siteId: "abc" }, disabled: false });
   });
 
-  it("returns null on 404", async () => {
-    const fetchImpl = vi.fn(async () => new Response("", { status: 404 })) as unknown as typeof fetch;
-    const client = new WixApiClient({ token: "tok", fetchImpl });
-    expect(await client.getEmbeddedScript()).toBeNull();
+  it("returns null on 404 or an empty (never embedded) response", async () => {
+    const notFound = vi.fn(async () => new Response("", { status: 404 })) as unknown as typeof fetch;
+    expect(await new WixApiClient({ token: "tok", fetchImpl: notFound }).getEmbeddedScript()).toBeNull();
+    const empty = vi.fn(async () => jsonResponse({ properties: { parameters: {} } })) as unknown as typeof fetch;
+    expect(await new WixApiClient({ token: "tok", fetchImpl: empty }).getEmbeddedScript()).toBeNull();
   });
 
   it("omits disabled when the API didn't return it", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ embeddedScript: { parameters: { siteId: "abc" } } }),
+      jsonResponse({ properties: { parameters: { siteId: "abc" } } }),
     ) as unknown as typeof fetch;
     const client = new WixApiClient({ token: "tok", fetchImpl });
     expect(await client.getEmbeddedScript()).toEqual({ parameters: { siteId: "abc" } });
@@ -45,10 +46,10 @@ describe("WixApiClient.getEmbeddedScript", () => {
 });
 
 describe("WixApiClient.embedScript / deleteEmbeddedScript", () => {
-  it("PUTs the value wrapped in { properties }", async () => {
+  it("POSTs the value wrapped in { properties }", async () => {
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       expect(url).toBe(`${WIX_API_BASE}${WIX_SCRIPTS_PATH}`);
-      expect(init!.method).toBe("PUT");
+      expect(init!.method).toBe("POST");
       expect(JSON.parse(String(init!.body))).toEqual({
         properties: { parameters: { siteId: "abc" }, disabled: false },
       });
@@ -60,24 +61,36 @@ describe("WixApiClient.embedScript / deleteEmbeddedScript", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("DELETEs the scripts resource", async () => {
+  it("removes by re-embedding the current parameters with disabled: true (Wix has no delete)", async () => {
+    const calls: { method: string; body?: unknown }[] = [];
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      expect(init!.method).toBe("DELETE");
-      return jsonResponse({});
+      calls.push({ method: init!.method!, ...(init!.body ? { body: JSON.parse(String(init!.body)) } : {}) });
+      return init!.method === "GET"
+        ? jsonResponse({ properties: { parameters: { siteId: "abc" }, disabled: false } })
+        : jsonResponse({});
     }) as unknown as typeof fetch;
-    const client = new WixApiClient({ token: "tok", fetchImpl });
-    await client.deleteEmbeddedScript();
+    await new WixApiClient({ token: "tok", fetchImpl }).deleteEmbeddedScript();
+    expect(calls).toEqual([
+      { method: "GET" },
+      { method: "POST", body: { properties: { parameters: { siteId: "abc" }, disabled: true } } },
+    ]);
+  });
+
+  it("remove is a no-op when nothing is embedded", async () => {
+    const fetchImpl = vi.fn(async () => new Response("", { status: 404 })) as unknown as typeof fetch;
+    await new WixApiClient({ token: "tok", fetchImpl }).deleteEmbeddedScript();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("WixApiClient.updateDefaultConsentPolicy", () => {
-  it("PATCHes the consent-policy resource with { defaultPolicy }", async () => {
+  it("POSTs { consentPolicy } to the Site Properties policy method", async () => {
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       expect(url).toBe(`${WIX_API_BASE}${WIX_CONSENT_POLICY_PATH}`);
-      expect(init!.method).toBe("PATCH");
+      expect(url).toBe("https://www.wixapis.com/site-properties/v4/properties/policy");
+      expect(init!.method).toBe("POST");
       expect(JSON.parse(String(init!.body))).toEqual({
-        defaultPolicy: { essential: true, functional: false, analytics: false, advertising: false, dataToThirdParty: false },
+        consentPolicy: { essential: true, functional: false, analytics: false, advertising: false, dataToThirdParty: false },
       });
       return jsonResponse({});
     }) as unknown as typeof fetch;
@@ -87,6 +100,24 @@ describe("WixApiClient.updateDefaultConsentPolicy", () => {
       essential: true, functional: false, analytics: false, advertising: false, dataToThirdParty: false,
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("WixApiClient.getSiteInfo", () => {
+  it("GETs the app instance and returns the published URL + name", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      expect(url).toBe("https://www.wixapis.com/apps/v1/instance");
+      return jsonResponse({ instance: {}, site: { url: "https://acme.wixsite.com/shop", siteDisplayName: "Acme" } });
+    }) as unknown as typeof fetch;
+    expect(await new WixApiClient({ token: "tok", fetchImpl }).getSiteInfo()).toEqual({
+      url: "https://acme.wixsite.com/shop",
+      name: "Acme",
+    });
+  });
+
+  it("omits url for an unpublished site", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ site: { siteDisplayName: "Acme" } })) as unknown as typeof fetch;
+    expect(await new WixApiClient({ token: "tok", fetchImpl }).getSiteInfo()).toEqual({ name: "Acme" });
   });
 });
 

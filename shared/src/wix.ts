@@ -176,7 +176,8 @@ export function buildWixBootstrapScript(options: WixBootstrapOptions = {}): stri
     `(function(){` +
     `var s=${siteExpr};if(!s)return;` +
     `fetch(${JSON.stringify(endpointPrefix)}+encodeURIComponent(s))` +
-    `.then(function(r){return r.json();})` +
+    // A missing/removed config (404) must not boot the runtime on defaults.
+    `.then(function(r){if(!r.ok)throw r;return r.json();})` +
     `.then(function(cfg){` +
     `window.__CC_CONFIG__=cfg;` +
     `var t=document.createElement("script");` +
@@ -404,7 +405,8 @@ export async function installWixLoader(
  */
 export async function removeWixLoader(client: WixClient): Promise<WixWriteResult> {
   const current = await client.getEmbeddedScript();
-  if (current === null) return { changed: false, defaultPolicySet: false };
+  // Wix has no delete, so a removed script lingers as `disabled` — already gone.
+  if (current === null || current.disabled === true) return { changed: false, defaultPolicySet: false };
   await client.deleteEmbeddedScript();
   return { changed: true, defaultPolicySet: false };
 }

@@ -1,137 +1,113 @@
 /**
- * Wix OAuth 2.0 — the app-install / authorization-code flow the Worker half of
- * the Phase 3.5 App shell runs to obtain an app-instance access token.
+ * Wix app authentication — OAuth client credentials + the signed app instance.
  *
- * These are the PURE, testable pieces: building the install URL a Wix user is
- * sent to, and exchanging the returned `code` for an access + refresh token. The
- * impure surroundings — where the `client_secret` lives, the redirect handling,
- * and where the tokens are stored — belong to {@link ./worker.ts}, the
- * credential-holding Cloudflare Worker.
+ * Wix apps authenticate with the **OAuth client-credentials** flow (Wix's
+ * default; the old authorization-code redirect is "custom authentication
+ * (legacy)"): the Worker mints a short-lived access token for a site from the
+ * app id + secret + that site's `instanceId`. Nothing is stored per site.
  *
- * Wix's flow differs slightly from Webflow's:
- *   - install:  GET  https://www.wix.com/installer/install?appId&redirectUrl&state
- *               → after the user grants, Wix redirects to the app's redirect URL
- *                 with `?code&instanceId&state`.
- *   - token:    POST https://www.wixapis.com/oauth/access
- *               → { access_token, refresh_token } (access tokens are short-lived;
- *                 refresh with grant_type=refresh_token).
+ * The Worker learns — and trusts — the `instanceId` from the **signed app
+ * instance** Wix appends to the dashboard page's iframe URL (`?instance=…`):
+ * `<signature>.<payload>`, where signature = base64url(HMAC-SHA256(appSecret,
+ * payload)) and payload = base64url(JSON { instanceId, … }). Verifying it with
+ * the app secret proves the request comes from that site's dashboard, so a
+ * write can never target another site.
  *
- * Sources (Wix, verified 2026-09-20):
- *   dev.wix.com/docs/build-apps/develop-your-app/access/authorization/…
+ * Pure apart from the injected `fetch` and Web Crypto (Workers + Node 18+).
+ *
+ * Sources (Wix, verified 2026-09-30):
+ *   dev.wix.com/docs/api-reference/app-management/oauth-2/create-access-token
+ *   dev.wix.com/docs/build-apps/develop-your-app/access/app-instances/parse-the-app-instance-query-parameter
  */
 
-/** Wix's app-install endpoint (starts the user-facing consent + install). */
-export const WIX_INSTALL_URL = "https://www.wix.com/installer/install";
+/** Wix's OAuth 2 token endpoint (client credentials). */
+export const WIX_TOKEN_URL = "https://www.wixapis.com/oauth2/token";
 
-/** Wix's OAuth token endpoint (code→token and refresh). */
-export const WIX_TOKEN_URL = "https://www.wixapis.com/oauth/access";
-
-/** Inputs for {@link buildInstallUrl}. */
-export interface InstallUrlParams {
-  /** The app's id (Wix's `appId`, the OAuth `client_id`). */
+/** Inputs for {@link createAccessToken}. */
+export interface CreateAccessTokenParams {
+  /** The app id (OAuth `client_id`). */
   appId: string;
-  /** Must match a redirect URL registered on the Wix app. */
-  redirectUrl: string;
-  /** Opaque anti-CSRF token echoed back to the redirect. Strongly recommended. */
-  state?: string;
-}
-
-/**
- * Build the URL to send a user to so they install/authorize the app.
- *
- * @returns An absolute `https://www.wix.com/installer/install?…` URL.
- */
-export function buildInstallUrl(params: InstallUrlParams): string {
-  const url = new URL(WIX_INSTALL_URL);
-  url.searchParams.set("appId", params.appId);
-  url.searchParams.set("redirectUrl", params.redirectUrl);
-  if (params.state) url.searchParams.set("state", params.state);
-  return url.toString();
-}
-
-/** The token payload Wix returns from a successful exchange / refresh. */
-export interface WixTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  /** Seconds until the access token expires (Wix access tokens are short-lived). */
-  expires_in?: number;
-  token_type?: string;
-}
-
-/** Inputs for {@link exchangeCodeForToken}. */
-export interface ExchangeCodeParams {
-  /** The app id (Wix's `client_id`). */
-  clientId: string;
-  /** The app secret (Wix's `client_secret`). */
-  clientSecret: string;
-  /** The single-use authorization code from the install redirect. */
-  code: string;
+  /** The app secret (OAuth `client_secret`). */
+  appSecret: string;
+  /** The site's app instance id (from the verified signed instance). */
+  instanceId: string;
   /** Injected fetch (the Worker's global `fetch`); overridable in tests. */
   fetchImpl?: typeof fetch;
 }
 
 /**
- * Exchange an authorization `code` for access + refresh tokens.
+ * Mint an access token for one site's app instance (valid ~4 hours).
  *
- * The only impurity is the injected {@link ExchangeCodeParams.fetchImpl}, so the
- * request shape (JSON body, `grant_type=authorization_code`) and error handling
- * are fully testable.
- *
- * @throws Error with the HTTP status + body when Wix rejects the exchange.
+ * @throws Error with the HTTP status + body when Wix rejects the request.
  */
-export async function exchangeCodeForToken(
-  params: ExchangeCodeParams,
-): Promise<WixTokenResponse> {
-  const doFetch = params.fetchImpl ?? fetch;
+export async function createAccessToken(params: CreateAccessTokenParams): Promise<string> {
+  const doFetch = params.fetchImpl ?? fetch.bind(globalThis);
   const res = await doFetch(WIX_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
-      grant_type: "authorization_code",
-      client_id: params.clientId,
-      client_secret: params.clientSecret,
-      code: params.code,
+      grant_type: "client_credentials",
+      client_id: params.appId,
+      client_secret: params.appSecret,
+      instance_id: params.instanceId,
     }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`Wix token exchange failed (${res.status}): ${detail}`);
+    throw new Error(`Wix token request failed (${res.status}): ${detail}`);
   }
-  return (await res.json()) as WixTokenResponse;
+  const body = (await res.json()) as { access_token?: string };
+  if (!body.access_token) throw new Error("Wix token response had no access_token");
+  return body.access_token;
 }
 
-/** Inputs for {@link refreshAccessToken}. */
-export interface RefreshTokenParams {
-  clientId: string;
-  clientSecret: string;
-  /** The long-lived refresh token stored from a prior exchange. */
-  refreshToken: string;
-  fetchImpl?: typeof fetch;
+/** The fields we use from a verified app instance payload. */
+export interface WixInstance {
+  instanceId: string;
+  [key: string]: unknown;
+}
+
+/** base64url → bytes (Wix omits `=` padding). */
+function fromBase64Url(value: string): Uint8Array {
+  const b64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  const bin = atob(padded);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Constant-time byte comparison. */
+function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
 }
 
 /**
- * Exchange a refresh token for a fresh access token. Wix access tokens are
- * short-lived, so the Worker refreshes before an API call when needed.
- *
- * @throws Error with the HTTP status + body when Wix rejects the refresh.
+ * Verify a signed app instance (`?instance=` value) with the app secret and
+ * return its payload, or `null` when it's malformed or the signature is wrong.
  */
-export async function refreshAccessToken(
-  params: RefreshTokenParams,
-): Promise<WixTokenResponse> {
-  const doFetch = params.fetchImpl ?? fetch;
-  const res = await doFetch(WIX_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({
-      grant_type: "refresh_token",
-      client_id: params.clientId,
-      client_secret: params.clientSecret,
-      refresh_token: params.refreshToken,
-    }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Wix token refresh failed (${res.status}): ${detail}`);
+export async function verifyInstance(instance: string, appSecret: string): Promise<WixInstance | null> {
+  const dot = instance.indexOf(".");
+  if (dot <= 0 || !appSecret) return null;
+  const signature = instance.slice(0, dot);
+  const payload = instance.slice(dot + 1);
+  try {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(appSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const expected = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(payload)));
+    if (!equalBytes(expected, fromBase64Url(signature))) return null;
+    const data = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as Partial<WixInstance>;
+    return typeof data.instanceId === "string" && data.instanceId ? (data as WixInstance) : null;
+  } catch {
+    return null;
   }
-  return (await res.json()) as WixTokenResponse;
 }

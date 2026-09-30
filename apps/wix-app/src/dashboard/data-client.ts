@@ -1,11 +1,11 @@
 /**
  * Browser-side client for the Wix Data Client Worker.
  *
- * The dashboard page has no Wix credentials; it talks to the Worker
- * ({@link ../worker.ts}) for everything that needs a token or the config store:
- * checking connection status, kicking off OAuth, saving config, and
- * installing/removing the loader. All request shapes are pure and unit-testable
- * via an injected `fetch`; only {@link connect} touches `window`.
+ * The dashboard page has no Wix credentials; it forwards the signed app
+ * instance Wix gave it, and the Worker ({@link ../worker.ts}) verifies it and
+ * does everything that needs a token or the config store: confirming the
+ * session, saving config, and installing/removing the loader. All request
+ * shapes are pure and unit-testable via an injected `fetch`.
  */
 
 import { parse, type CookieConsentConfig } from "@framer-cookie-consent/shared";
@@ -19,10 +19,24 @@ export interface WriteResult {
   defaultPolicySet: boolean;
 }
 
+/** The verified dashboard session. */
+export interface WixSession {
+  connected: boolean;
+  /** The site's key in the config store (normalized instance id). */
+  siteKey?: string;
+  /** The published site's URL (absent until the site is published). */
+  siteUrl?: string;
+  /** The site's display name. */
+  siteName?: string;
+}
+
 /** Config for the browser data client. */
 export interface DataClientOptions {
-  /** Base URL of the deployed Worker (e.g. `https://consentful-wix.workers.dev`). */
-  workerBase: string;
+  /**
+   * Base URL of the deployed Worker. Empty (the default) = same origin: the
+   * Worker serves this dashboard page itself.
+   */
+  workerBase?: string;
   /** Injected fetch; overridable in tests. */
   fetchImpl?: typeof fetch;
 }
@@ -31,61 +45,42 @@ export class WixDataClient {
   private readonly base: string;
   private readonly doFetch: typeof fetch;
 
-  constructor(options: DataClientOptions) {
-    this.base = options.workerBase.replace(/\/$/, "");
+  constructor(options: DataClientOptions = {}) {
+    this.base = (options.workerBase ?? "").replace(/\/$/, "");
     // Bind: a bare `fetch` stored on `this` throws "Illegal invocation" when called as a method.
     this.doFetch = options.fetchImpl ?? fetch.bind(globalThis);
   }
 
-  /** True when the Worker holds a token for `siteId`. */
-  async isConnected(siteId: string): Promise<boolean> {
-    const res = await this.doFetch(`${this.base}/api/status?site=${encodeURIComponent(siteId)}`);
-    if (!res.ok) return false;
-    const data = (await res.json()) as { connected?: boolean };
-    return Boolean(data.connected);
+  /** Verify the signed instance with the Worker → the site's key. */
+  async session(instance: string): Promise<WixSession> {
+    return (await this.postRaw("/api/status", { instance })) as WixSession;
   }
 
-  /** The URL that starts OAuth/app-install for `siteId` (open it in a popup). */
-  authorizeUrl(siteId: string): string {
-    return `${this.base}/authorize?site=${encodeURIComponent(siteId)}`;
-  }
-
-  /** Open the install flow (browser only). */
-  connect(siteId: string): void {
-    window.open(this.authorizeUrl(siteId), "_blank", "noopener");
-  }
-
-  /** Install the loader on the site (embeds the script + sets the opt-in default). */
-  async install(siteId: string, config: CookieConsentConfig): Promise<WriteResult> {
-    return this.post("/api/install", { siteId, config });
+  /** Install the loader on the site (stores config, embeds the script, sets the opt-in default). */
+  async install(instance: string, config: CookieConsentConfig): Promise<WriteResult> {
+    return (await this.postRaw("/api/install", { instance, config })) as WriteResult;
   }
 
   /** Save config only — a config edit never needs to touch Wix. */
-  async saveConfig(siteId: string, config: CookieConsentConfig): Promise<void> {
-    await this.postRaw("/api/config", { siteId, config });
+  async saveConfig(instance: string, config: CookieConsentConfig): Promise<void> {
+    await this.postRaw("/api/config", { instance, config });
   }
 
   /**
    * Load the site's stored config so the dashboard opens on what's actually
-   * live, not a fresh default. Returns `null` when nothing has been saved yet
-   * (a brand-new site) or the Worker is unreachable — callers keep their local
-   * draft in that case. Reads the same public endpoint the published-site
-   * bootstrap uses.
+   * live, not a fresh default. Returns `null` when nothing has been saved yet.
+   * Reads the same public endpoint the published-site bootstrap uses.
    */
-  async loadConfig(siteId: string): Promise<CookieConsentConfig | null> {
-    const res = await this.doFetch(`${this.base}${WIX_CONFIG_PATH}/${encodeURIComponent(siteId)}`);
+  async loadConfig(siteKey: string): Promise<CookieConsentConfig | null> {
+    const res = await this.doFetch(`${this.base}${WIX_CONFIG_PATH}/${encodeURIComponent(siteKey)}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Worker config load failed (${res.status})`);
     return parse(await res.text());
   }
 
   /** Remove the loader from the site (and drop its stored config). */
-  async remove(siteId: string): Promise<WriteResult> {
-    return this.post("/api/remove", { siteId });
-  }
-
-  private async post(path: string, body: unknown): Promise<WriteResult> {
-    return (await this.postRaw(path, body)) as WriteResult;
+  async remove(instance: string): Promise<WriteResult> {
+    return (await this.postRaw("/api/remove", { instance })) as WriteResult;
   }
 
   private async postRaw(path: string, body: unknown): Promise<unknown> {

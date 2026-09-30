@@ -7,17 +7,16 @@
  * {@link removeWixLoader}) never talks to the network — it drives THIS client, so
  * a Wix site boots the byte-identical loader every other platform installs.
  *
- * A single instance is scoped to one app-instance access token (obtained via
+ * A single instance is scoped to one app-instance access token (minted by
  * {@link ./oauth}); the Worker builds one per authorized request. The Embedded
  * Scripts API operates on the instance the token identifies, so no site id is
  * threaded through.
  *
- * Endpoints (Wix, base `https://www.wixapis.com`, modelled from the live docs
- * 2026-09-20 — confirm the exact paths against your app before deploy):
- *   - GET    /apps/v1/scripts               → the embedded script (or 404)
- *   - PUT    /apps/v1/scripts               → embed / re-embed
- *   - DELETE /apps/v1/scripts               → remove the embedded script
- *   - PATCH  /site-properties/v4/consent-policy → set the site DEFAULT policy
+ * Endpoints (Wix, base `https://www.wixapis.com`, verified 2026-09-30):
+ *   - GET  /apps/v1/scripts                    → our embedded script (or 404)
+ *   - POST /apps/v1/scripts                    → embed / re-embed ({ properties })
+ *     (there is no delete — removal re-embeds with `disabled: true`)
+ *   - POST /site-properties/v4/properties/policy → set the site DEFAULT policy
  *
  * Every method takes an injected `fetch`, so the request method/path/body/headers
  * are fully unit-testable without a live Wix app.
@@ -35,12 +34,15 @@ export const WIX_API_BASE = "https://www.wixapis.com";
 /** Path of the Embedded Scripts resource (relative to {@link WIX_API_BASE}). */
 export const WIX_SCRIPTS_PATH = "/apps/v1/scripts";
 
-/** Path of the Site Properties consent-policy resource. */
-export const WIX_CONSENT_POLICY_PATH = "/site-properties/v4/consent-policy";
+/** Path of the App Instance resource (site URL + name). */
+export const WIX_APP_INSTANCE_PATH = "/apps/v1/instance";
+
+/** Path of the Site Properties "update consent policy" method. */
+export const WIX_CONSENT_POLICY_PATH = "/site-properties/v4/properties/policy";
 
 /** Construction options for {@link WixApiClient}. */
 export interface WixApiClientOptions {
-  /** An app-instance OAuth access token (from {@link exchangeCodeForToken}). */
+  /** An app-instance access token (from {@link createAccessToken}). */
   token: string;
   /** Injected fetch (the Worker global); overridable in tests. */
   fetchImpl?: typeof fetch;
@@ -51,7 +53,6 @@ export interface WixApiClientOptions {
 /** Wire shape of the "get embedded script" response (subset). */
 interface EmbeddedScriptResponse {
   properties?: WixEmbeddedScript;
-  embeddedScript?: WixEmbeddedScript;
 }
 
 /**
@@ -102,25 +103,46 @@ export class WixApiClient implements WixClient {
 
   async getEmbeddedScript(): Promise<WixEmbeddedScript | null> {
     const data = await this.request<EmbeddedScriptResponse>("GET", WIX_SCRIPTS_PATH);
-    if (!data) return null;
-    const script = data.properties ?? data.embeddedScript;
-    if (!script || typeof script !== "object") return null;
-    // Normalise to our shape (parameters is always an object). Only include
-    // `disabled` when the API returned it (exactOptionalPropertyTypes).
-    const normalized: WixEmbeddedScript = { parameters: script.parameters ?? {} };
+    const script = data?.properties;
+    // Never embedded: 404, or an empty properties object.
+    if (!script || typeof script !== "object" || !script.parameters || Object.keys(script.parameters).length === 0) {
+      return null;
+    }
+    // Only include `disabled` when the API returned it (exactOptionalPropertyTypes).
+    const normalized: WixEmbeddedScript = { parameters: script.parameters };
     if (typeof script.disabled === "boolean") normalized.disabled = script.disabled;
     return normalized;
   }
 
   async embedScript(value: WixEmbeddedScript): Promise<void> {
-    await this.request("PUT", WIX_SCRIPTS_PATH, { properties: value });
+    await this.request("POST", WIX_SCRIPTS_PATH, { properties: value });
   }
 
+  /** Wix has no delete: re-embed the current parameters with `disabled: true`. */
   async deleteEmbeddedScript(): Promise<void> {
-    await this.request("DELETE", WIX_SCRIPTS_PATH);
+    const current = await this.getEmbeddedScript();
+    if (!current) return;
+    await this.request("POST", WIX_SCRIPTS_PATH, {
+      properties: { parameters: current.parameters, disabled: true },
+    });
+  }
+
+  /**
+   * The site's published URL and display name (`GET /apps/v1/instance`). `url`
+   * is only present once the site has been published.
+   */
+  async getSiteInfo(): Promise<{ url?: string; name?: string }> {
+    const data = await this.request<{ site?: { url?: string; siteDisplayName?: string } }>(
+      "GET",
+      WIX_APP_INSTANCE_PATH,
+    );
+    const out: { url?: string; name?: string } = {};
+    if (data?.site?.url) out.url = data.site.url;
+    if (data?.site?.siteDisplayName) out.name = data.site.siteDisplayName;
+    return out;
   }
 
   async updateDefaultConsentPolicy(policy: WixConsentPolicy): Promise<void> {
-    await this.request("PATCH", WIX_CONSENT_POLICY_PATH, { defaultPolicy: policy });
+    await this.request("POST", WIX_CONSENT_POLICY_PATH, { consentPolicy: policy });
   }
 }
