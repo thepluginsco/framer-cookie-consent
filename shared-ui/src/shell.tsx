@@ -596,13 +596,21 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
   const { config } = useSettingsContext()
   const state = usePublishState(config)
   const [busy, setBusy] = useState(false)
-  const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null)
+  const [flash, setFlash] = useState<{ ok: boolean; warning?: boolean; text: string } | null>(null)
+  // Stable per host (the publisher object never changes), so calling it here is
+  // a normal unconditional hook call.
+  const blocker = publisher.useLiveBlocker?.() ?? null
 
+  // Results fade after a few seconds; warnings stay until the next publish or
+  // until the blocker clears (e.g. the merchant turned the app embed on).
   useEffect(() => {
-    if (!flash) return
+    if (!flash || flash.warning) return
     const t = window.setTimeout(() => setFlash(null), 4000)
     return () => window.clearTimeout(t)
   }, [flash])
+  useEffect(() => {
+    if (flash?.warning && !blocker) setFlash(null)
+  }, [flash, blocker])
 
   const publish = async () => {
     setBusy(true)
@@ -611,7 +619,7 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
       const r = await publisher.publish(config)
       if (r.ok) markPublished(config)
       if (r.needsSetup) onNeedsSetup()
-      setFlash({ ok: r.ok, text: r.message })
+      setFlash({ ok: r.ok, ...(r.warning ? { warning: true } : {}), text: r.message })
     } catch (err) {
       setFlash({ ok: false, text: err instanceof Error ? err.message : String(err) })
     } finally {
@@ -619,8 +627,10 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
     }
   }
 
-  const pill = flash
-    ? { text: flash.text, color: flash.ok ? T.successText : T.danger, bg: flash.ok ? T.successSoft : T.dangerSoft, icon: flash.ok ? "check_circle" : "error" }
+  const pill: { text: string; color: string; bg: string; icon: string; action?: boolean } | null = flash
+    ? flash.warning
+      ? { text: flash.text, color: T.warn, bg: T.warnSoft, icon: "warning", action: true }
+      : { text: flash.text, color: flash.ok ? T.successText : T.danger, bg: flash.ok ? T.successSoft : T.dangerSoft, icon: flash.ok ? "check_circle" : "error" }
     : !state.known
       ? null
       : state.dirty
@@ -630,14 +640,21 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
             bg: T.warnSoft,
             icon: state.diff === "outdated" ? "system_update_alt" : "pending",
           }
-        : { text: "Live", color: T.successText, bg: T.successSoft, icon: "check_circle" }
+        : blocker
+          ? { text: blocker, color: T.warn, bg: T.warnSoft, icon: "visibility_off", action: true }
+          : { text: "Live", color: T.successText, bg: T.successSoft, icon: "check_circle" }
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {pill ? (
         <span
-          title={pill.text}
+          title={pill.action ? `${pill.text} — open the Publish tab to fix` : pill.text}
+          role={pill.action ? "button" : undefined}
+          tabIndex={pill.action ? 0 : undefined}
+          onClick={pill.action ? onNeedsSetup : undefined}
+          onKeyDown={pill.action ? (e) => { if (e.key === "Enter" || e.key === " ") onNeedsSetup() } : undefined}
           style={{
+            cursor: pill.action ? "pointer" : undefined,
             display: "inline-flex",
             alignItems: "center",
             gap: 5,

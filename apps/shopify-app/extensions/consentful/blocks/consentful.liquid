@@ -1,0 +1,12 @@
+{%- comment -%} Consentful cookie consent — Shopify theme app embed. Turn it on in Theme editor → App embeds; publish your banner from the Consentful app in Shopify admin. {%- endcomment -%}
+{%- if app.metafields.consentful.loader -%}
+{{ app.metafields.consentful.loader.value }}
+<script src="{{ 'consentful-consent-bridge.js' | asset_url }}" defer></script>
+{%- endif -%}
+{% schema %}
+{
+  "name": "Consentful cookie consent",
+  "target": "head",
+  "settings": []
+}
+{% endschema %}

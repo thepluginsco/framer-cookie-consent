@@ -9,10 +9,10 @@ CLI — so this shell has three parts:
   static page. Author the banner, preview the real runtime, then copy/download
   the generated `blocks/consentful.liquid` app-embed block. The analogue of the
   universal embed page.
-- **Theme app extension** (`extension/`) — the deployable artifact: the app-embed
+- **Theme app extension** (`extensions/consentful/`) — the deployable artifact: the app-embed
   block (`blocks/consentful.liquid`, `target: "head"`) that renders the loader,
   plus the consent bridge asset.
-- **Consent bridge** (`src/consent-bridge.ts` → `extension/assets/consentful-consent-bridge.js`)
+- **Consent bridge** (`src/consent-bridge.ts` → `extensions/consentful/assets/consentful-consent-bridge.js`)
   — the storefront runtime hook that relays each decision into Shopify's Customer
   Privacy API.
 
@@ -41,10 +41,10 @@ tags gated independently of the visitor's choice.
 
 ```bash
 cd apps/shopify-app
-npm run build            # build:bridge (esbuild → extension/assets/) + vite (authoring UI)
+npm run build            # build:bridge (esbuild → extensions/consentful/assets/) + vite (authoring UI)
 ```
 
-Put the generated block at `extension/blocks/consentful.liquid` (copy/download it
+Put the generated block at `extensions/consentful/blocks/consentful.liquid` (copy/download it
 from the authoring page), then from the Shopify app root:
 
 ```bash

@@ -1,0 +1,8 @@
+# The embedded admin app (the shared Consentful editor). `shopify app dev` runs
+# this, tunnels it, and points the app's application_url at the tunnel.
+name = "consentful-admin"
+roles = ["frontend", "backend"]
+
+[commands]
+dev = "npm run dev"
+build = "npm run build"

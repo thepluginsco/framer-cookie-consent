@@ -115,10 +115,48 @@ export function buildShopifyAppEmbedBlock(
   config: CookieConsentConfig,
   options: BuildShopifyBlockOptions = {},
 ): ShopifyAppEmbedBlock {
-  const runtimeUrl = options.runtimeUrl ?? runtimeScriptUrl();
   const includeComment = options.comment ?? true;
+  const loader = buildShopifyLoaderHtml(
+    config,
+    options.runtimeUrl !== undefined ? { runtimeUrl: options.runtimeUrl } : {},
+  );
 
-  const loader = [
+  const parts = [
+    includeComment ? `{%- comment -%} ${BLOCK_COMMENT} {%- endcomment -%}` : "",
+    `{%- raw -%}`,
+    loader,
+    `{%- endraw -%}`,
+    ...schemaParts(),
+  ].filter((part) => part !== "");
+
+  return { filename: SHOPIFY_BLOCK_FILENAME, liquid: parts.join("\n") };
+}
+
+/** The `{% schema %}` block every Consentful app embed ends with. */
+function schemaParts(): string[] {
+  const schema: ShopifyBlockSchema = {
+    name: SHOPIFY_APP_EMBED_NAME,
+    target: "head",
+    settings: [],
+  };
+  return [`{% schema %}`, JSON.stringify(schema, null, 2), `{% endschema %}`];
+}
+
+/**
+ * The loader HTML for `config` — config script, optional Consent Mode default,
+ * pinned runtime tag — with no Liquid around it. The same bytes the baked block
+ * wraps in `{% raw %}`, and what the embedded admin app stores in the
+ * {@link SHOPIFY_METAFIELD_NAMESPACE}.{@link SHOPIFY_LOADER_KEY} metafield.
+ *
+ * @param config - The active configuration.
+ * @param options - `runtimeUrl` override (defaults to the pinned jsDelivr URL).
+ */
+export function buildShopifyLoaderHtml(
+  config: CookieConsentConfig,
+  options: { runtimeUrl?: string } = {},
+): string {
+  const runtimeUrl = options.runtimeUrl ?? runtimeScriptUrl();
+  return [
     `<script>${configScriptBody(config)}</script>`,
     config.consentMode.enableConsentMode
       ? buildConsentDefaultSnippet(config.consentMode.waitForUpdateMs)
@@ -127,24 +165,84 @@ export function buildShopifyAppEmbedBlock(
   ]
     .filter((part) => part !== "")
     .join("\n");
+}
 
-  const schema: ShopifyBlockSchema = {
-    name: SHOPIFY_APP_EMBED_NAME,
-    target: "head",
-    settings: [],
-  };
+/* -------------------------------------------------------------------------- */
+/* Metafield-driven app embed (the embedded admin app's publish path)         */
+/* -------------------------------------------------------------------------- */
 
+/**
+ * Namespace of the app-data metafields (owned by the app's `AppInstallation`)
+ * the embedded admin app writes on Publish. Liquid reads them in the app embed
+ * as `app.metafields.consentful.<key>` — so publishing never needs a redeploy.
+ */
+export const SHOPIFY_METAFIELD_NAMESPACE = "consentful";
+/** Metafield key holding the rendered loader HTML (`multi_line_text_field`). */
+export const SHOPIFY_LOADER_KEY = "loader";
+/** Metafield key holding the published (license-free) config JSON (`json`), for load-on-mount. */
+export const SHOPIFY_CONFIG_KEY = "config";
+
+/**
+ * Build the STATIC app-embed block for the metafield-driven flow: it prints the
+ * loader the admin app last published (`app.metafields.consentful.loader`) plus
+ * any extra `bodyAfterLoader` (the shell's consent-bridge tag), and renders
+ * nothing until the merchant has published once. Independent of any config, so
+ * the extension is deployed once and never rebuilt for banner edits or runtime
+ * bumps.
+ *
+ * Liquid doesn't auto-escape `{{ }}` output, so the stored HTML renders as-is.
+ *
+ * @param bodyAfterLoader - Extra Liquid emitted after the loader, inside the
+ *   "has been published" guard.
+ */
+export function buildShopifyMetafieldEmbedBlock(bodyAfterLoader = ""): ShopifyAppEmbedBlock {
+  const ref = `app.metafields.${SHOPIFY_METAFIELD_NAMESPACE}.${SHOPIFY_LOADER_KEY}`;
   const parts = [
-    includeComment ? `{%- comment -%} ${BLOCK_COMMENT} {%- endcomment -%}` : "",
-    `{%- raw -%}`,
-    loader,
-    `{%- endraw -%}`,
-    `{% schema %}`,
-    JSON.stringify(schema, null, 2),
-    `{% endschema %}`,
+    `{%- comment -%} Consentful cookie consent — Shopify theme app embed. Turn it on in Theme editor → App embeds; publish your banner from the Consentful app in Shopify admin. {%- endcomment -%}`,
+    `{%- if ${ref} -%}`,
+    `{{ ${ref}.value }}`,
+    bodyAfterLoader,
+    `{%- endif -%}`,
+    ...schemaParts(),
   ].filter((part) => part !== "");
-
   return { filename: SHOPIFY_BLOCK_FILENAME, liquid: parts.join("\n") };
+}
+
+/**
+ * Whether our app embed is switched on, read from a theme's
+ * `config/settings_data.json`. Shopify stores enabled app embeds as entries in
+ * `current.blocks` whose `type` is `shopify://apps/<app>/blocks/<handle>/<uid>`;
+ * a switched-off embed is kept with `disabled: true` (or absent entirely).
+ * `current` may also name a preset (`presets[current]`).
+ *
+ * Pure. Tolerates the `/* … *\/` comment header Shopify prepends to the file.
+ *
+ * @param settingsData - The raw `settings_data.json` text.
+ * @param handle - The block handle to look for (defaults to ours).
+ * @returns `true` on, `false` off/absent, `null` when the file can't be read.
+ */
+export function isShopifyEmbedEnabled(
+  settingsData: string,
+  handle: string = SHOPIFY_BLOCK_HANDLE,
+): boolean | null {
+  let data: {
+    current?: unknown;
+    presets?: Record<string, unknown>;
+  };
+  try {
+    data = JSON.parse(settingsData.replace(/^\s*\/\*[\s\S]*?\*\//, ""));
+  } catch {
+    return null;
+  }
+  const current =
+    typeof data.current === "string" ? data.presets?.[data.current] : data.current;
+  const blocks = (current as { blocks?: Record<string, { type?: unknown; disabled?: unknown }> } | undefined)
+    ?.blocks;
+  if (!blocks) return false;
+  const pattern = new RegExp(`^shopify://apps/[^/]+/blocks/${handle}/[^/]+$`);
+  return Object.values(blocks).some(
+    (block) => typeof block.type === "string" && pattern.test(block.type) && block.disabled !== true,
+  );
 }
 
 /* -------------------------------------------------------------------------- */

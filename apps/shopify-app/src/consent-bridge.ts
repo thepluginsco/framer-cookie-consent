@@ -15,7 +15,7 @@
  *     the current `window.CookieConsent.getState()` on boot), and
  * (c) calls `Shopify.customerPrivacy.setTrackingConsent(...)`.
  *
- * Bundled by esbuild into `extension/assets/consentful-consent-bridge.js` and
+ * Bundled by esbuild into `extensions/consentful/assets/consentful-consent-bridge.js` and
  * loaded (deferred) by the app-embed block. The pure pieces are exported so the
  * relay logic is unit-testable without a storefront.
  */

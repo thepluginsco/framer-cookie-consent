@@ -1,0 +1,29 @@
+# Consentful for Shopify — app configuration.
+# https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "282db98b39f1f6030f32c848bc3d4346"
+name = "Consentful"
+# `shopify app dev` rewrites this to its tunnel; set the hosted admin-app URL for deploys.
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# read_themes: read-only, to show whether the app embed is on. Publishing itself
+# only writes the app's own AppInstallation metafields (no scope needed).
+scopes = "read_themes"
+
+[access.admin]
+# App Bridge direct API access — the embedded editor calls the Admin GraphQL API
+# from the browser, so the app needs no backend.
+direct_api_mode = "offline"
+embedded_app_direct_api_access = true
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[webhooks]
+api_version = "2026-07"
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

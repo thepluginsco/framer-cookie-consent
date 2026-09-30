@@ -31,3 +31,6 @@ npm-debug.log*
 
 # Test / coverage
 coverage/
+
+# Shopify CLI project cache
+.shopify/

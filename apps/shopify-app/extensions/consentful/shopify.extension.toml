@@ -14,4 +14,5 @@ api_version = "2024-10"
 [[extensions]]
 name = "Consentful cookie consent"
 handle = "consentful"
+uid = "512916ee-f573-6d94-16e7-0718fd5433c3d67c8fe8"
 type = "theme"

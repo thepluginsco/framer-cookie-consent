@@ -23,7 +23,10 @@ import type {
   CookieConsentConfig,
   ShopifyAppEmbedBlock,
 } from "@framer-cookie-consent/shared";
-import { buildShopifyAppEmbedBlock } from "@framer-cookie-consent/shared";
+import {
+  buildShopifyAppEmbedBlock,
+  buildShopifyMetafieldEmbedBlock,
+} from "@framer-cookie-consent/shared";
 
 /**
  * Basename of the consent-bridge asset shipped in the extension's `assets/`
@@ -50,7 +53,7 @@ export function buildConsentfulBlock(
   options: BuildShopifyBlockOptions = {},
 ): ShopifyAppEmbedBlock {
   const base = buildShopifyAppEmbedBlock(config, options);
-  const bridgeTag = `<script src="{{ '${BRIDGE_ASSET_FILE}' | asset_url }}" defer></script>`;
+  const bridgeTag = bridgeScriptTag();
 
   const at = base.liquid.indexOf(SCHEMA_MARKER);
   const liquid =
@@ -61,4 +64,19 @@ export function buildConsentfulBlock(
         `${base.liquid.slice(0, at)}\n${bridgeTag}${base.liquid.slice(at)}`;
 
   return { filename: base.filename, liquid };
+}
+
+/** The deferred consent-bridge `<script>` (Liquid `asset_url`). */
+function bridgeScriptTag(): string {
+  return `<script src="{{ '${BRIDGE_ASSET_FILE}' | asset_url }}" defer></script>`;
+}
+
+/**
+ * The block the extension actually ships (`extensions/consentful/blocks/consentful.liquid`):
+ * config-independent, it prints the loader the embedded admin app published to
+ * the `consentful.loader` app-data metafield, then the consent bridge. Deployed
+ * once; banner edits and runtime bumps only rewrite the metafield.
+ */
+export function buildShippedBlock(): ShopifyAppEmbedBlock {
+  return buildShopifyMetafieldEmbedBlock(bridgeScriptTag());
 }

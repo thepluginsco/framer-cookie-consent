@@ -3,7 +3,7 @@
  * Consent-bridge bundler.
  *
  * Bundles `src/consent-bridge.boot.ts` into a single self-contained, minified
- * IIFE at `extension/assets/consentful-consent-bridge.js` — the storefront asset
+ * IIFE at `extensions/consentful/assets/consentful-consent-bridge.js` — the storefront asset
  * the theme app extension's app-embed block loads (deferred). It pulls in the
  * shared `mapToShopifyConsent` + `mergeConfig` (tree-shaken), so the Shopify
  * consent mapping can never drift from the tested core.
@@ -24,7 +24,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * merge + a few dozen lines of wiring, so this has ample headroom. */
 const MAX_BYTES = 16 * 1024; // 16 KB
 
-const OUTFILE = join(__dirname, "extension", "assets", "consentful-consent-bridge.js");
+const OUTFILE = join(__dirname, "extensions", "consentful", "assets", "consentful-consent-bridge.js");
 
 /** @type {import('esbuild').BuildOptions} */
 const options = {

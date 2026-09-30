@@ -25,6 +25,11 @@ export interface PublishOutcome {
    * outside the platform) — the shell sends the user to the Publish tab.
    */
   needsSetup?: boolean
+  /**
+   * Published, but something still stops it showing (e.g. Shopify's app embed
+   * is off). Shown in amber and kept on screen instead of auto-dismissing.
+   */
+  warning?: boolean
 }
 
 /** A host's one-click publisher (only hosts with a real publish button). */
@@ -36,6 +41,12 @@ export interface HostPublisher {
    * whether it runs an older runtime than this editor ships. Throw if unknown.
    */
   loadPublished: () => Promise<PublishedSnapshot>
+  /**
+   * Optional React hook: a short reason the published banner still isn't
+   * showing on the site (e.g. "App embed off"), or null. When set, the header
+   * shows it in amber instead of "Live". Must be a stable hook per host.
+   */
+  useLiveBlocker?: () => string | null
 }
 
 /** The live side of the comparison. */
