@@ -94,6 +94,70 @@ describe("Worker routing", () => {
     expect(res.status).toBe(404);
   });
 
+  describe("ID-token guard on writes", () => {
+    /** Fake Webflow: resolve returns `resolvedSite` (or 401); site has no custom code. */
+    function fakeWebflow(resolvedSite: string | null) {
+      const calls: { url: string; auth?: string; body?: any }[] = [];
+      const impl = (async (input: string, init?: RequestInit) => {
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        calls.push({ url: String(input), auth: headers.Authorization, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
+        if (String(input).endsWith("/token/resolve")) {
+          return resolvedSite
+            ? new Response(JSON.stringify({ id: "u1", email: "a@b.c", siteId: resolvedSite }))
+            : new Response("invalid", { status: 401 });
+        }
+        if (String(input).endsWith("/custom_code")) return new Response("not found", { status: 404 });
+        return new Response(JSON.stringify({ registeredScripts: [] }));
+      }) as unknown as typeof fetch;
+      return { impl, calls };
+    }
+
+    function removeReq(body: unknown): Request {
+      return new Request("https://worker.example/api/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
+
+    it("rejects a write with no ID token (401), even for a connected site", async () => {
+      const wf = fakeWebflow("site_9");
+      const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
+      const res = await worker.fetch(removeReq({ siteId: "site_9" }), env);
+      expect(res.status).toBe(401);
+      expect(await res.json()).toMatchObject({ error: "missing_id_token" });
+      expect(wf.calls).toHaveLength(0);
+    });
+
+    it("rejects an ID token issued for a different site (403) without touching the site", async () => {
+      const wf = fakeWebflow("attacker_site");
+      const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
+      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "jwt" }), env);
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ error: "invalid_id_token" });
+      expect(wf.calls.map((c) => c.url)).toEqual(["https://api.webflow.com/beta/token/resolve"]);
+    });
+
+    it("rejects an ID token Webflow won't resolve (expired/forged) with 403", async () => {
+      const wf = fakeWebflow(null);
+      const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
+      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "bad" }), env);
+      expect(res.status).toBe(403);
+    });
+
+    it("allows the write when the ID token resolves to the same site", async () => {
+      const wf = fakeWebflow("site_9");
+      const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
+      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "jwt" }), env);
+      expect(res.status).toBe(200);
+      expect(wf.calls[0]).toMatchObject({
+        url: "https://api.webflow.com/beta/token/resolve",
+        auth: "Bearer tok",
+        body: { idToken: "jwt" },
+      });
+    });
+  });
+
   it("/api/config serves a stored config, or 404 when none/no store", async () => {
     const stored = '{"meta":{"schemaVersion":2}}';
     const env = makeEnv({ CONFIGS: memoryKV({ "config:site_9": stored }) });

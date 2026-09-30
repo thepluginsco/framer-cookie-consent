@@ -40,7 +40,7 @@ import {
 } from "@framer-cookie-consent/shared-ui"
 
 import { WebflowDataClient } from "./data-client"
-import { currentSiteId, currentSiteUrl, inDesigner } from "./webflow-host"
+import { currentIdToken, currentSiteId, currentSiteUrl, inDesigner } from "./webflow-host"
 
 const STORAGE_KEY = "consentful.webflow.config"
 const WORKER_BASE = (import.meta.env?.VITE_WORKER_BASE as string | undefined) ?? ""
@@ -80,7 +80,7 @@ const webflowPublisher: HostPublisher = {
       if (!(await client.isConnected(siteId))) {
         return { ok: false, needsSetup: true, message: "Connect your Webflow site on the Publish tab first." }
       }
-      await client.install(siteId, config)
+      await client.install(siteId, config, await currentIdToken())
       return { ok: true, message: "Published ✓ Your banner is live." }
     } catch (err) {
       return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -184,7 +184,7 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
 
   const install = useCallback(() => {
     void run("install", async () => {
-      const r = await client.install(siteId.trim(), config)
+      const r = await client.install(siteId.trim(), config, await currentIdToken())
       markPublished(config)
       return r.changed ? `Published${r.published ? " + site published" : ""}.` : "No change — the banner was already up to date."
     })
@@ -192,7 +192,7 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
 
   const remove = useCallback(() => {
     void run("remove", async () => {
-      const r = await client.remove(siteId.trim())
+      const r = await client.remove(siteId.trim(), await currentIdToken())
       markUnpublished()
       return r.changed ? "Banner removed." : "Nothing to remove."
     })

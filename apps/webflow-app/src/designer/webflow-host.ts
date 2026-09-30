@@ -68,6 +68,20 @@ export async function currentSiteUrl(): Promise<string | null> {
 }
 
 /**
+ * A fresh ID token for the current Designer user (valid ~15 min), or `null`
+ * outside the Designer. The Worker resolves it with Webflow to prove the caller
+ * is an authorized user of the site before it writes anything.
+ */
+export async function currentIdToken(): Promise<string | null> {
+  if (!inDesigner() || typeof window.webflow!.getIdToken !== "function") return null;
+  try {
+    return (await window.webflow!.getIdToken()) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve the current site id from the Designer host, or `null` when running
  * outside it (local dev).
  */

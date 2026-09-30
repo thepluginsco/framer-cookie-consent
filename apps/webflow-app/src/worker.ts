@@ -8,8 +8,8 @@
  *
  *   GET  /authorize?site=<id>   → redirect the user to Webflow's consent screen
  *   GET  /callback?code&state   → exchange the code, store the token, close popup
- *   POST /api/install           → {siteId, config} → installWebflowLoader(...)
- *   POST /api/remove            → {siteId}         → removeWebflowLoader(...)
+ *   POST /api/install           → {siteId, idToken, config} → installWebflowLoader(...)
+ *   POST /api/remove            → {siteId, idToken}         → removeWebflowLoader(...)
  *   GET  /api/status?site=<id>  → whether we hold a token for the site
  *
  * The install/remove routes build a {@link WebflowApiClient} from the stored
@@ -17,12 +17,10 @@
  * core exposes — so the loader written to a Webflow site is byte-identical to
  * every other platform's.
  *
- * Security note: `/api/*` here trusts a `token` looked up by `siteId` in KV. A
- * production deploy should additionally verify the Designer Extension's short
- * `idToken` (Webflow's `getIdToken()` → `POST /token/resolve`) before honouring
- * an install, so only the authorized designer of that site can write to it. That
- * verification is a drop-in guard on {@link handleApi}; it is intentionally left
- * as a marked TODO rather than faked.
+ * Security: install/remove require the Designer Extension's short-lived ID token
+ * (`webflow.getIdToken()`), resolved with Webflow ({@link resolveIdTokenSite});
+ * it must name the same site as `siteId`, so only an authorized designer of
+ * that site can write to it — knowing a site id is not enough.
  */
 
 import type { CookieConsentConfig, DeepPartial } from "@framer-cookie-consent/shared";
@@ -61,6 +59,8 @@ export interface Env {
    * reload prior config (`/api/config` returns 404).
    */
   CONFIGS?: KVNamespace;
+  /** Test seam: the fetch used for Webflow calls. */
+  fetchImpl?: typeof fetch;
 }
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
@@ -168,9 +168,42 @@ async function handleStatus(url: URL, env: Env, origin: string | undefined): Pro
   return json({ connected: Boolean(token) }, 200, corsHeaders(origin));
 }
 
+/** Webflow's ID-token resolver (the Designer docs' "Resolve ID Token"). */
+export const WEBFLOW_RESOLVE_ID_TOKEN_URL = "https://api.webflow.com/beta/token/resolve";
+
+/**
+ * Resolve a Designer Extension ID token to the site it was issued for, using
+ * the site's stored access token (needs the `authorized_user:read` scope).
+ * Returns null when Webflow rejects it (expired, forged, other app).
+ */
+export async function resolveIdTokenSite(
+  idToken: string,
+  accessToken: string,
+  fetchImpl: typeof fetch,
+): Promise<string | null> {
+  try {
+    const res = await fetchImpl(WEBFLOW_RESOLVE_ID_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { siteId?: unknown };
+    return typeof data.siteId === "string" && data.siteId ? data.siteId : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Body shape for `/api/install` and `/api/remove`. */
 interface ApiBody {
   siteId?: string;
+  /** The Designer user's ID token (`webflow.getIdToken()`). */
+  idToken?: string;
   config?: unknown;
   /** Optional runtime URL override (self-hosting / staging). */
   runtimeUrl?: string;
@@ -190,13 +223,18 @@ async function handleApi(
   const siteId = body.siteId;
   if (!siteId) return json({ error: "missing_site" }, 400, cors);
 
-  // TODO(prod): verify the Designer Extension idToken here (POST /token/resolve)
-  // and assert the resolved siteId === siteId before writing.
-
   const token = await env.TOKENS.get(`token:${siteId}`);
   if (!token) return json({ error: "not_connected" }, 401, cors);
 
-  const client = new WebflowApiClient({ token, siteId });
+  // Only an authorized Designer user of THIS site may write: resolve the
+  // extension's short-lived ID token with Webflow and require it to name the
+  // same site. Knowing a site id alone is no longer enough.
+  const fetchImpl = env.fetchImpl ?? fetch.bind(globalThis);
+  if (!body.idToken) return json({ error: "missing_id_token" }, 401, cors);
+  const resolvedSite = await resolveIdTokenSite(body.idToken, token, fetchImpl);
+  if (resolvedSite !== siteId) return json({ error: "invalid_id_token" }, 403, cors);
+
+  const client = new WebflowApiClient({ token, siteId, fetchImpl });
 
   if (action === "remove") {
     const result = await removeWebflowLoader(client);

@@ -52,14 +52,17 @@ export class WebflowDataClient {
     window.open(this.authorizeUrl(siteId), "_blank", "noopener");
   }
 
-  /** Install / update the loader on the site. */
-  async install(siteId: string, config: CookieConsentConfig): Promise<WriteResult> {
-    return this.post("/api/install", { siteId, config });
+  /**
+   * Install / update the loader on the site. `idToken` (from
+   * `webflow.getIdToken()`) proves the caller is an authorized user of the site.
+   */
+  async install(siteId: string, config: CookieConsentConfig, idToken: string | null): Promise<WriteResult> {
+    return this.post("/api/install", { siteId, config, idToken });
   }
 
-  /** Remove the loader from the site. */
-  async remove(siteId: string): Promise<WriteResult> {
-    return this.post("/api/remove", { siteId });
+  /** Remove the loader from the site (same `idToken` proof as {@link install}). */
+  async remove(siteId: string, idToken: string | null): Promise<WriteResult> {
+    return this.post("/api/remove", { siteId, idToken });
   }
 
   /**
