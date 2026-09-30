@@ -3,8 +3,8 @@
 
 client_id = "282db98b39f1f6030f32c848bc3d4346"
 name = "Consentful"
-# `shopify app dev` rewrites this to its tunnel; set the hosted admin-app URL for deploys.
-application_url = "https://example.com"
+# The admin app, hosted on the consentful-shopify Worker (src/worker.ts).
+application_url = "https://consentful-shopify.thepluginsco.workers.dev"
 embedded = true
 
 [access_scopes]
@@ -19,11 +19,18 @@ direct_api_mode = "offline"
 embedded_app_direct_api_access = true
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://consentful-shopify.thepluginsco.workers.dev/api/auth" ]
 
 [webhooks]
 api_version = "2026-07"
 
+  # Mandatory privacy (GDPR) webhooks — HMAC-verified by the Worker. Consentful
+  # stores no customer data, so each is acknowledged with a 200.
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "https://consentful-shopify.thepluginsco.workers.dev/webhooks/compliance"
+
 [build]
-include_config_on_deploy = true
-automatically_update_urls_on_dev = true
+# Keep the production URL: `shopify app dev` must not repoint the live app at a
+# temporary tunnel. (For local UI work, run `npm run dev` standalone.)
+automatically_update_urls_on_dev = false

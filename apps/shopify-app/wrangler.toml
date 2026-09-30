@@ -1,0 +1,16 @@
+# Production host for the Shopify admin app (static, App Bridge) + the
+# mandatory privacy compliance webhooks. See src/worker.ts.
+#
+#   wrangler secret put SHOPIFY_API_SECRET    # the app's client secret
+#   npm run build && npm run deploy:worker
+
+name = "consentful-shopify"
+main = "src/worker.ts"
+compatibility_date = "2026-01-01"
+
+# Every request goes through the Worker so HTML gets the frame-ancestors CSP;
+# it hands non-webhook requests to the static assets.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true

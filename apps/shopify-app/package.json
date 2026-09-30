@@ -10,7 +10,8 @@
     "build:bridge": "node build-bridge.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "deploy": "shopify app deploy"
+    "deploy": "shopify app deploy",
+    "deploy:worker": "wrangler deploy"
   },
   "dependencies": {
     "@framer-cookie-consent/shared": "*",

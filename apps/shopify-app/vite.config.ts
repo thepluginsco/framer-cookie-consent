@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -15,6 +17,14 @@ import react from "@vitejs/plugin-react";
  * separately by esbuild into `extensions/consentful/assets/` (`npm run build:bridge`), NOT by
  * Vite — it ships inside the theme app extension, not in this page's `dist/`.
  */
+// Production builds have no `shopify app dev` to inject the API key, so fall
+// back to the client id in shopify.app.toml (public; one source of truth).
+if (!process.env.SHOPIFY_API_KEY) {
+  const toml = readFileSync(fileURLToPath(new URL("./shopify.app.toml", import.meta.url)), "utf8");
+  const clientId = /^client_id\s*=\s*"([^"]+)"/m.exec(toml)?.[1];
+  if (clientId) process.env.SHOPIFY_API_KEY = clientId;
+}
+
 const port = Number(process.env.PORT ?? process.env.FRONTEND_PORT ?? 5173);
 const tunnelHost = process.env.HOST ? new URL(process.env.HOST).hostname : null;
 
