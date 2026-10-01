@@ -17,7 +17,7 @@ listing copy for each marketplace. Keep the copy in sync with
 | 6a | Set the Pre-Deploy Command on the Render service so migrations run on deploy (until then, run `pnpm --filter @repo/db db:migrate` by hand after each one) | You | Open |
 | 6b | Store graphics: 17 real UI captures + 7 image prompts in `marketing/` | Claude | Captured 2026-10-01; final store images still to generate |
 | 6c | Add `plugin/public/logo-light.png` (dark-theme banner credit shows a broken image without it) | You (asset) | Open |
-| 7 | Submit to the Framer Marketplace (`plugin/plugin.zip` — verified 2026-10-01: matches a fresh build, pins runtime v0.1.13) | You | Copy below |
+| 7 | Framer Marketplace — published 2026-10-01 under The Plugins Company (no review; live immediately). Upload the zip as `Consentful.zip`: Framer takes the listing name from the file name. New versions: plugin page → ⋯ → New Version | Claude + You | **Live** |
 | 8 | Submit to Webflow Apps (`apps/webflow-app/bundle.zip`) | You | Copy below |
 | 9 | Submit to the Shopify App Store | You | Copy below |
 | 10 | Submit to the Wix App Market | You | Copy below |
