@@ -9,15 +9,32 @@ listing copy for each marketplace. Keep the copy in sync with
 
 | # | Item | Owner | Status |
 |---|---|---|---|
-| 5 | Switch Dodo Payments to live mode; make one real purchase and confirm a license is issued | You | Open |
+| 5a | Switch Dodo Payments to live mode (live key, webhook secret and product ids on Render + Vercel; plan rows synced to the live ids) | You + Claude | Done 2026-10-01 |
+| 5b | Make one real purchase and confirm a license is issued and billing shows the right plan | You | Open |
+| 5c | Google + GitHub sign-in: env vars on Render + Vercel; both start with the right callback URLs | You + Claude | Done 2026-10-01 |
+| 5d | Complete one real Google and one GitHub login. Google needs `https://consentful.theplugins.co/api/auth/callback/google` on the shared OAuth client; GitHub needs Consentful's own OAuth app (callback `…/api/auth/callback/github`) | You | Open |
 | 6 | Add `https://consentful-api.onrender.com/health` to `PING_URLS` (render-keepalive Netlify site) | You | Open |
-| 7 | Submit to the Framer Marketplace (`plugin/plugin.zip`) | You | Copy below |
+| 6a | Set the Pre-Deploy Command on the Render service so migrations run on deploy (until then, run `pnpm --filter @repo/db db:migrate` by hand after each one) | You | Open |
+| 6b | Store graphics: 17 real UI captures + 7 image prompts in `marketing/` | Claude | Captured 2026-10-01; final store images still to generate |
+| 6c | Add `plugin/public/logo-light.png` (dark-theme banner credit shows a broken image without it) | You (asset) | Open |
+| 7 | Submit to the Framer Marketplace (`plugin/plugin.zip` — verified 2026-10-01: matches a fresh build, pins runtime v0.1.13) | You | Copy below |
 | 8 | Submit to Webflow Apps (`apps/webflow-app/bundle.zip`) | You | Copy below |
 | 9 | Submit to the Shopify App Store | You | Copy below |
 | 10 | Submit to the Wix App Market | You | Copy below |
 | 11 | WordPress.org directory (optional — the zip is already downloadable from the site) | You | Copy below |
 | — | Register the business, then set the governing law in the Terms (`consentful-portal/apps/web/src/content/legal/en.ts`, "Governing law") | You | Open |
 | — | Have a lawyer review the legal pages | You | Recommended |
+
+Notes on the live switch:
+
+- The portal's local `.env` stays on Dodo **test** mode on purpose. Dev and prod
+  share one database, so never run `db:sync-products` from local without passing
+  the live ids explicitly — it would write the test ids back to production. The
+  live ids are in `consentful-portal/DODO_PRODUCTS.md`.
+- For the same reason, `make-deploy-env.mjs` output carries test Dodo values —
+  don't paste its Dodo lines over Render or Vercel.
+- Accounts that bought Lifetime before the 2026-10-01 billing fix still have
+  their old subscription running; cancel those by hand.
 
 ## Shared listing facts
 

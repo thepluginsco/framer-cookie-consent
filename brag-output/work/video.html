@@ -245,6 +245,7 @@ const PILLS=[
  ['Did anyone click Accept?',470,318,4,36,'ac',1.70],
  ['Nobody said yes.',1250,262,3,46,'wh',1.90],
  ['3 trackers before consent',850,246,-2,34,'nt',2.10]];
+const RANK=PILLS.map(d=>PILLS.filter(e=>e[2]>d[2]).length); // 0 = lowest on screen
 const pills=PILLS.map(d=>{const e=document.createElement('div');e.className='pill '+d[5];e.textContent=d[0];e.style.fontSize=d[4]+'px';$('#s1').appendChild(e);return e});
 
 
@@ -293,9 +294,10 @@ function render(t){
   /* S1 — tracker pills */
   const s1=$('#s1');show(s1,t<3.02);
   if(t<3.02){
-    s1.style.transform=`scale(${lerp(1,1.3,E.out3(p(t,0,2.7)))+8*E.in5(p(t,2.5,3.0))})`;
-    s1.style.opacity=1-p(t,2.8,3.0);
-    PILLS.forEach((d,i)=>{const k=p(t,d[6],d[6]+.42);T(pills[i],d[1],d[2]+(1-E.out3(k))*60,E.spring(p(t,d[6],d[6]+.7)),d[3]+(1-E.out3(k))*10,p(t,d[6],d[6]+.1))});
+    s1.style.transform=`scale(${lerp(1,1.3,E.out3(p(t,0,2.7)))})`;
+    // exit: the pile drops away, lowest pills first
+    PILLS.forEach((d,i)=>{const k=p(t,d[6],d[6]+.42),a=2.42+RANK[i]*.02,f=E.in3(p(t,a,a+.42));
+      T(pills[i],d[1]+f*(d[1]-960)*.12,d[2]+(1-E.out3(k))*60+f*1050,E.spring(p(t,d[6],d[6]+.7)),d[3]+(1-E.out3(k))*10+f*(i%2?14:-14),p(t,d[6],d[6]+.1))});
   }
   /* S2 — Most banners ask / Consentful enforces */
   const s2=$('#s2');show(s2,t>=2.95&&t<5.55);
