@@ -1,0 +1,12 @@
+file 't_05.70.jpg'
+duration 1
+file 't_06.05.jpg'
+duration 1
+file 't_06.35.jpg'
+duration 1
+file 't_07.60.jpg'
+duration 1
+file 't_17.20.jpg'
+duration 1
+file 't_19.50.jpg'
+duration 1

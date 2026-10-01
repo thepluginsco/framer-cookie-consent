@@ -25,7 +25,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --build --dry",
-    "build:portal-builder": "node scripts/build-portal-builder.mjs"
+    "build:portal-builder": "node scripts/build-portal-builder.mjs",
+    "build:wordpress-zip": "node scripts/build-wordpress-zip.mjs"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.9",

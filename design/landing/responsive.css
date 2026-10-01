@@ -1,0 +1,79 @@
+/* Standalone-page layer: fluid width, sticky nav, scroll reveals, breakpoints.
+   The canvas artboard is a fixed 1440 frame; this makes the same markup a real page. */
+html{scroll-behavior:smooth}
+.page{width:auto;height:auto}
+.nav{position:sticky;top:0;background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);transition:box-shadow .3s}
+.nav.stuck{box-shadow:0 1px 0 var(--ln),0 8px 24px -16px rgba(16,24,40,.25)}
+section{scroll-margin-top:84px}
+
+/* scroll reveal — only when JS has marked the document ready */
+.js .rv{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1)}
+.js .rv.in{opacity:1;transform:none}
+.js .rv.d-1{transition-delay:.08s}.js .rv.d-2{transition-delay:.16s}.js .rv.d-3{transition-delay:.24s}.js .rv.d-4{transition-delay:.32s}
+.js .h1 .w{display:inline-block;opacity:0;transform:translateY(.4em);animation:wordin .9s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes wordin{to{opacity:1;transform:none}}
+.hero .scene{transition:transform .2s ease-out}
+
+@media (max-width:1180px){
+  .hero .wrap{grid-template-columns:1fr}
+  .hero .scene{margin:10px auto 0}
+  .h1{font-size:60px}
+  .usp-grid{grid-template-columns:1fr 1fr}
+  .usp-grid .ucard:last-child{grid-column:span 2;min-height:0}
+  .eng-body,.hub-body{grid-template-columns:1fr}
+  .hub{margin:0 auto}
+  .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .plans{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}
+  .editor{grid-template-columns:56px 280px minmax(0,1fr)}
+  .ed-top{flex-direction:column;align-items:flex-start}
+  .faq-grid{grid-template-columns:1fr;gap:32px}
+  .cta{grid-template-columns:1fr}
+  .cta-art{height:260px}
+  .cta-art .mascot{font-size:180px}
+}
+@media (max-width:760px){
+  .wrap{padding:0 16px}
+  .nav-links,.nav-cta .signin{display:none}
+  .nav .wrap{justify-content:space-between}
+  .hero{padding:32px 0 20px}
+  .h1{font-size:42px;letter-spacing:-.04em}
+  .hero-sub,.lede{font-size:17px}
+  .hero-ctas{flex-direction:column;align-items:stretch}
+  .trust{flex-wrap:wrap;gap:10px 16px}
+  .pill{height:auto;min-height:34px;padding:5px 12px 5px 6px;font-size:12px;line-height:1.35}
+  .hero .scene{zoom:.54;margin-top:24px}
+  .h2{font-size:36px}
+  .strip{padding:24px 0 24px}
+  .usp,.bento-sec,.ed-sec,.pricing,.faq-sec,.hub-sec,.engine{padding:72px 0}
+  .usp-grid{grid-template-columns:1fr}
+  .usp-grid .ucard:last-child{grid-column:auto}
+  .ucard{min-height:0}
+  .hub{zoom:.6}
+  .bento{grid-template-columns:1fr;grid-auto-rows:auto}
+  .tile{min-height:300px}
+  .tile.w2,.tile.tall{grid-column:auto;grid-row:auto}
+  .scan{grid-template-columns:1fr}
+  .eng-body>*,.hub-body>*{min-width:0}
+  .panel{padding:20px}
+  .code{overflow-x:auto;font-size:12px}
+  .sigs{grid-template-columns:1fr}
+  .eng-stats{grid-template-columns:1fr 1fr}
+  .est:nth-child(3){border-left:0}
+  .est:nth-child(n+3){border-top:1px solid rgba(255,255,255,.08)}
+  .editor{grid-template-columns:1fr;height:480px}
+  .editor .rail,.editor .set{display:none}
+  .pv{padding:16px}
+  .pv-bn{zoom:.8}
+  .ed-bul{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr;gap:48px}
+  .steps-line{display:none}
+  .plans{grid-template-columns:1fr}
+  .ltd{grid-template-columns:1fr;gap:18px;padding:28px 22px}
+  .ltd .lp{flex-wrap:wrap}
+  .cta{padding:48px 22px;border-radius:24px}
+  .cta h2{font-size:40px}
+  .cta p{font-size:17px}
+  .foot-g{grid-template-columns:1fr 1fr}
+  .foot-g>div:first-child{grid-column:span 2}
+  .foot-b{flex-direction:column;gap:8px;align-items:flex-start}
+}

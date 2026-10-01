@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consentful — Cookie consent that actually blocks the cookies</title>
+<meta name="description" content="Consentful blocks trackers until visitors consent, sends Google Consent Mode v2 signals, and installs natively on Framer, Webflow, WordPress, Shopify, Wix and any HTML site.">
+<meta name="theme-color" content="#4b23d3">
+<meta property="og:image" content="img/mascot-hero.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+:root{--ac:#4b23d3;--ac2:#3f1cb8;--acs:#efeafe;--acb:#dcd1fb;--ind:#2a0e6e;--night:#10052b;--night2:#1b0b47;--ink:#17191e;--ink2:#545b67;--ink3:#6b7280;--ln:#e6e8ee;--ln2:#dbdee5;--gr:#f4f5f8;--sk:#f6f7f9;--ok:#17914d;--okt:#12703c;--oks:#e9faf0;--green:#0fae66;--warn:#b26a00;--iris:linear-gradient(118deg,#f7cbe4 0%,#fbdcc4 22%,#fdf3cf 46%,#c9edd6 72%,#d9d2f6 100%);--irisc:conic-gradient(from 200deg,#f7cbe4,#fbdcc4,#fdf3cf,#c9edd6,#d9d2f6,#f7cbe4);--sans:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;--sh1:0 1px 2px rgba(16,24,40,.06);--sh2:0 6px 16px -6px rgba(16,24,40,.12);--sh3:0 16px 40px -12px rgba(16,24,40,.18);--sh4:0 28px 70px -20px rgba(16,24,40,.30)}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--ac);text-decoration:none}a:hover{color:var(--ac2)}
+.page{width:1440px;background:#fff;overflow:hidden;position:relative}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px;position:relative}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ac)}
+.eyebrow::before{content:"";width:18px;height:2px;border-radius:2px;background:var(--ac)}
+.h2{font-size:52px;line-height:1.06;letter-spacing:-.035em;font-weight:800;margin:14px 0 0;color:var(--ink)}
+.lede{font-size:19px;line-height:1.6;color:var(--ink2);margin:18px 0 0;max-width:620px}
+.sec-head{display:flex;flex-direction:column;align-items:flex-start}
+.sec-head.c{align-items:center;text-align:center}.sec-head.c .lede{margin-left:auto;margin-right:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:52px;padding:0 24px;border-radius:12px;font-family:var(--sans);font-size:16px;font-weight:700;border:0;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn-p{background:var(--ac);color:#fff;box-shadow:0 10px 24px -10px rgba(75,35,211,.7),inset 0 1px 0 rgba(255,255,255,.18)}
+.btn-p:hover{background:var(--ac2);color:#fff;transform:translateY(-1px)}
+.btn-g{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ln2),var(--sh1)}
+.btn-g:hover{color:var(--ac);box-shadow:inset 0 0 0 1px var(--acb),var(--sh2)}
+.btn-sm{height:40px;padding:0 16px;font-size:14px;border-radius:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700}
+.chip-a{background:var(--acs);color:var(--ac)}.chip-ok{background:var(--oks);color:var(--okt)}.chip-n{background:var(--gr);color:var(--ink2)}.chip-w{background:#fdf4e1;color:var(--warn)}
+.mono{font-family:var(--mono)}
+
+/* ── Mascot (the cookie mark, drawn in code) ── */
+.mascot{position:relative;width:1em;height:1em;flex-shrink:0;display:inline-block}
+.mascot .blob{position:absolute;inset:0;border-radius:58% 42% 55% 45%/52% 48% 52% 48%;background:var(--irisc);box-shadow:inset -.06em -.08em .14em rgba(75,35,211,.22),inset .06em .06em .1em rgba(255,255,255,.8);animation:morph 9s ease-in-out infinite}
+.mascot .blob::after{content:"";position:absolute;inset:0;border-radius:inherit;border:.045em solid var(--ind)}
+.mascot .eye{position:absolute;top:34%;width:.13em;height:.24em;border-radius:.1em;background:var(--ind);animation:blink 5s infinite;transform-origin:50% 60%}
+.mascot .eye::after{content:"";position:absolute;top:18%;left:22%;width:34%;height:26%;border-radius:50%;background:#fff}
+.mascot .e1{left:33%}.mascot .e2{left:55%}
+@keyframes morph{0%,100%{border-radius:58% 42% 55% 45%/52% 48% 52% 48%}33%{border-radius:48% 52% 44% 56%/58% 44% 56% 42%}66%{border-radius:54% 46% 60% 40%/46% 56% 44% 54%}}
+@keyframes blink{0%,44%,48%,100%{transform:scaleY(1)}46%{transform:scaleY(.1)}}
+
+/* ── Nav ── */
+.nav{position:relative;z-index:5;height:76px;display:flex;align-items:center}
+.nav .wrap{display:flex;align-items:center;gap:40px;width:100%}
+.logo{display:inline-flex;align-items:center;gap:10px;font-size:23px;font-weight:800;letter-spacing:-.03em;color:var(--ac)}
+.logo .mascot{font-size:34px}
+.logo:hover{color:var(--ac)}
+.nav-links{display:flex;gap:30px;flex:1}
+.nav-links a{color:var(--ink2);font-size:15px;font-weight:600}.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;align-items:center;gap:10px}
+.nav-cta .signin{font-size:15px;font-weight:600;color:var(--ink);padding:0 12px}
+
+/* ── Hero ── */
+.hero{position:relative;padding:56px 0 40px}
+.hero-bg{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 1px 1px,#e2e4ec 1px,transparent 0);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse 70% 60% at 60% 30%,#000 30%,transparent 75%);mask-image:radial-gradient(ellipse 70% 60% at 60% 30%,#000 30%,transparent 75%)}
+.hero-glow{position:absolute;width:720px;height:720px;right:-120px;top:-160px;border-radius:50%;background:var(--irisc);filter:blur(90px);opacity:.55;animation:spin 30s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,540px) minmax(0,1fr);gap:40px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:10px;height:34px;padding:0 14px 0 6px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px var(--acb),var(--sh1);font-size:13px;font-weight:600;color:var(--ink2)}
+.pill .dot{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;background:var(--acs);color:var(--ac);font-weight:700}
+.pill .dot i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(15,174,102,.6);animation:ping 2s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(15,174,102,.55)}80%,100%{box-shadow:0 0 0 8px rgba(15,174,102,0)}}
+.h1{font-size:68px;line-height:1.02;letter-spacing:-.045em;font-weight:800;margin:22px 0 0}
+.ticker{display:block;height:1.1em;overflow:hidden;position:relative;color:var(--ac)}
+.ticker-in{display:flex;flex-direction:column;animation:tick 14s cubic-bezier(.7,0,.2,1) infinite}
+.ticker-in span{height:1.1em;line-height:1.1em;display:block;white-space:nowrap}
+.ticker-in u{text-decoration:underline;text-decoration-color:#d9d2f6;text-decoration-thickness:.07em;text-underline-offset:.01em;text-decoration-skip-ink:none}
+@keyframes tick{0%,12%{transform:translateY(0)}16.6%,28.6%{transform:translateY(-1.1em)}33.3%,45.3%{transform:translateY(-2.2em)}50%,62%{transform:translateY(-3.3em)}66.6%,78.6%{transform:translateY(-4.4em)}83.3%,95.3%{transform:translateY(-5.5em)}100%{transform:translateY(-6.6em)}}
+.hero-sub{font-size:19px;line-height:1.6;color:var(--ink2);margin:24px 0 0;max-width:520px}
+.hero-ctas{display:flex;gap:12px;margin-top:32px}
+.trust{display:flex;gap:18px;margin-top:22px;font-size:14px;color:var(--ink3);font-weight:500}
+.trust span{display:inline-flex;align-items:center;gap:6px}
+.trust .ic{width:16px;height:16px;color:var(--ok)}
+
+/* hero scene — a coded "video" loop */
+.scene{position:relative;width:640px;height:540px;margin-left:auto}
+.browser{position:absolute;left:60px;top:24px;width:560px;height:400px;border-radius:16px;background:#fff;box-shadow:0 0 0 1px rgba(16,24,40,.06),var(--sh4);overflow:hidden}
+.bbar{height:38px;display:flex;align-items:center;gap:7px;padding:0 14px;background:var(--sk);border-bottom:1px solid var(--ln)}
+.bbar i{width:10px;height:10px;border-radius:50%;background:#e2e4ea}
+.url{margin-left:14px;height:24px;flex:1;max-width:280px;border-radius:7px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln);display:flex;align-items:center;gap:6px;padding:0 10px;font-size:12px;color:var(--ink3);font-weight:500}
+.url .ic{width:12px;height:12px;color:var(--ok)}
+.bpage{padding:18px 22px}
+.sk-nav{display:flex;align-items:center;gap:14px}.sk-nav b{width:70px;height:12px;border-radius:4px;background:var(--ind);opacity:.85}.sk-nav span{width:40px;height:8px;border-radius:4px;background:#e7e8ee}.sk-nav span:first-of-type{margin-left:auto}
+.sk-hero{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;margin-top:26px}
+.sk-l em{display:block;height:14px;border-radius:5px;background:#e3e4eb;margin-bottom:10px}
+.sk-l em.big{height:22px;background:#d9dbe3}
+.sk-btn{width:96px;height:28px;border-radius:8px;background:var(--ind);margin-top:16px;opacity:.85}
+.sk-img{height:150px;border-radius:12px;background:linear-gradient(135deg,#ece7fd,#fbe3ef 60%,#e3f5ea);position:relative;overflow:hidden}
+.sk-img::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.7) 50%,transparent 70%);animation:shine 3.5s infinite}
+@keyframes shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.sk-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:22px}.sk-row div{height:70px;border-radius:10px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln)}
+.bn{position:absolute;left:18px;bottom:18px;width:316px;padding:16px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgba(16,24,40,.08),0 22px 50px -14px rgba(42,14,110,.35);animation:bn 10s cubic-bezier(.2,.8,.2,1) infinite}
+.bn-h{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:-.01em}
+.bn-h .mascot{font-size:22px}
+.bn p{margin:8px 0 12px;font-size:12px;line-height:1.5;color:var(--ink2)}
+.bn-b{display:flex;gap:6px}.bn-b span{flex:1;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.bn-b .g{background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);color:var(--ink)}
+.bn-b .p{background:var(--ac);color:#fff;animation:press 10s infinite}
+@keyframes bn{0%,6%{transform:translateY(140%);opacity:0}13%,50%{transform:translateY(0);opacity:1}57%,100%{transform:translateY(140%);opacity:0}}
+@keyframes press{0%,45%{background:var(--ac);transform:scale(1)}47%{background:var(--ac2);transform:scale(.94)}50%,100%{background:var(--ac);transform:scale(1)}}
+.cursor{position:absolute;left:0;top:0;width:22px;height:22px;z-index:4;animation:cur 10s cubic-bezier(.45,0,.2,1) infinite;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
+.cursor path{fill:#17191e;stroke:#fff;stroke-width:1.5;stroke-linejoin:round}
+@keyframes cur{0%,16%{transform:translate(500px,250px) scale(1);opacity:0}20%{opacity:1;transform:translate(470px,240px)}42%{transform:translate(270px,349px) scale(1)}46%{transform:translate(270px,349px) scale(.82)}49%{transform:translate(270px,349px) scale(1)}62%{transform:translate(420px,200px);opacity:1}70%,100%{transform:translate(430px,195px);opacity:0}}
+.ripple{position:absolute;left:252px;top:331px;width:40px;height:40px;border-radius:50%;border:2px solid var(--ac);opacity:0;animation:rip 10s infinite}
+@keyframes rip{0%,46%{transform:scale(.2);opacity:0}47%{opacity:.8}56%,100%{transform:scale(2.4);opacity:0}}
+.toast{position:absolute;top:54px;right:16px;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;background:var(--ind);color:#fff;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:var(--sh3);animation:toast 10s cubic-bezier(.2,.8,.2,1) infinite}
+.toast .ic{width:15px;height:15px;color:#7ef0b5}
+@keyframes toast{0%,55%{transform:translateY(-30px);opacity:0}60%,88%{transform:none;opacity:1}93%,100%{transform:translateY(-30px);opacity:0}}
+.fcard{position:absolute;z-index:3;background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:14px;box-shadow:0 0 0 1px rgba(16,24,40,.07),var(--sh3);padding:14px}
+.fcard .ch{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
+.frow{display:flex;align-items:center;justify-content:space-between;gap:10px;height:30px;font-size:12.5px;font-weight:600}
+.frow+.frow{border-top:1px solid var(--ln)}
+.sw{position:relative;display:inline-grid;height:22px;min-width:74px}
+.sw em{grid-area:1/1;display:inline-flex;align-items:center;justify-content:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;font-style:normal;font-size:11px;font-weight:700}
+.sw .off{background:#fdecec;color:#b42318;animation:swoff 10s infinite}
+.sw .on{background:var(--oks);color:var(--okt);animation:swon 10s infinite;opacity:0}
+.sw.mono em{font-family:var(--mono);font-weight:500}
+@keyframes swoff{0%,50%{opacity:1;transform:none}54%,95%{opacity:0;transform:translateY(-6px)}100%{opacity:1}}
+@keyframes swon{0%,50%{opacity:0;transform:translateY(6px)}54%,95%{opacity:1;transform:none}100%{opacity:0}}
+.d1 em{animation-delay:.12s}.d2 em{animation-delay:.24s}.d3 em{animation-delay:.36s}
+.f-scripts{left:0;top:110px;width:250px}
+.f-signals{right:-24px;bottom:-14px;width:262px}
+.f-scripts .nm{display:flex;align-items:center;gap:8px}
+.f-scripts .nm i{width:8px;height:8px;border-radius:2px}
+.beam{position:absolute;left:220px;top:150px;width:120px;height:2px;z-index:2;background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:0;animation:beam 10s infinite}
+@keyframes beam{0%,54%{opacity:0;transform:scaleX(.2)}60%{opacity:1;transform:scaleX(1)}80%,100%{opacity:0}}
+
+/* ── Platforms strip ── */
+.strip{padding:28px 0 72px}
+.strip-label{text-align:center;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.marq{margin-top:22px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.marq-in{display:flex;gap:16px;width:max-content;animation:marq 32s linear infinite}
+@keyframes marq{to{transform:translateX(-50%)}}
+.plat{display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 22px 0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh1);font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.plat .pg{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800}
+.plat small{font-size:12px;font-weight:600;color:var(--ink3);margin-left:4px}
+
+/* ── USP trio ── */
+.usp{padding:80px 0 110px}
+.usp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:56px}
+.ucard{position:relative;border-radius:22px;padding:30px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh2);overflow:hidden;min-height:470px;display:flex;flex-direction:column}
+.ucard h3{font-size:26px;letter-spacing:-.03em;line-height:1.15;margin:22px 0 0;font-weight:800}
+.ucard p{font-size:15.5px;line-height:1.6;color:var(--ink2);margin:12px 0 0}
+.unum{font-family:var(--mono);font-size:12px;color:var(--ac);font-weight:500}
+.uvis{margin-top:auto;padding-top:26px}
+/* usp1 — block vis */
+.blk{border-radius:14px;background:var(--night);padding:16px;font-family:var(--mono);font-size:11.5px;line-height:1.8;color:#c9c1f5;position:relative;overflow:hidden}
+.blk .t{color:#ff8fb8}.blk .a{color:#9fe7c4}.blk .s{color:#fdf3cf}
+.blk .ln2{position:relative;display:block}
+.blk .state{position:absolute;right:12px;top:12px}
+.blk .lockrow{display:flex;gap:6px;margin-top:10px}
+.blk .lk{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:7px;font-family:var(--sans);font-size:11px;font-weight:700;background:rgba(255,255,255,.08);color:#fff;animation:lk 6s infinite}
+.blk .lk:nth-child(2){animation-delay:.3s}.blk .lk:nth-child(3){animation-delay:.6s}
+.blk .lk .ic{width:13px;height:13px}
+@keyframes lk{0%,45%{background:rgba(255,95,95,.18);color:#ffb4b4}55%,92%{background:rgba(15,174,102,.22);color:#9fe7c4}100%{background:rgba(255,95,95,.18);color:#ffb4b4}}
+.scan-l{position:absolute;left:0;right:0;height:40px;top:-40px;background:linear-gradient(180deg,transparent,rgba(159,231,196,.18),transparent);animation:scanl 6s linear infinite}
+@keyframes scanl{to{top:110%}}
+/* usp2 — domain vis */
+.dom{display:flex;flex-direction:column;gap:8px;position:relative}
+.drow{display:flex;align-items:center;justify-content:space-between;height:42px;padding:0 12px;border-radius:11px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);font-size:13.5px;font-weight:600;animation:drow 6s infinite}
+.drow:nth-child(2){animation-delay:.4s}.drow:nth-child(3){animation-delay:.8s}
+@keyframes drow{0%,10%{transform:translateX(-10px);opacity:.3}20%,85%{transform:none;opacity:1}100%{opacity:.3;transform:translateX(-10px)}}
+.drow .mono{font-size:12.5px}
+.dsum{display:flex;align-items:center;justify-content:space-between;margin-top:6px;height:48px;padding:0 14px;border-radius:12px;background:var(--ac);color:#fff;font-weight:700;font-size:14px}
+.dsum b{font-size:22px;letter-spacing:-.02em}
+.dfree{margin-top:10px;font-size:12.5px;color:var(--ink3);line-height:1.5}
+/* usp3 — size vis */
+.pkg{border-radius:14px;background:var(--gr);padding:14px;box-shadow:inset 0 0 0 1px var(--ln)}
+.pkg-h{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:600}
+.mods{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.mods span{height:26px;padding:0 9px;border-radius:7px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln);font-size:11.5px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;animation:mod 4s infinite}
+.mods span:nth-child(2){animation-delay:.4s}.mods span:nth-child(3){animation-delay:.8s}.mods span:nth-child(4){animation-delay:1.2s}.mods span:nth-child(5){animation-delay:1.6s}.mods span:nth-child(6){animation-delay:2s}.mods span:nth-child(7){animation-delay:2.4s}.mods span:nth-child(8){animation-delay:2.8s}
+@keyframes mod{0%,24%,100%{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ln)}8%{background:var(--acs);color:var(--ac);box-shadow:inset 0 0 0 1.5px var(--ac)}}
+.pkg-bar{height:8px;border-radius:8px;background:#e3e5ec;margin-top:14px;overflow:hidden}
+.pkg-bar i{display:block;height:100%;width:96%;border-radius:8px;background:var(--iris);box-shadow:inset 0 0 0 1px rgba(75,35,211,.18);transform-origin:left;animation:abg 6s cubic-bezier(.2,.8,.2,1) infinite}
+.gauge-k{display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--ink3);font-weight:600}
+.big-n{font-size:44px;font-weight:800;letter-spacing:-.04em;color:var(--ac);line-height:1}
+.big-n small{font-size:18px;color:var(--ink2);letter-spacing:-.01em;margin-left:4px}
+
+/* ── Engine (dark) ── */
+.engine{position:relative;background:var(--night);color:#fff;padding:120px 0;overflow:hidden}
+.engine .eyebrow{color:#b9a6ff}.engine .eyebrow::before{background:#b9a6ff}
+.engine .h2{color:#fff}.engine .lede{color:#b8b2d4}
+.eng-glow{position:absolute;width:900px;height:900px;left:50%;top:40%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(75,35,211,.55),transparent 62%);pointer-events:none}
+.eng-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 60% 70% at 50% 40%,#000,transparent);mask-image:radial-gradient(ellipse 60% 70% at 50% 40%,#000,transparent)}
+.eng-body{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;margin-top:60px}
+.panel{border-radius:20px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);padding:26px}
+.panel h4{margin:0;font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#b8b2d4;display:flex;align-items:center;gap:10px}
+.timeline{position:relative;margin-top:26px;padding-left:34px}
+.timeline::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.1)}
+.tl-prog{position:absolute;left:11px;top:8px;width:2px;height:0;background:linear-gradient(180deg,#b9a6ff,#7ef0b5);animation:tlp 8s cubic-bezier(.6,0,.3,1) infinite}
+@keyframes tlp{0%{height:0}85%,100%{height:calc(100% - 16px)}}
+.tl{position:relative;padding:0 0 26px}
+.tl:last-child{padding-bottom:0}
+.tl::before{content:"";position:absolute;left:-29px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--night);box-shadow:inset 0 0 0 2px rgba(255,255,255,.25);animation:tld 8s infinite}
+.tl:nth-child(3)::before{animation-delay:1.7s}.tl:nth-child(4)::before{animation-delay:3.4s}.tl:nth-child(5)::before{animation-delay:5.1s}.tl:nth-child(6)::before{animation-delay:6.4s}
+@keyframes tld{0%{box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}6%,100%{box-shadow:inset 0 0 0 7px #b9a6ff}}
+.tl b{display:block;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.tl span{display:block;font-size:14px;color:#a9a3c6;margin-top:4px;line-height:1.5}
+.tl code{font-family:var(--mono);font-size:12.5px;color:#fdf3cf;background:rgba(255,255,255,.07);padding:2px 6px;border-radius:5px}
+.code{margin-top:22px;border-radius:14px;background:#0a0320;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);padding:18px 20px;font-family:var(--mono);font-size:13px;line-height:1.85;color:#c9c1f5;overflow:hidden}
+.code .c{color:#6f678f}.code .t{color:#ff8fb8}.code .a{color:#9fe7c4}.code .s{color:#fdf3cf}
+.code .swap{display:inline-grid}.code .swap span{grid-area:1/1}
+.code .v1{animation:v1 7s infinite}.code .v2{animation:v2 7s infinite;opacity:0}
+@keyframes v1{0%,44%{opacity:1;transform:none}46%,94%{opacity:0;transform:translateY(-6px)}96%,100%{opacity:1;transform:none}}
+@keyframes v2{0%,44%{opacity:0;transform:translateY(6px)}46%,94%{opacity:1;transform:none}96%,100%{opacity:0;transform:translateY(6px)}}
+.sigs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:22px}
+.sig{border-radius:14px;padding:14px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.sig .mono{font-size:13px;color:#fff}
+.sig .sw{margin-top:10px}
+.sig .sw .off{background:rgba(255,95,95,.16);color:#ffb4b4}.sig .sw .on{background:rgba(15,174,102,.2);color:#9fe7c4}
+.sig-note{margin-top:16px;font-size:13.5px;color:#a9a3c6;line-height:1.55}
+.eng-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:28px;border-radius:20px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);overflow:hidden}
+.est{padding:26px;border-left:1px solid rgba(255,255,255,.08)}.est:first-child{border-left:0}
+.est b{display:block;font-size:40px;font-weight:800;letter-spacing:-.04em;background:var(--iris);-webkit-background-clip:text;background-clip:text;color:transparent}
+.est span{display:block;margin-top:6px;font-size:14px;color:#a9a3c6;line-height:1.45}
+
+/* ── Platforms hub ── */
+.hub-sec{padding:120px 0}
+.hub-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:center;margin-top:10px}
+.hub{position:relative;width:560px;height:560px}
+.hub svg.lines{position:absolute;inset:0;width:100%;height:100%}
+.hub .lines path{fill:none;stroke:#d9d2f6;stroke-width:2}
+.hub .lines path.flow{stroke:var(--ac);stroke-width:2.5;stroke-dasharray:6 14;animation:flow 1.6s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-40}}
+.hub .ring{position:absolute;left:50%;top:50%;border-radius:50%;border:1.5px dashed #dcd1fb}
+.hub .r1{width:360px;height:360px;margin:-180px 0 0 -180px;animation:spin 60s linear infinite}
+.hub .r2{width:520px;height:520px;margin:-260px 0 0 -260px;opacity:.6}
+.core{position:absolute;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;border-radius:44px;background:#fff;box-shadow:0 0 0 1px var(--acb),0 30px 60px -20px rgba(75,35,211,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.core .mascot{font-size:70px}
+.core b{font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--ac)}
+.core::before{content:"";position:absolute;inset:-14px;border-radius:56px;border:2px solid var(--ac);opacity:0;animation:pulse 3s infinite}
+@keyframes pulse{0%{transform:scale(.9);opacity:.6}100%{transform:scale(1.25);opacity:0}}
+.node{position:absolute;width:132px;height:54px;margin:-27px 0 0 -66px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh3);display:flex;align-items:center;gap:9px;padding:0 12px;font-size:14px;font-weight:700;animation:bob 6s ease-in-out infinite}
+.node .pg{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800;flex-shrink:0}
+.node:nth-of-type(odd){animation-delay:-3s}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.hub-list{display:flex;flex-direction:column;gap:12px;margin-top:34px}
+.hl{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;padding:16px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--ln);background:#fff}
+.hl .pg{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800}
+.hl b{display:block;font-size:16px;letter-spacing:-.01em}
+.hl div>span{display:block;font-size:14px;color:var(--ink2);margin-top:3px;line-height:1.5}
+
+/* ── Bento ── */
+.bento-sec{padding:120px 0;background:var(--gr);position:relative}
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:310px;gap:18px;margin-top:56px}
+.tile{position:relative;border-radius:22px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh1);padding:24px;overflow:hidden;display:flex;flex-direction:column;transition:transform .3s,box-shadow .3s}
+.tile:hover{transform:translateY(-3px);box-shadow:inset 0 0 0 1px var(--acb),var(--sh3)}
+.tile.w2{grid-column:span 2}.tile.tall{grid-row:span 2}
+.pro+h3{padding-right:58px}
+.tile h3{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.tile h3 .tic{width:34px;height:34px;border-radius:10px;background:var(--acs);color:var(--ac);display:grid;place-items:center}
+.tile p{margin:10px 0 0;font-size:14px;line-height:1.55;color:var(--ink2)}
+.tile .vis{margin-top:auto;position:relative}
+.pro{position:absolute;right:20px;top:22px;height:22px;padding:0 9px;border-radius:999px;background:var(--iris);color:var(--ind);font-size:11px;font-weight:800;letter-spacing:.04em;display:flex;align-items:center}
+/* scan */
+.scan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
+.scan-in{border-radius:14px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);padding:14px;position:relative;overflow:hidden}
+.scan-in .u{height:34px;border-radius:9px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln);display:flex;align-items:center;gap:8px;padding:0 10px;font-size:13px;font-weight:600}
+.scan-in .u .ic{width:15px;height:15px;color:var(--ink3)}
+.scan-in .pbar{height:6px;border-radius:6px;background:#e3e5ec;margin-top:14px;overflow:hidden}
+.scan-in .pbar i{display:block;height:100%;width:100%;background:var(--ac);border-radius:6px;transform-origin:left;animation:pb 8s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes pb{0%{transform:scaleX(0)}50%,88%{transform:scaleX(1)}94%,100%{transform:scaleX(0)}}
+.scan-in .pt{display:flex;justify-content:space-between;font-size:12px;color:var(--ink3);margin-top:9px;font-weight:600}
+.scan-in .radar{position:absolute;right:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;background:conic-gradient(from 0deg,rgba(75,35,211,.28),transparent 30%);animation:spin 2.4s linear infinite}
+.found{display:flex;flex-direction:column;gap:6px}
+.fd{display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 10px;border-radius:9px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln);font-size:13px;font-weight:600;opacity:0;animation:fd 8s infinite}
+.fd:nth-child(2){animation-name:fd2}.fd:nth-child(3){animation-name:fd3}.fd:nth-child(4){animation-name:fd4}.fd:nth-child(5){animation-name:fd5}
+@keyframes fd{0%,6%{opacity:0;transform:translateY(8px)}11%,88%{opacity:1;transform:none}94%,100%{opacity:0}}
+@keyframes fd2{0%,15%{opacity:0;transform:translateY(8px)}20%,88%{opacity:1;transform:none}94%,100%{opacity:0}}
+@keyframes fd3{0%,24%{opacity:0;transform:translateY(8px)}29%,88%{opacity:1;transform:none}94%,100%{opacity:0}}
+@keyframes fd4{0%,33%{opacity:0;transform:translateY(8px)}38%,88%{opacity:1;transform:none}94%,100%{opacity:0}}
+@keyframes fd5{0%,42%{opacity:0;transform:translateY(8px)}47%,88%{opacity:1;transform:none}94%,100%{opacity:0}}
+.fd .l{display:flex;align-items:center;gap:8px}.fd .l i{width:8px;height:8px;border-radius:50%}
+/* geo */
+.globe{position:relative;width:190px;height:190px;margin:18px auto 0}
+.globe svg{width:100%;height:100%;overflow:visible}
+.globe .o{fill:#f6f3ff;stroke:var(--acb);stroke-width:1.5}
+.globe .m{fill:none;stroke:#cfc3fb;stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:mer 6s linear infinite}
+.globe .m2{animation-delay:-1.5s}.globe .m3{animation-delay:-3s}.globe .m4{animation-delay:-4.5s}
+@keyframes mer{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(-1)}}
+.globe .p{fill:none;stroke:#e1d9fc;stroke-width:1.2}
+.pin{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 3px #fff}
+.pin::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--ac);animation:pinp 2.4s infinite}
+@keyframes pinp{0%{transform:scale(1);opacity:.8}100%{transform:scale(3);opacity:0}}
+.rules{display:flex;flex-direction:column;gap:6px;margin-top:auto}
+.rule{display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 12px;border-radius:10px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);font-size:13px;font-weight:600;animation:rule 10s infinite}
+.rule:nth-child(2){animation-delay:2s}.rule:nth-child(3){animation-delay:4s}.rule:nth-child(4){animation-delay:6s}.rule:nth-child(5){animation-delay:8s}
+@keyframes rule{0%,18%{background:var(--acs);box-shadow:inset 0 0 0 1.5px var(--ac)}22%,100%{background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln)}}
+.visitor{margin-top:14px;display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;background:var(--ind);color:#fff;font-size:13px;font-weight:600}
+.visitor .ic{color:#b9a6ff}
+/* languages */
+.lang{position:relative;height:120px;border-radius:14px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);overflow:hidden}
+.lang-in{animation:lang 12s cubic-bezier(.7,0,.2,1) infinite}
+.lang-r{height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.lang-r .lb{height:40px;padding:0 20px;border-radius:10px;background:var(--ac);color:#fff;font-weight:700;font-size:15px;display:flex;align-items:center}
+.lang-r .lc{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+@keyframes lang{0%,13%{transform:translateY(0)}16.6%,30%{transform:translateY(-120px)}33.3%,46%{transform:translateY(-240px)}50%,63%{transform:translateY(-360px)}66.6%,80%{transform:translateY(-480px)}83.3%,96%{transform:translateY(-600px)}100%{transform:translateY(-720px)}}
+/* pref center */
+.prefs{display:flex;flex-direction:column;gap:6px}
+.pr{display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 10px;border-radius:9px;background:var(--sk);font-size:13px;font-weight:600}
+.pr.sub{margin-left:18px;height:28px;background:transparent;box-shadow:inset 0 0 0 1px var(--ln);font-size:12px;color:var(--ink2)}
+.tg{position:relative;width:34px;height:20px;border-radius:999px;background:#d3d6de;flex-shrink:0;animation:tgbg 8s infinite}
+.tg::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);animation:tgk 8s infinite}
+.tg.lock{background:var(--ac);animation:none;opacity:.55}.tg.lock::after{left:16px;animation:none}
+.tg.t2,.tg.t2::after{animation-delay:.8s}.tg.t3,.tg.t3::after{animation-delay:1.6s}.tg.t4,.tg.t4::after{animation-delay:2.4s}
+@keyframes tgbg{0%,10%{background:#d3d6de}16%,82%{background:var(--ac)}90%,100%{background:#d3d6de}}
+@keyframes tgk{0%,10%{left:2px}16%,82%{left:16px}90%,100%{left:2px}}
+/* A/B */
+.ab{display:flex;flex-direction:column;gap:14px}
+.abr .abl{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:7px}
+.abr .abl span{color:var(--ink3);font-weight:600}
+.abt{height:34px;border-radius:10px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);overflow:hidden;position:relative}
+.abt i{position:absolute;left:0;top:0;bottom:0;border-radius:10px;transform-origin:left;animation:abg 7s cubic-bezier(.2,.8,.2,1) infinite}
+.abt.a i{width:58%;background:#c9bdf7}.abt.b i{width:81%;background:var(--ac)}
+.abt.b i{animation-delay:.25s}
+@keyframes abg{0%{transform:scaleX(0)}35%,88%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+.ab-meta{display:flex;gap:8px;flex-wrap:wrap}
+.split{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink3);font-weight:600}
+.split .sd{display:flex;gap:3px}.split .sd i{width:8px;height:8px;border-radius:50%;background:#c9bdf7;animation:sd 2s infinite}.split .sd i:nth-child(even){background:var(--ac)}
+.split .sd i:nth-child(2){animation-delay:.2s}.split .sd i:nth-child(3){animation-delay:.4s}.split .sd i:nth-child(4){animation-delay:.6s}.split .sd i:nth-child(5){animation-delay:.8s}.split .sd i:nth-child(6){animation-delay:1s}
+@keyframes sd{50%{transform:translateY(-4px)}}
+/* legal */
+.doc{border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh2);padding:14px;transform:rotate(-2deg);margin:0 6px}
+.doc b{font-size:13px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.doc em{display:block;height:6px;border-radius:4px;background:#e4e6ec;margin-top:8px;transform-origin:left;animation:type 6s steps(12) infinite}
+.doc em:nth-of-type(2){animation-delay:.4s;width:88%}.doc em:nth-of-type(3){animation-delay:.8s;width:94%}.doc em:nth-of-type(4){animation-delay:1.2s;width:70%}.doc em:nth-of-type(5){animation-delay:1.6s;width:82%}
+.doc em.hd{height:8px;width:46%;background:var(--acb)}
+@keyframes type{0%{transform:scaleX(0)}40%,90%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+/* a11y */
+.a11y{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.aa{display:flex;align-items:baseline;gap:8px}.aa b{font-size:34px;font-weight:800;letter-spacing:-.04em;color:var(--ac);line-height:1}.aa span{font-size:13px;font-weight:700;color:var(--ink2)}
+.kbd{position:relative;display:flex;gap:8px}
+.kbd span{height:32px;width:74px;border-radius:8px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.kbd span:last-of-type{background:var(--ac);color:#fff;box-shadow:none}
+.kbd .ring{position:absolute;left:-4px;top:-4px;width:82px;height:40px;border-radius:11px;border:2.5px solid #f59e0b;animation:ring 4.5s cubic-bezier(.7,0,.3,1) infinite}
+@keyframes ring{0%,25%{transform:translateX(0)}33%,58%{transform:translateX(82px)}66%,92%{transform:translateX(164px)}100%{transform:translateX(0)}}
+/* models */
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:38px;padding:4px;border-radius:11px;background:var(--gr);position:relative}
+.seg span{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:var(--ink2)}
+.seg i{position:absolute;left:4px;top:4px;bottom:4px;width:calc((100% - 8px)/3);border-radius:8px;background:#fff;box-shadow:var(--sh2);animation:segm 9s cubic-bezier(.7,0,.3,1) infinite}
+@keyframes segm{0%,28%{transform:translateX(0)}33%,61%{transform:translateX(100%)}66%,94%{transform:translateX(200%)}100%{transform:translateX(0)}}
+.mdesc{position:relative;height:40px;margin-top:10px;font-size:12.5px;color:var(--ink2);line-height:1.45}
+.mdesc span{position:absolute;inset:0;opacity:0;animation:md 9s infinite}
+.mdesc span:nth-child(2){animation-delay:3s}.mdesc span:nth-child(3){animation-delay:6s}
+@keyframes md{0%,3%{opacity:0}6%,30%{opacity:1}33%,100%{opacity:0}}
+/* runtime */
+.rt .big-n{font-size:52px}
+.rt-bar{height:10px;border-radius:10px;background:var(--gr);overflow:hidden;margin-top:12px}
+.rt-bar i{display:block;height:100%;width:94%;border-radius:10px;background:var(--iris);box-shadow:inset 0 0 0 1px rgba(75,35,211,.15);transform-origin:left;animation:abg 6s cubic-bezier(.2,.8,.2,1) infinite}
+.rt-k{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+
+/* ── Editor showcase ── */
+.ed-sec{padding:120px 0}
+.ed-top{display:flex;justify-content:space-between;align-items:flex-end;gap:40px}
+.ed-bul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px;max-width:470px}
+.ed-bul span{display:flex;gap:8px;align-items:center;font-size:14.5px;font-weight:600}
+.ed-bul .ic{color:var(--ac);width:17px;height:17px}
+.editor{margin-top:56px;border-radius:22px;background:var(--gr);box-shadow:0 0 0 1px rgba(16,24,40,.08),var(--sh4);overflow:hidden;display:grid;grid-template-columns:64px 320px minmax(0,1fr);height:620px;position:relative}
+.editor::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--iris);z-index:2}
+.rail{background:#fff;border-right:1px solid var(--ln);display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:18px}
+.rail .mascot{font-size:30px;margin-bottom:12px}
+.rail span{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--ink3)}
+.rail span.on{background:var(--acs);color:var(--ac)}
+.rail .ic{width:19px;height:19px}
+.set{background:#fff;border-right:1px solid var(--ln);padding:22px 20px;display:flex;flex-direction:column;gap:20px}
+.set h5{margin:0;font-size:16px;font-weight:800;letter-spacing:-.01em}
+.fl{display:flex;flex-direction:column;gap:8px}
+.fl label{font-size:12px;font-weight:700;color:var(--ink3);letter-spacing:.02em}
+.seg2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:36px;padding:3px;border-radius:10px;background:var(--sk);box-shadow:inset 0 0 0 1px var(--ln);position:relative}
+.seg2 span{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:var(--ink2)}
+.seg2 i{position:absolute;left:3px;top:3px;bottom:3px;width:calc((100% - 6px)/3);border-radius:7px;background:#fff;box-shadow:var(--sh2)}
+.seg2.lay i{animation:lay 15s cubic-bezier(.7,0,.3,1) infinite}
+@keyframes lay{0%,31%{transform:translateX(0)}34%,64%{transform:translateX(100%)}67%,97%{transform:translateX(200%)}100%{transform:translateX(0)}}
+.swatches{display:flex;gap:8px;position:relative}
+.swatches b{width:30px;height:30px;border-radius:9px}
+.swatches .sring{position:absolute;left:-4px;top:-4px;width:38px;height:38px;border-radius:12px;border:2px solid var(--ink);animation:sring 10s cubic-bezier(.7,0,.3,1) infinite}
+@keyframes sring{0%,17%{transform:translateX(0)}20%,37%{transform:translateX(38px)}40%,57%{transform:translateX(76px)}60%,77%{transform:translateX(114px)}80%,97%{transform:translateX(152px)}100%{transform:translateX(0)}}
+.slider{position:relative;height:6px;border-radius:6px;background:var(--gr);margin:8px 0}
+.slider i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--ac);animation:sl 6s ease-in-out infinite}
+.slider b{position:absolute;top:-6px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px var(--ln2),var(--sh2);animation:slb 6s ease-in-out infinite}
+@keyframes sl{0%,100%{width:30%}50%{width:78%}}
+@keyframes slb{0%,100%{left:30%}50%{left:78%}}
+.set .pubb{margin-top:auto;height:42px;border-radius:10px;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:14px;position:relative;overflow:hidden}
+.set .pubb::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);animation:shine 3s infinite}
+.pv{position:relative;padding:28px;display:flex;flex-direction:column}
+.pv-top{display:flex;align-items:center;justify-content:space-between}
+.pv-top .tabs{display:flex;gap:4px;padding:3px;border-radius:9px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln)}
+.pv-top .tabs span{height:28px;padding:0 12px;border-radius:7px;font-size:12px;font-weight:700;display:flex;align-items:center;color:var(--ink3)}
+.pv-top .tabs span.on{background:var(--acs);color:var(--ac)}
+.site{position:relative;flex:1;margin-top:18px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px var(--ln),var(--sh3);overflow:hidden;padding:24px 28px}
+.site .sk-hero{margin-top:22px}
+.site .sk-img{height:170px}
+.pv-bn{position:absolute;background:#fff;color:var(--ink);box-shadow:0 0 0 1px rgba(16,24,40,.08),0 24px 50px -14px rgba(16,24,40,.35);padding:18px;animation:pvlay 15s cubic-bezier(.7,0,.3,1) infinite}
+.pv-bn .bn-h{font-size:15px}
+.pv-bn p{margin:8px 0 12px;font-size:12.5px;line-height:1.5;color:var(--ink2)}
+.pv-bn .bn-b span{height:32px}
+.pv-bn .bn-b .p{animation:acc 10s infinite}
+.pv-bn .lnk{font-size:12px;font-weight:700;animation:acct 10s infinite}
+@keyframes acc{0%,17%{background:#4b23d3}20%,37%{background:#0f766e}40%,57%{background:#e4572e}60%,77%{background:#17191e}80%,97%{background:#db2777}100%{background:#4b23d3}}
+@keyframes acct{0%,17%{color:#4b23d3}20%,37%{color:#0f766e}40%,57%{color:#e4572e}60%,77%{color:#17191e}80%,97%{color:#db2777}100%{color:#4b23d3}}
+@keyframes pvlay{0%,31%{left:22px;bottom:22px;top:auto;width:340px;border-radius:16px;transform:none}34%,64%{left:0;bottom:0;width:100%;border-radius:0;transform:none}67%,97%{left:50%;bottom:50%;width:380px;border-radius:18px;transform:translate(-50%,50%)}100%{left:22px;bottom:22px;width:340px;border-radius:16px;transform:none}}
+.site .scrim{position:absolute;inset:0;background:rgba(19,23,32,.4);opacity:0;animation:scrim 15s infinite}
+@keyframes scrim{0%,64%{opacity:0}67%,97%{opacity:1}100%{opacity:0}}
+.float-note{position:absolute;right:26px;top:84px;z-index:3;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh3);font-size:12.5px;font-weight:700}
+.float-note .ic{width:15px;height:15px;color:var(--ok)}
+
+/* ── Steps ── */
+.steps-sec{padding:40px 0 120px}
+.steps{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:56px}
+.steps-line{position:absolute;left:16.6%;right:16.6%;top:44px;height:2px;background:var(--ln)}
+.steps-line i{position:absolute;left:0;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 5px var(--acs);animation:travel 6s cubic-bezier(.6,0,.3,1) infinite}
+@keyframes travel{0%{left:0}45%,55%{left:50%}95%,100%{left:100%}}
+.step{position:relative;text-align:center;display:flex;flex-direction:column;align-items:center}
+.step .sn{position:relative;z-index:1;width:88px;height:88px;border-radius:26px;background:#fff;box-shadow:inset 0 0 0 1px var(--acb),var(--sh3);display:grid;place-items:center;color:var(--ac)}
+.step .sn .ic{width:32px;height:32px;stroke-width:1.6}
+.step .sn small{position:absolute;top:-10px;right:-10px;width:28px;height:28px;border-radius:50%;background:var(--ac);color:#fff;font-family:var(--mono);font-size:12px;display:grid;place-items:center}
+.step h3{margin:24px 0 0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.step p{margin:10px 0 0;font-size:15px;line-height:1.6;color:var(--ink2);max-width:320px}
+.step .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+
+/* ── Pricing ── */
+.pricing{padding:120px 0;background:linear-gradient(180deg,#fff,var(--gr) 40%)}
+.bill{display:inline-flex;align-items:center;gap:4px;padding:4px;margin-top:28px;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh1)}
+.bill button{height:38px;padding:0 18px;border:0;border-radius:9px;background:transparent;font-family:var(--sans);font-size:14px;font-weight:700;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.bill button .save{height:20px;padding:0 7px;border-radius:999px;background:var(--oks);color:var(--okt);font-size:11px;display:inline-flex;align-items:center}
+.bill-m .bm,.bill-y .by{background:var(--ac);color:#fff}
+.bill-y .by .save{background:rgba(255,255,255,.2);color:#fff}
+.plans{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:48px;align-items:stretch}
+.plan{position:relative;border-radius:22px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln),var(--sh1);padding:28px 24px;display:flex;flex-direction:column}
+.plan.hot{box-shadow:inset 0 0 0 2px var(--ac),0 30px 60px -24px rgba(75,35,211,.45)}
+.plan.hot .tag{position:absolute;top:-13px;left:24px;height:26px;padding:0 12px;border-radius:999px;background:var(--ac);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center}
+.plan h3{margin:0;font-size:18px;font-weight:800}
+.plan .pd{font-size:13.5px;color:var(--ink3);margin-top:6px;min-height:40px;line-height:1.5}
+.price{display:flex;align-items:baseline;gap:6px;margin-top:18px;height:56px}
+.price b{font-size:48px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.price span{font-size:14px;color:var(--ink3);font-weight:600}
+.pnote{font-size:12.5px;color:var(--okt);font-weight:700;height:18px;margin-top:4px}
+.bill-m .py,.bill-y .pm{display:none}
+.plan .btn{width:100%;margin-top:22px;height:46px}
+.plan ul{list-style:none;margin:24px 0 0;padding:20px 0 0;border-top:1px solid var(--ln);display:flex;flex-direction:column;gap:11px}
+.plan li{display:flex;gap:9px;font-size:14px;line-height:1.45;color:var(--ink)}
+.plan li .ic{width:17px;height:17px;color:var(--ok);margin-top:1px}
+.plan li.x{color:var(--ink3)}.plan li.x .ic{color:var(--ink4,#98a0aa)}
+.ltd{margin-top:18px;border-radius:22px;background:var(--night);color:#fff;padding:28px 32px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:32px;align-items:center;position:relative;overflow:hidden}
+.ltd::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 40% 120% at 0% 50%,rgba(247,203,228,.25),transparent),radial-gradient(ellipse 40% 120% at 100% 50%,rgba(201,237,214,.18),transparent)}
+.ltd>*{position:relative}
+.ltd .mascot{font-size:72px}
+.ltd h3{margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.ltd p{margin:6px 0 0;font-size:15px;color:#b8b2d4;line-height:1.55}
+.ltd .lp{display:flex;align-items:center;gap:22px}
+.ltd .lp b{font-size:44px;font-weight:800;letter-spacing:-.04em}
+.ltd .lp small{display:block;font-size:12.5px;color:#b8b2d4;font-weight:600}
+.btn-iris{background:var(--iris);color:var(--ind);box-shadow:0 10px 30px -10px rgba(247,203,228,.6)}
+.btn-iris:hover{color:var(--ind);transform:translateY(-1px)}
+.meter{margin-top:10px;height:6px;width:220px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--iris)}
+.pfoot{text-align:center;margin-top:26px;font-size:14px;color:var(--ink3)}
+
+/* ── FAQ ── */
+.faq-sec{padding:120px 0}
+.faq-grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:64px}
+.faq-side .btn{margin-top:28px}
+.faq-list{display:flex;flex-direction:column;gap:10px}
+.faq-i{border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1px var(--ln);transition:box-shadow .2s}
+.faq-i.open{box-shadow:inset 0 0 0 1.5px var(--acb),var(--sh2)}
+.faq-q{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:0 22px;border:0;background:transparent;font-family:var(--sans);font-size:16.5px;font-weight:700;color:var(--ink);text-align:left;cursor:pointer;letter-spacing:-.01em}
+.faq-q .pm{width:28px;height:28px;border-radius:8px;background:var(--gr);display:grid;place-items:center;transition:transform .3s,background .2s;flex-shrink:0;color:var(--ink2)}
+.faq-i.open .faq-q .pm{transform:rotate(45deg);background:var(--acs);color:var(--ac)}
+.faq-a{display:none;padding:0 22px 22px;font-size:15px;line-height:1.65;color:var(--ink2);max-width:680px}
+.faq-i.open .faq-a{display:block}
+.faq-a code{font-family:var(--mono);font-size:13px;background:var(--gr);padding:1px 6px;border-radius:5px;color:var(--ink)}
+
+/* ── Final CTA + footer ── */
+.cta-sec{padding:0 0 110px}
+.cta{position:relative;border-radius:32px;background:var(--iris);padding:80px 72px;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 340px;align-items:center;gap:40px}
+.cta::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 1px 1px,rgba(42,14,110,.12) 1px,transparent 0);background-size:24px 24px}
+.cta>*{position:relative}
+.cta h2{margin:0;font-size:60px;line-height:1.02;letter-spacing:-.045em;font-weight:800;color:var(--ind)}
+.cta p{margin:18px 0 0;font-size:19px;line-height:1.55;color:#4a3a86;max-width:560px}
+.cta .hero-ctas .btn-g{background:rgba(255,255,255,.7)}
+.cta-art{position:relative;height:320px;display:grid;place-items:center}
+.cta-art::before{content:"";position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-160px 0 0 -150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95) 35%,rgba(255,255,255,0) 70%)}
+.cta-art .mascot .blob{box-shadow:inset -.06em -.08em .14em rgba(75,35,211,.28),inset .06em .06em .1em rgba(255,255,255,.8),0 .12em .3em -.08em rgba(42,14,110,.35)}
+.cta-art .mascot{font-size:230px;animation:float 5s ease-in-out infinite}
+.cta-art .shadow{position:absolute;bottom:4px;left:50%;width:170px;height:22px;margin-left:-85px;border-radius:50%;background:rgba(42,14,110,.18);filter:blur(6px);animation:shad 5s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-16px) rotate(-3deg)}}
+@keyframes shad{50%{transform:scale(.8);opacity:.6}}
+.spark{position:absolute;width:14px;height:14px;animation:tw 3s ease-in-out infinite}
+.spark::before,.spark::after{content:"";position:absolute;left:50%;top:0;width:3px;height:100%;margin-left:-1.5px;border-radius:2px;background:var(--ind)}
+.spark::after{transform:rotate(90deg)}
+@keyframes tw{0%,100%{transform:scale(.4) rotate(0);opacity:.3}50%{transform:scale(1) rotate(45deg);opacity:1}}
+.foot{border-top:1px solid var(--ln);padding:64px 0 48px}
+.foot-g{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr));gap:40px}
+.foot p{font-size:14.5px;line-height:1.6;color:var(--ink2);margin:16px 0 0;max-width:340px}
+.foot h6{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.foot ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.foot ul a{color:var(--ink);font-size:14.5px;font-weight:500}.foot ul a:hover{color:var(--ac)}
+.foot-b{display:flex;justify-content:space-between;align-items:center;margin-top:52px;padding-top:24px;border-top:1px solid var(--ln);font-size:13.5px;color:var(--ink3)}
+.byline{font-weight:700;color:var(--ink2)}.byline b{color:var(--green)}
+
+/* brand hues for platform glyphs (neutral letterforms, not their logos) */
+.g-fr{background:#111}.g-wf{background:#2d5bff}.g-wp{background:#21759b}.g-sh{background:#5e8e3e}.g-wx{background:#0c0c0c}.g-ht{background:var(--ac)}
+
+/* ── 3D mascot art ── */
+.mimg{display:block;height:auto;-webkit-user-drag:none;user-select:none}
+.browser{z-index:1}
+.peek{position:absolute;left:452px;top:-66px;width:112px;z-index:0;animation:peekup 10s cubic-bezier(.3,1.4,.5,1) infinite}
+@keyframes peekup{0%,56%{transform:translateY(80px)}63%,88%{transform:translateY(0)}95%,100%{transform:translateY(80px)}}
+.ucard .upose{position:absolute;right:16px;top:14px;width:92px;animation:bob 6s ease-in-out infinite}
+.ucard:nth-child(2) .upose{animation-delay:-2s}.ucard:nth-child(3) .upose{animation-delay:-4s;width:80px}
+.ucard h3{padding-right:64px}
+.core .mimg{width:92px;animation:bob 5s ease-in-out infinite}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important}}
+</style>
+<style>
+.mimg{display:block;height:auto;-webkit-user-drag:none;user-select:none}
+.ltd .mimg{width:96px;animation:bob 5s ease-in-out infinite}
+.faq-side .mimg{width:150px;margin-top:40px;animation:bob 6s ease-in-out infinite}
+.cta{background:#f6eefc url(img/iris-texture.webp) center/cover no-repeat}
+.cta::before{background-image:radial-gradient(circle at 1px 1px,rgba(42,14,110,.08) 1px,transparent 0)}
+.cta-art::before{opacity:.55}
+.cta-art .mimg{position:relative;width:290px;animation:float 5s ease-in-out infinite;filter:drop-shadow(0 24px 30px rgba(42,14,110,.22))}
+/* Standalone-page layer: fluid width, sticky nav, scroll reveals, breakpoints.
+   The canvas artboard is a fixed 1440 frame; this makes the same markup a real page. */
+html{scroll-behavior:smooth}
+.page{width:auto;height:auto}
+.nav{position:sticky;top:0;background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);transition:box-shadow .3s}
+.nav.stuck{box-shadow:0 1px 0 var(--ln),0 8px 24px -16px rgba(16,24,40,.25)}
+section{scroll-margin-top:84px}
+
+/* scroll reveal — only when JS has marked the document ready */
+.js .rv{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1)}
+.js .rv.in{opacity:1;transform:none}
+.js .rv.d-1{transition-delay:.08s}.js .rv.d-2{transition-delay:.16s}.js .rv.d-3{transition-delay:.24s}.js .rv.d-4{transition-delay:.32s}
+.js .h1 .w{display:inline-block;opacity:0;transform:translateY(.4em);animation:wordin .9s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes wordin{to{opacity:1;transform:none}}
+.hero .scene{transition:transform .2s ease-out}
+
+@media (max-width:1180px){
+  .hero .wrap{grid-template-columns:1fr}
+  .hero .scene{margin:10px auto 0}
+  .h1{font-size:60px}
+  .usp-grid{grid-template-columns:1fr 1fr}
+  .usp-grid .ucard:last-child{grid-column:span 2;min-height:0}
+  .eng-body,.hub-body{grid-template-columns:1fr}
+  .hub{margin:0 auto}
+  .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .plans{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}
+  .editor{grid-template-columns:56px 280px minmax(0,1fr)}
+  .ed-top{flex-direction:column;align-items:flex-start}
+  .faq-grid{grid-template-columns:1fr;gap:32px}
+  .cta{grid-template-columns:1fr}
+  .cta-art{height:260px}
+  .cta-art .mascot{font-size:180px}
+}
+@media (max-width:760px){
+  .wrap{padding:0 16px}
+  .nav-links,.nav-cta .signin{display:none}
+  .nav .wrap{justify-content:space-between}
+  .hero{padding:32px 0 20px}
+  .h1{font-size:42px;letter-spacing:-.04em}
+  .hero-sub,.lede{font-size:17px}
+  .hero-ctas{flex-direction:column;align-items:stretch}
+  .trust{flex-wrap:wrap;gap:10px 16px}
+  .pill{height:auto;min-height:34px;padding:5px 12px 5px 6px;font-size:12px;line-height:1.35}
+  .hero .scene{zoom:.54;margin-top:24px}
+  .h2{font-size:36px}
+  .strip{padding:24px 0 24px}
+  .usp,.bento-sec,.ed-sec,.pricing,.faq-sec,.hub-sec,.engine{padding:72px 0}
+  .usp-grid{grid-template-columns:1fr}
+  .usp-grid .ucard:last-child{grid-column:auto}
+  .ucard{min-height:0}
+  .hub{zoom:.6}
+  .bento{grid-template-columns:1fr;grid-auto-rows:auto}
+  .tile{min-height:300px}
+  .tile.w2,.tile.tall{grid-column:auto;grid-row:auto}
+  .scan{grid-template-columns:1fr}
+  .eng-body>*,.hub-body>*{min-width:0}
+  .panel{padding:20px}
+  .code{overflow-x:auto;font-size:12px}
+  .sigs{grid-template-columns:1fr}
+  .eng-stats{grid-template-columns:1fr 1fr}
+  .est:nth-child(3){border-left:0}
+  .est:nth-child(n+3){border-top:1px solid rgba(255,255,255,.08)}
+  .editor{grid-template-columns:1fr;height:480px}
+  .editor .rail,.editor .set{display:none}
+  .pv{padding:16px}
+  .pv-bn{zoom:.8}
+  .ed-bul{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr;gap:48px}
+  .steps-line{display:none}
+  .plans{grid-template-columns:1fr}
+  .ltd{grid-template-columns:1fr;gap:18px;padding:28px 22px}
+  .ltd .lp{flex-wrap:wrap}
+  .cta{padding:48px 22px;border-radius:24px}
+  .cta h2{font-size:40px}
+  .cta p{font-size:17px}
+  .foot-g{grid-template-columns:1fr 1fr}
+  .foot-g>div:first-child{grid-column:span 2}
+  .foot-b{flex-direction:column;gap:8px;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═════════ NAV ═════════ -->
+<header class="nav">
+<div class="wrap">
+<a class="logo" href="#top" aria-label="Consentful home"><span class="mascot"><span class="blob"></span><span class="eye e1"></span><span class="eye e2"></span></span>Consentful</a>
+<nav class="nav-links" aria-label="Main">
+<a href="#features">Features</a>
+<a href="#platforms">Platforms</a>
+<a href="#editor">Editor</a>
+<a href="#pricing">Pricing</a>
+<a href="/docs">Docs</a>
+</nav>
+<div class="nav-cta">
+<a class="signin" href="/login">Sign in</a>
+<a class="btn btn-p btn-sm" href="/signup">Start free</a>
+</div>
+</div>
+</header>
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero" id="top">
+<div class="hero-bg"></div>
+<div class="hero-glow"></div>
+<div class="wrap">
+<div>
+<span class="pill"><span class="dot"><i></i>New</span>Now on Framer, Webflow, WordPress, Shopify &amp; Wix</span>
+<h1 class="h1">Real cookie consent for <span class="ticker"><span class="ticker-in"><span><u>Framer</u> sites.</span><span><u>Webflow</u> sites.</span><span><u>WordPress</u>.</span><span><u>Shopify</u> stores.</span><span><u>Wix</u> sites.</span><span><u>every</u> website.</span><span><u>Framer</u> sites.</span></span></span></h1>
+<p class="hero-sub">Consentful holds every tracker until your visitor says yes, sends Google Consent Mode v2 signals, and looks like it was designed with your site — because it was. Design once, install anywhere, license by domain.</p>
+<div class="hero-ctas">
+<a class="btn btn-p" href="/signup">Start free <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+<a class="btn btn-g" href="#engine"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M10 9l5 3-5 3z"></path></svg>See it block a tracker</a>
+</div>
+<div class="trust">
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Free plan forever</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>No credit card</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>WCAG 2.1 AA</span>
+</div>
+</div>
+
+<div class="scene" aria-hidden="true">
+<img class="mimg peek" src="img/mascot-peek.webp" alt="">
+<div class="browser">
+<div class="bbar"><i></i><i></i><i></i><div class="url"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>yourbrand.com</div></div>
+<div class="bpage">
+<div class="sk-nav"><b></b><span></span><span></span><span></span></div>
+<div class="sk-hero">
+<div class="sk-l"><em class="big" style="width: 92%"></em><em class="big" style="width: 70%"></em><em style="width: 84%"></em><em style="width: 60%"></em><div class="sk-btn"></div></div>
+<div class="sk-img"></div>
+</div>
+<div class="sk-row"><div></div><div></div><div></div></div>
+</div>
+<div class="bn">
+<div class="bn-h"><span class="mascot"><span class="blob"></span><span class="eye e1"></span><span class="eye e2"></span></span>We value your privacy</div>
+<p>We use cookies for analytics and ads. Nothing runs until you choose.</p>
+<div class="bn-b"><span class="g">Reject all</span><span class="g">Customize</span><span class="p">Accept all</span></div>
+</div>
+<div class="ripple"></div>
+<svg class="cursor" viewBox="0 0 24 24"><path d="M4 2l15 10.5-6.6 1.3L16 21l-3 1.4-3.6-7.3L4 19.5z"></path></svg>
+<div class="toast"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Preferences saved · consent receipt stored</div>
+</div>
+
+<div class="fcard f-scripts">
+<div class="ch">Trackers<span class="chip chip-n" style="height: 20px; font-size: 10px">3 found</span></div>
+<div class="frow"><span class="nm"><i style="background: #f59e0b"></i>Google Analytics 4</span><span class="sw"><em class="off">Held</em><em class="on">Live</em></span></div>
+<div class="frow d1"><span class="nm"><i style="background: #2d5bff"></i>Meta Pixel</span><span class="sw"><em class="off">Held</em><em class="on">Live</em></span></div>
+<div class="frow d2"><span class="nm"><i style="background: #e4572e"></i>Hotjar</span><span class="sw"><em class="off">Held</em><em class="on">Live</em></span></div>
+</div>
+
+<div class="fcard f-signals">
+<div class="ch">Consent Mode v2<span class="mono" style="text-transform: none; letter-spacing: 0; font-weight: 500">gtag()</span></div>
+<div class="frow"><span class="mono" style="font-size: 12px">ad_storage</span><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+<div class="frow d1"><span class="mono" style="font-size: 12px">analytics_storage</span><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+<div class="frow d2"><span class="mono" style="font-size: 12px">ad_user_data</span><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+<div class="frow d3"><span class="mono" style="font-size: 12px">ad_personalization</span><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+</div>
+<div class="beam"></div>
+</div>
+</div>
+</section>
+
+<!-- ═════════ PLATFORM STRIP ═════════ -->
+<section class="strip">
+<div class="strip-label">One consent layer · installs natively on</div>
+<div class="marq">
+<div class="marq-in">
+<span class="plat"><span class="pg g-fr">F</span>Framer<small>plugin</small></span>
+<span class="plat"><span class="pg g-wf">W</span>Webflow<small>app</small></span>
+<span class="plat"><span class="pg g-wp">W</span>WordPress<small>plugin</small></span>
+<span class="plat"><span class="pg g-sh">S</span>Shopify<small>app embed</small></span>
+<span class="plat"><span class="pg g-wx">W</span>Wix<small>app</small></span>
+<span class="plat"><span class="pg g-ht">&lt;/&gt;</span>Any HTML site<small>one snippet</small></span>
+<span class="plat"><span class="pg g-fr">F</span>Framer<small>plugin</small></span>
+<span class="plat"><span class="pg g-wf">W</span>Webflow<small>app</small></span>
+<span class="plat"><span class="pg g-wp">W</span>WordPress<small>plugin</small></span>
+<span class="plat"><span class="pg g-sh">S</span>Shopify<small>app embed</small></span>
+<span class="plat"><span class="pg g-wx">W</span>Wix<small>app</small></span>
+<span class="plat"><span class="pg g-ht">&lt;/&gt;</span>Any HTML site<small>one snippet</small></span>
+</div>
+</div>
+</section>
+
+<!-- ═════════ USP TRIO ═════════ -->
+<section class="usp">
+<div class="wrap">
+<div class="sec-head">
+<span class="eyebrow">Why Consentful</span>
+<h2 class="h2">Most banners ask.<br>Consentful enforces.</h2>
+<p class="lede">A cookie banner that doesn't stop tracking is just decoration. We built the part that matters first — then made it beautiful and portable.</p>
+</div>
+<div class="usp-grid">
+<article class="ucard">
+<img class="mimg upose" src="img/mascot-guard.webp" alt="">
+<span class="unum">01 — Enforcement</span>
+<h3>Blocks trackers before consent. Not a cosmetic overlay.</h3>
+<p>Analytics and ad scripts are parked as inert code until the matching category is accepted — then activated in order, with Consent Mode v2 updated in the same tick.</p>
+<div class="uvis">
+<div class="blk">
+<div class="scan-l"></div>
+<span class="ln2">&lt;<span class="t">script</span> <span class="a">type</span>=<span class="s">"text/plain"</span></span>
+<span class="ln2">  <span class="a">data-cc-category</span>=<span class="s">"analytics"</span></span>
+<span class="ln2">  <span class="a">data-cc-src</span>=<span class="s">"gtag.js"</span>&gt;</span>
+<div class="lockrow"><span class="lk"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>GA4</span><span class="lk"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Pixel</span><span class="lk"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Hotjar</span></div>
+</div>
+</div>
+</article>
+<article class="ucard">
+<img class="mimg upose" src="img/mascot-wave.webp" alt="">
+<span class="unum">02 — Portability</span>
+<h3>One license. Every platform. Priced per domain.</h3>
+<p>A site is a root domain and all its subdomains — wherever they're built. Mix Framer, Shopify and WordPress under one brand and pay for one site.</p>
+<div class="uvis">
+<div class="dom">
+<div class="drow"><span class="mono">acme.com</span><span class="chip chip-n">Framer</span></div>
+<div class="drow"><span class="mono">shop.acme.com</span><span class="chip chip-n">Shopify</span></div>
+<div class="drow"><span class="mono">blog.acme.com</span><span class="chip chip-n">WordPress</span></div>
+</div>
+<div class="dsum"><span>Sites used</span><b>1</b></div>
+<div class="dfree">Staging never counts: <span class="mono">*.framer.app</span>, <span class="mono">*.webflow.io</span>, <span class="mono">*.myshopify.com</span>, localhost.</div>
+</div>
+</article>
+<article class="ucard">
+<img class="mimg upose" src="img/mascot-lock.webp" alt="">
+<span class="unum">03 — Performance</span>
+<h3>Tiny, dependency-free, served from a global CDN.</h3>
+<p>One vanilla-TypeScript runtime with a hard size budget, delivered by jsDelivr. Consent is stored first-party on the visitor's device — no consent database to breach.</p>
+<div class="uvis">
+<div class="pkg">
+<div class="pkg-h"><span class="mono">consent.min.js</span><span class="chip chip-ok">&lt; 64 KB, everything in</span></div>
+<div class="mods"><span>Banner</span><span>Script blocker</span><span>Consent Mode v2</span><span>Geo rules</span><span>i18n</span><span>A/B variants</span><span>Preference center</span><span>Signed licensing</span></div>
+<div class="pkg-bar"><i></i></div>
+</div>
+<div class="gauge-k"><span>0 dependencies</span><span>0 servers for consent</span><span>1 script tag</span></div>
+</div>
+</article>
+</div>
+</div>
+</section>
+
+<!-- ═════════ ENGINE (dark) ═════════ -->
+<section class="engine" id="engine">
+<div class="eng-glow"></div>
+<div class="eng-grid"></div>
+<div class="wrap">
+<div class="sec-head c">
+<span class="eyebrow">Under the hood</span>
+<h2 class="h2">Watch a tracker wait its turn.</h2>
+<p class="lede">From first paint to first "yes", Consentful keeps your site honest — and keeps Google's tags in the loop.</p>
+</div>
+<div class="eng-body">
+<div class="panel">
+<h4><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"></path></svg>The consent timeline</h4>
+<div class="timeline">
+<div class="tl-prog"></div>
+<div class="tl"><b>Page loads — defaults go out first</b><span>All four Consent Mode v2 signals are sent as <code>denied</code> before any tag can fire.</span></div>
+<div class="tl"><b>Trackers are parked</b><span>Managed scripts sit as <code>text/plain</code>. The browser never executes them.</span></div>
+<div class="tl"><b>The visitor decides</b><span>Accept all, reject all, or pick per category — and per vendor, when you turn it on.</span></div>
+<div class="tl"><b>Only what was allowed runs</b><span>Accepted categories activate in order; everything else stays inert.</span></div>
+<div class="tl"><b>Choice is remembered — and revocable</b><span>Stored first-party with a consent receipt. A floating button reopens preferences anytime.</span></div>
+</div>
+</div>
+<div class="panel">
+<h4><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg>What your page actually runs</h4>
+<div class="code">
+<span class="c">&lt;!-- Google Analytics, managed by Consentful --&gt;</span><br>
+&lt;<span class="t">script</span> <span class="a">type</span>=<span class="swap"><span class="s v1">"text/plain"</span><span class="s v2">"text/javascript"</span></span><br>
+&#160;&#160;<span class="a">data-cc-category</span>=<span class="s">"analytics"</span><br>
+&#160;&#160;<span class="a">data-cc-src</span>=<span class="s">"https://www.googletagmanager.com/gtag/js"</span>&gt;<br>
+&lt;/<span class="t">script</span>&gt;
+</div>
+<div class="sigs">
+<div class="sig"><span class="mono">ad_storage</span><br><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+<div class="sig d1"><span class="mono">analytics_storage</span><br><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+<div class="sig d2"><span class="mono">ad_user_data</span><br><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+<div class="sig d3"><span class="mono">ad_personalization</span><br><span class="sw mono"><em class="off">denied</em><em class="on">granted</em></span></div>
+</div>
+<p class="sig-note">Google Consent Mode v2 built in — defaults denied, updated the moment a category is accepted. Keeps conversion modelling alive in Google Ads and GA4.</p>
+</div>
+</div>
+<div class="eng-stats">
+<div class="est"><b>4 / 4</b><span>Consent Mode v2 signals, default denied</span></div>
+<div class="est"><b>6</b><span>platforms from one shared consent core</span></div>
+<div class="est"><b>AA</b><span>WCAG 2.1 — keyboard, screen reader, contrast</span></div>
+<div class="est"><b>0</b><span>trackers that run before a "yes"</span></div>
+</div>
+</div>
+</section>
+
+<!-- ═════════ PLATFORMS HUB ═════════ -->
+<section class="hub-sec" id="platforms">
+<div class="wrap">
+<div class="hub-body">
+<div class="hub" aria-hidden="true">
+<div class="ring r2"></div>
+<div class="ring r1"></div>
+<svg class="lines" viewBox="0 0 560 560">
+<path d="M280 280 L280 70"></path><path class="flow" d="M280 280 L280 70"></path>
+<path d="M280 280 L462 175"></path><path class="flow" d="M280 280 L462 175"></path>
+<path d="M280 280 L462 385"></path><path class="flow" d="M280 280 L462 385"></path>
+<path d="M280 280 L280 490"></path><path class="flow" d="M280 280 L280 490"></path>
+<path d="M280 280 L98 385"></path><path class="flow" d="M280 280 L98 385"></path>
+<path d="M280 280 L98 175"></path><path class="flow" d="M280 280 L98 175"></path>
+</svg>
+<div class="core"><img class="mimg" src="img/mascot-hero.webp" alt=""><b>Consent core</b></div>
+<div class="node" style="left: 280px; top: 70px"><span class="pg g-fr">F</span>Framer</div>
+<div class="node" style="left: 462px; top: 175px"><span class="pg g-wf">W</span>Webflow</div>
+<div class="node" style="left: 462px; top: 385px"><span class="pg g-wp">W</span>WordPress</div>
+<div class="node" style="left: 280px; top: 490px"><span class="pg g-sh">S</span>Shopify</div>
+<div class="node" style="left: 98px; top: 385px"><span class="pg g-wx">W</span>Wix</div>
+<div class="node" style="left: 98px; top: 175px"><span class="pg g-ht">&lt;/&gt;</span>Embed</div>
+</div>
+<div>
+<span class="eyebrow">Platforms</span>
+<h2 class="h2">Built once.<br>Native everywhere.</h2>
+<p class="lede">Every platform gets a real integration — same editor, same banner, same consent engine. Move a site between builders and your consent setup comes with it.</p>
+<div class="hub-list">
+<div class="hl"><span class="pg g-fr">F</span><div><b>Framer plugin</b><span>Design in the canvas, publish writes the loader into your site's custom code.</span></div></div>
+<div class="hl"><span class="pg g-sh">S</span><div><b>Shopify app embed</b><span>Theme app extension plus a bridge to Shopify's Customer Privacy API.</span></div></div>
+<div class="hl"><span class="pg g-wp">W</span><div><b>Webflow, WordPress &amp; Wix apps</b><span>Registered scripts, <span class="mono" style="font-size: 13px">wp_head</span> injection and an embedded-script bootstrap — each done the platform's way.</span></div></div>
+<div class="hl"><span class="pg g-ht">&lt;/&gt;</span><div><b>Anything else</b><span>Squarespace, Carrd, Ghost, hand-coded — paste one snippet; edits go live without re-pasting.</span></div></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+
+
+
+
+
+<!-- ═════════ BENTO ═════════ -->
+<section class="bento-sec" id="features">
+<div class="wrap">
+<div class="sec-head c">
+<span class="eyebrow">Everything Pro</span>
+<h2 class="h2">Every feature. Every paid plan.</h2>
+<p class="lede">No feature tiers to decode. Pay for the number of sites you run — every paid plan unlocks all of this.</p>
+</div>
+<div class="bento">
+
+<div class="tile w2">
+<span class="pro">PRO</span>
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg></span>Tracker scan</h3>
+<p>Point it at your site. It finds the analytics, pixels and embeds you forgot about — and files them under the right category.</p>
+<div class="vis scan">
+<div class="scan-in">
+<div class="u"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>yourbrand.com</div>
+<div class="pbar"><i></i></div>
+<div class="pt"><span>Scanning scripts…</span><span>5 found</span></div>
+<div class="radar"></div>
+</div>
+<div class="found">
+<div class="fd"><span class="l"><i style="background: #f59e0b"></i>Google Analytics 4</span><span class="chip chip-a">Analytics</span></div>
+<div class="fd"><span class="l"><i style="background: #2d5bff"></i>Meta Pixel</span><span class="chip chip-w">Marketing</span></div>
+<div class="fd"><span class="l"><i style="background: #e4572e"></i>Hotjar</span><span class="chip chip-a">Analytics</span></div>
+<div class="fd"><span class="l"><i style="background: #111"></i>TikTok Pixel</span><span class="chip chip-w">Marketing</span></div>
+<div class="fd"><span class="l"><i style="background: #d64545"></i>YouTube embed</span><span class="chip chip-n">Functional</span></div>
+</div>
+</div>
+</div>
+
+<div class="tile tall">
+<span class="pro">PRO</span>
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg></span>Geo rules</h3>
+<p>Strict opt-in where the law demands it, lighter notices where it doesn't — decided per visitor, per region.</p>
+<div class="globe">
+<svg viewBox="0 0 230 230">
+<circle class="o" cx="115" cy="115" r="105"></circle>
+<ellipse class="p" cx="115" cy="70" rx="92" ry="12"></ellipse>
+<ellipse class="p" cx="115" cy="115" rx="105" ry="14"></ellipse>
+<ellipse class="p" cx="115" cy="160" rx="92" ry="12"></ellipse>
+<ellipse class="m" cx="115" cy="115" rx="105" ry="105"></ellipse>
+<ellipse class="m m2" cx="115" cy="115" rx="105" ry="105"></ellipse>
+<ellipse class="m m3" cx="115" cy="115" rx="105" ry="105"></ellipse>
+<ellipse class="m m4" cx="115" cy="115" rx="105" ry="105"></ellipse>
+</svg>
+<span class="pin" style="left: 100px; top: 50px"></span>
+<span class="pin" style="left: 42px; top: 76px"></span>
+<span class="pin" style="left: 64px; top: 124px"></span>
+</div>
+<div class="rules">
+<div class="rule"><span>EU &amp; EEA</span><span class="chip chip-a">Opt-in</span></div>
+<div class="rule"><span>United Kingdom</span><span class="chip chip-a">Opt-in</span></div>
+<div class="rule"><span>California</span><span class="chip chip-n">Opt-out</span></div>
+<div class="rule"><span>Brazil</span><span class="chip chip-a">Opt-in</span></div>
+<div class="rule"><span>Rest of world</span><span class="chip chip-n">Your call</span></div>
+</div>
+<div class="visitor"><svg class="ic" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>Visitor from Berlin → strict opt-in</div>
+</div>
+
+<div class="tile">
+<span class="pro">PRO</span>
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c0 3-3 7-7 9M13 21l4-10 4 10M14.5 18h5"></path></svg></span>Multi-language</h3>
+<p>Auto-matched to the browser's language.</p>
+<div class="vis lang">
+<div class="lang-in">
+<div class="lang-r"><span class="lb">Accept all</span><span class="lc">en</span></div>
+<div class="lang-r"><span class="lb">Alle akzeptieren</span><span class="lc">de</span></div>
+<div class="lang-r"><span class="lb">Tout accepter</span><span class="lc">fr</span></div>
+<div class="lang-r"><span class="lb">Aceptar todo</span><span class="lc">es</span></div>
+<div class="lang-r"><span class="lb">Accetta tutto</span><span class="lc">it</span></div>
+<div class="lang-r"><span class="lb">Alles accepteren</span><span class="lc">nl</span></div>
+<div class="lang-r"><span class="lb">Accept all</span><span class="lc">en</span></div>
+</div>
+</div>
+</div>
+
+<div class="tile w2">
+<span class="pro">PRO</span>
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg></span>A/B test your banner</h3>
+<p>Split traffic between layouts and copy, then compare consent rate by variant and by region — without leaving the editor.</p>
+<div class="vis ab">
+<div class="abr"><div class="abl">Variant A · bottom bar<span>consent rate</span></div><div class="abt a"><i></i></div></div>
+<div class="abr"><div class="abl">Variant B · floating card<span>leading</span></div><div class="abt b"><i></i></div></div>
+<div class="split"><span class="sd"><i></i><i></i><i></i><i></i><i></i><i></i></span>Visitors split 50 / 50 · results in Insights</div>
+</div>
+</div>
+
+<div class="tile">
+<span class="pro">PRO</span>
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></span>Preference center</h3>
+<p>Per-category and per-vendor toggles.</p>
+<div class="vis prefs">
+<div class="pr">Necessary<span class="tg lock"></span></div>
+<div class="pr">Analytics<span class="tg t2"></span></div>
+<div class="pr sub">Google Analytics · Hotjar<span class="tg t3"></span></div>
+<div class="pr">Marketing<span class="tg t4"></span></div>
+</div>
+</div>
+
+<div class="tile">
+<span class="pro">PRO</span>
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg></span>Legal docs</h3>
+<p>Cookie &amp; privacy policy, written from your actual setup.</p>
+<div class="vis doc">
+<b>Cookie Policy<span class="chip chip-ok" style="height: 20px; font-size: 10px">Synced</span></b>
+<em class="hd"></em><em></em><em></em><em></em><em></em>
+</div>
+</div>
+
+<div class="tile">
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"></circle><path d="M5 9l7 1 7-1M12 10v5l-3 6M12 15l3 6"></path></svg></span>Accessible</h3>
+<p>Focus-trapped, keyboard-first, contrast measured.</p>
+<div class="vis a11y">
+<div class="aa"><b>AA</b><span>WCAG 2.1 · audited</span></div>
+<div class="kbd"><span>Reject</span><span>Customize</span><span>Accept</span><i class="ring"></i></div>
+</div>
+</div>
+
+<div class="tile">
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"></path><path d="M9 12l2 2 4-4"></path></svg></span>Consent models</h3>
+<p>Match the law, not a template.</p>
+<div class="vis">
+<div class="seg"><i></i><span>Opt-in</span><span>Opt-out</span><span>Implied</span></div>
+<div class="mdesc"><span>Nothing runs until the visitor accepts. GDPR-grade.</span><span>Runs by default, one click to refuse. CCPA-style.</span><span>Continued browsing counts as consent, where allowed.</span></div>
+</div>
+</div>
+
+<div class="tile rt">
+<h3><span class="tic"><svg class="ic" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg></span>Featherweight</h3>
+<div class="vis">
+<div class="big-n">&lt;64<small>KB</small></div>
+<div class="rt-bar"><i></i></div>
+<div class="rt-k"><span class="chip chip-n">jsDelivr CDN</span><span class="chip chip-n">No deps</span></div>
+</div>
+</div>
+
+</div>
+</div>
+</section>
+
+<!-- ═════════ EDITOR ═════════ -->
+<section class="ed-sec" id="editor">
+<div class="wrap">
+<div class="ed-top">
+<div class="sec-head">
+<span class="eyebrow">The editor</span>
+<h2 class="h2">Design it like it's part<br>of your site. Because it is.</h2>
+</div>
+<div class="ed-bul">
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Card, bar or modal</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Light, dark or auto</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Your accent, your radius</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Live preview as you type</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Same editor on every platform</span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>One-click publish</span>
+</div>
+</div>
+<div class="editor" aria-hidden="true">
+<div class="rail">
+<span class="mascot"><span class="blob"></span><span class="eye e1"></span><span class="eye e2"></span></span>
+<span class="on"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-1.5-1.5-2-2.5-2H16a2 2 0 0 1-2-2V6.5C14 5 13.5 3 12 3z"></path><circle cx="7.5" cy="11" r="1"></circle><circle cx="10" cy="7" r="1"></circle></svg></span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"></path></svg></span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"></path></svg></span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7"></path></svg></span>
+<span><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></span>
+</div>
+<div class="set">
+<h5>Design</h5>
+<div class="fl"><label>Layout</label><div class="seg2 lay"><i></i><span>Card</span><span>Bar</span><span>Modal</span></div></div>
+<div class="fl"><label>Theme</label><div class="seg2"><i></i><span>Light</span><span>Dark</span><span>Auto</span></div></div>
+<div class="fl"><label>Accent</label><div class="swatches"><b style="background: #4b23d3"></b><b style="background: #0f766e"></b><b style="background: #e4572e"></b><b style="background: #17191e"></b><b style="background: #db2777"></b><i class="sring"></i></div></div>
+<div class="fl"><label>Corner radius</label><div class="slider"><i></i><b></b></div></div>
+<div class="fl"><label>Buttons</label><div class="prefs"><div class="pr">Show "Reject all"<span class="tg lock"></span></div><div class="pr">Show "Customize"<span class="tg lock"></span></div></div></div>
+<div class="pubb"><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>Publish</div>
+</div>
+<div class="pv">
+<div class="pv-top"><div class="tabs"><span class="on">Desktop</span><span>Mobile</span></div><span class="chip chip-ok"><svg class="ic" viewBox="0 0 24 24" style="width: 14px; height: 14px"><path d="M5 12l5 5L20 7"></path></svg>Contrast AA</span></div>
+<div class="site">
+<div class="sk-nav"><b></b><span></span><span></span><span></span></div>
+<div class="sk-hero">
+<div class="sk-l"><em class="big" style="width: 92%"></em><em class="big" style="width: 64%"></em><em style="width: 84%"></em><em style="width: 58%"></em><div class="sk-btn"></div></div>
+<div class="sk-img"></div>
+</div>
+<div class="sk-row"><div></div><div></div><div></div></div>
+<div class="scrim"></div>
+<div class="pv-bn">
+<div class="bn-h"><span class="mascot"><span class="blob"></span><span class="eye e1"></span><span class="eye e2"></span></span>We value your privacy</div>
+<p>We use cookies to understand traffic and personalise ads. You're in control. <span class="lnk">Cookie policy</span></p>
+<div class="bn-b"><span class="g">Reject all</span><span class="g">Customize</span><span class="p">Accept all</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- ═════════ STEPS ═════════ -->
+<section class="steps-sec">
+<div class="wrap">
+<div class="sec-head c">
+<span class="eyebrow">Setup</span>
+<h2 class="h2">Live in three steps.</h2>
+<p class="lede">Most sites go from install to compliant banner in about the time it takes to pick an accent color.</p>
+</div>
+<div class="steps">
+<div class="steps-line"><i></i></div>
+<div class="step"><span class="sn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg><small>1</small></span><h3>Install</h3><p>Add Consentful from your platform's marketplace — or paste one snippet on any site. Activate with a free key.</p><div class="tags"><span class="chip chip-n">Framer</span><span class="chip chip-n">Webflow</span><span class="chip chip-n">WordPress</span><span class="chip chip-n">Shopify</span><span class="chip chip-n">Wix</span></div></div>
+<div class="step"><span class="sn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-1.5-1.5-2-2.5-2H16a2 2 0 0 1-2-2V6.5C14 5 13.5 3 12 3z"></path><circle cx="7.5" cy="11" r="1"></circle><circle cx="10" cy="7" r="1"></circle></svg><small>2</small></span><h3>Design &amp; scan</h3><p>Style the banner in the live editor, run a tracker scan, and choose the consent model for each region.</p><div class="tags"><span class="chip chip-a">Live preview</span><span class="chip chip-a">Auto-categorize</span></div></div>
+<div class="step"><span class="sn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"></path><path d="M9 12l2 2 4-4"></path></svg><small>3</small></span><h3>Publish</h3><p>One click. Trackers are held until consent, Consent Mode v2 is wired, and your preview domains stay free.</p><div class="tags"><span class="chip chip-ok">Blocking on</span><span class="chip chip-ok">CMv2 on</span></div></div>
+</div>
+</div>
+</section>
+
+<!-- ═════════ PRICING ═════════ -->
+<section class="pricing bill-m" id="pricing">
+<div class="wrap">
+<div class="sec-head c">
+<span class="eyebrow">Pricing</span>
+<h2 class="h2">Pay for sites, not features.</h2>
+<p class="lede">Every paid plan unlocks every Pro feature. Pick how many root domains you run — on any mix of platforms.</p>
+<div><div class="bill"><button type="button" class="bm">Monthly</button><button type="button" class="by">Yearly <span class="save">2+ months free</span></button></div></div>
+</div>
+<div class="plans">
+<div class="plan">
+<h3>Free</h3>
+<div class="pd">A compliant banner for one site. Forever.</div>
+<div class="price"><b>$0</b><span>forever</span></div>
+<div class="pnote"></div>
+<a class="btn btn-g" href="/signup">Get a free key</a>
+<ul>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>1 site, any platform</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Real script blocking</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Accessible banner</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Unlimited preview domains</li>
+<li class="x"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"></path></svg>"Powered by Consentful" credit</li>
+</ul>
+</div>
+<div class="plan">
+<h3>Solo</h3>
+<div class="pd">One site, every Pro feature.</div>
+<div class="price pm"><b>$12</b><span>/ month</span></div><div class="price py"><b>$99</b><span>/ year</span></div>
+<div class="pnote"><span class="py">≈ $8.25 / month</span></div>
+<a class="btn btn-g" href="/signup?plan=solo">Choose Solo</a>
+<ul>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>1 site, any platform</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>All Pro features</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Remove the credit</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Consent Mode v2</li>
+</ul>
+</div>
+<div class="plan hot">
+<span class="tag">Most popular</span>
+<h3>Studio</h3>
+<div class="pd">For freelancers and studios running a handful of sites.</div>
+<div class="price pm"><b>$24</b><span>/ month</span></div><div class="price py"><b>$199</b><span>/ year</span></div>
+<div class="pnote"><span class="py">≈ $16.58 / month</span></div>
+<a class="btn btn-p" href="/signup?plan=studio">Choose Studio</a>
+<ul>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>5 sites, any mix of platforms</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>All Pro features</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Remove the credit</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Manage sites in the dashboard</li>
+</ul>
+</div>
+<div class="plan">
+<h3>Agency</h3>
+<div class="pd">For agencies shipping client sites every month.</div>
+<div class="price pm"><b>$49</b><span>/ month</span></div><div class="price py"><b>$399</b><span>/ year</span></div>
+<div class="pnote"><span class="py">≈ $33.25 / month</span></div>
+<a class="btn btn-g" href="/signup?plan=agency">Choose Agency</a>
+<ul>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>25 sites, any mix of platforms</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>All Pro features</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Remove the credit</li>
+<li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Swap client domains anytime</li>
+</ul>
+</div>
+</div>
+<div class="ltd">
+<img class="mimg" src="img/mascot-hero.webp" alt="">
+<div>
+<h3>Lifetime deal — pay once, keep it.</h3>
+<p>3 sites, every current Pro feature and all updates. Limited to 250 codes, then it's gone.</p>
+</div>
+<div class="lp"><div><b>$299</b><small>one-time</small></div><a class="btn btn-iris" href="/signup?plan=lifetime">Claim lifetime</a></div>
+</div>
+<p class="pfoot">Prices in USD. Staging and preview domains never use a site slot.</p>
+</div>
+</section>
+
+<!-- ═════════ FAQ ═════════ -->
+<section class="faq-sec" id="faq">
+<div class="wrap faq-grid">
+<div class="faq-side">
+<span class="eyebrow">FAQ</span>
+<h2 class="h2">Questions,<br>answered.</h2>
+<p class="lede">Still unsure? We read every message.</p>
+<a class="btn btn-g" href="/contact">Contact us</a>
+<img class="mimg" src="img/mascot-wave.webp" alt="">
+</div>
+<div class="faq-list">
+<div class="faq-i open"><button type="button" class="faq-q">What counts as a "site"?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">A root domain and all of its subdomains, on any platform. <code>acme.com</code> on Framer, <code>shop.acme.com</code> on Shopify and <code>blog.acme.com</code> on WordPress are one site. Two different root domains are two sites.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">Do preview or staging domains use a slot?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">Never. <code>*.framer.app</code>, <code>*.framer.website</code>, <code>*.webflow.io</code>, <code>*.myshopify.com</code>, localhost and <code>.local</code> run the full banner so you can build before your custom domain is live.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">Does it really block scripts, or just show a banner?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">It blocks. Managed trackers are held as inert <code>text/plain</code> until their category is accepted, and Google Consent Mode v2 defaults to denied on every signal.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">Is there a free plan?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">Yes — one site with a compliant, script-blocking banner and a small "Powered by Consentful" credit. Grab a free key from the dashboard to activate it.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">How do I activate my license?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">Paste your key into the License tab of the Consentful editor. We detect your site's domain and register it — no DNS records, no code changes.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">Can I move a license to another site?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">Yes, from the dashboard. Each slot can be swapped to a new domain once every 30 days.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">What does the lifetime deal include?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">3 sites, every current Pro feature and product updates for the life of Consentful, for a one-time $299. It closes after 250 codes.</div></div>
+<div class="faq-i"><button type="button" class="faq-q">Does Consentful make my site legally compliant?<span class="pm"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span></button><div class="faq-a">It gives you the tools to implement GDPR, UK GDPR and CCPA-style consent properly. Compliance also depends on how you configure it and your own obligations — it isn't legal advice.</div></div>
+</div>
+</div>
+</section>
+
+<!-- ═════════ CTA ═════════ -->
+<section class="cta-sec">
+<div class="wrap">
+<div class="cta">
+<div>
+<h2>Ask nicely.<br>Block properly.</h2>
+<p>Put a consent banner on your site that you'd actually want your name on. Free for your first site — five minutes to live.</p>
+<div class="hero-ctas"><a class="btn btn-p" href="/signup">Start free <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a><a class="btn btn-g" href="#pricing">See pricing</a></div>
+</div>
+<div class="cta-art" aria-hidden="true">
+<span class="spark" style="left: 30px; top: 40px"></span>
+<span class="spark" style="right: 20px; top: 90px; animation-delay: 1s"></span>
+<span class="spark" style="left: 60px; bottom: 60px; animation-delay: 2s"></span>
+<img class="mimg" src="img/mascot-hero.webp" alt="">
+<span class="shadow"></span>
+</div>
+</div>
+</div>
+</section>
+
+<!-- ═════════ FOOTER ═════════ -->
+<footer class="foot">
+<div class="wrap">
+<div class="foot-g">
+<div>
+<a class="logo" href="#top"><span class="mascot"><span class="blob"></span><span class="eye e1"></span><span class="eye e2"></span></span>Consentful</a>
+<p>One consent layer for every platform you build on. Helps you implement GDPR &amp; CCPA-style consent — it doesn't replace legal advice.</p>
+</div>
+<div><h6>Product</h6><ul><li><a href="#features">Features</a></li><li><a href="#pricing">Pricing</a></li><li><a href="/docs">Docs</a></li><li><a href="/login">Dashboard</a></li></ul></div>
+<div><h6>Platforms</h6><ul><li><a href="/docs">Framer</a></li><li><a href="/docs">Webflow</a></li><li><a href="/docs">WordPress</a></li><li><a href="/docs">Shopify</a></li><li><a href="/docs">Wix</a></li><li><a href="/docs">HTML embed</a></li></ul></div>
+<div><h6>Company</h6><ul><li><a href="/contact">Contact</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/terms">Terms</a></li></ul></div>
+</div>
+<div class="foot-b"><span>© 2026 Consentful</span><span class="byline">by <b>The Plugins Company</b></span></div>
+</div>
+</footer>
+
+</div>
+<script>
+(function () {
+  var doc = document.documentElement
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  doc.classList.add('js')
+
+  // Headline: stagger words in (the ticker stays one unit).
+  var h1 = document.querySelector('.h1')
+  if (h1 && !reduce) {
+    var i = 0
+    Array.prototype.slice.call(h1.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) {
+        var frag = document.createDocumentFragment()
+        n.textContent.split(/(\s+)/).forEach(function (part) {
+          if (!part) return
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return }
+          var s = document.createElement('span')
+          s.className = 'w'; s.textContent = part; s.style.animationDelay = (i++ * 0.06) + 's'
+          frag.appendChild(s)
+        })
+        h1.replaceChild(frag, n)
+      } else if (n.nodeType === 1) {
+        // The ticker keeps its block layout; fade it in as one unit.
+        n.animate([{ opacity: 0 }, { opacity: 1 }],
+          { duration: 900, delay: i++ * 60, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' })
+      }
+    })
+  }
+
+  // Scroll reveals: section heads, cards, tiles, plans, steps.
+  var groups = ['.sec-head', '.ucard', '.tile', '.plan', '.step', '.hl', '.faq-i', '.panel', '.est', '.ltd', '.cta', '.editor', '.hub']
+  var els = []
+  groups.forEach(function (sel) {
+    document.querySelectorAll(sel).forEach(function (el, idx) {
+      el.classList.add('rv', 'd-' + Math.min(idx % 4 + 1, 4)); els.push(el)
+    })
+  })
+  var meter = document.querySelector('.meter i')
+  if ('IntersectionObserver' in window && !reduce) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return
+        e.target.classList.add('in'); io.unobserve(e.target)
+        if (meter && e.target.classList.contains('ltd')) meter.style.width = '38%'
+      })
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 })
+    els.forEach(function (el) { io.observe(el) })
+  } else {
+    els.forEach(function (el) { el.classList.add('in') })
+    if (meter) meter.style.width = '38%'
+  }
+
+  // Sticky nav shadow.
+  var nav = document.querySelector('.nav')
+  var onScroll = function () { nav.classList.toggle('stuck', window.scrollY > 8) }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll()
+
+  // Hero scene: gentle pointer parallax on desktop.
+  var scene = document.querySelector('.hero .scene')
+  if (scene && !reduce && window.matchMedia('(pointer: fine)').matches) {
+    document.querySelector('.hero').addEventListener('mousemove', function (e) {
+      var r = scene.getBoundingClientRect()
+      var x = (e.clientX - (r.left + r.width / 2)) / r.width
+      var y = (e.clientY - (r.top + r.height / 2)) / r.height
+      scene.style.transform = 'perspective(1400px) rotateY(' + (x * 5).toFixed(2) + 'deg) rotateX(' + (-y * 5).toFixed(2) + 'deg)'
+    })
+    document.querySelector('.hero').addEventListener('mouseleave', function () { scene.style.transform = '' })
+  }
+
+  // Pricing: monthly / yearly.
+  var pricing = document.querySelector('.pricing')
+  var bm = pricing.querySelector('.bm'), by = pricing.querySelector('.by')
+  function setBill(yearly) {
+    pricing.classList.toggle('bill-y', yearly); pricing.classList.toggle('bill-m', !yearly)
+    bm.setAttribute('aria-pressed', String(!yearly)); by.setAttribute('aria-pressed', String(yearly))
+  }
+  bm.addEventListener('click', function () { setBill(false) })
+  by.addEventListener('click', function () { setBill(true) })
+  setBill(false)
+
+  // FAQ accordion (one open at a time).
+  var items = document.querySelectorAll('.faq-i')
+  items.forEach(function (item) {
+    var q = item.querySelector('.faq-q')
+    q.setAttribute('aria-expanded', String(item.classList.contains('open')))
+    q.addEventListener('click', function () {
+      var wasOpen = item.classList.contains('open')
+      items.forEach(function (o) { o.classList.remove('open'); o.querySelector('.faq-q').setAttribute('aria-expanded', 'false') })
+      if (!wasOpen) { item.classList.add('open'); q.setAttribute('aria-expanded', 'true') }
+    })
+  })
+})()
+</script>
+</body>
+</html>

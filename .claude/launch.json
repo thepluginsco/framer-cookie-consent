@@ -146,6 +146,14 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "design/landing/serve.mjs"
+      ],
+      "port": 5000
     }
   ]
 }
