@@ -17,7 +17,7 @@ compatibility_date = "2026-01-01"
 
 # Public/build-time vars (secrets go via `wrangler secret put`).
 [vars]
-WEBFLOW_CLIENT_ID = "738f67eb06d2c4fe0f6c4a2b7c6f7f3257835af0e8977f247750cf572a38162d"
+WEBFLOW_CLIENT_ID = "a6d1100a7f83b97e69f9ffaeea275795fa715fb763ba7180f1fce0224b36e648"
 WEBFLOW_REDIRECT_URI = "https://consentful-connect.thepluginsco.workers.dev/callback"
 # APP_ORIGIN is deliberately unset: Connect opens OAuth in a new tab, so /callback
 # shows a "connected — close this window" page instead of redirecting that tab to
