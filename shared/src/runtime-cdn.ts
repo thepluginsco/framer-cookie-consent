@@ -33,6 +33,19 @@ export const RUNTIME_GH_REPO = "framer-cookie-consent";
  */
 export const RUNTIME_VERSION = "v0.1.13";
 
+/**
+ * Subresource Integrity hash of the runtime bundle at {@link RUNTIME_VERSION}.
+ *
+ * Every loader carries it as the script tag's `integrity` attribute, so the
+ * browser refuses to run the file if a single byte differs from the build this
+ * release was tested with. Together with the pinned tag it makes the runtime an
+ * immutable asset: nothing served from the CDN can change behind a published
+ * site. MUST be updated together with {@link RUNTIME_VERSION} — a test checks it
+ * against `runtime/dist/consent.min.js`.
+ */
+export const RUNTIME_INTEGRITY =
+  "sha384-1GTP0aFaMewQ5LF8lyxSAuoAgivzXKJl0EhbV4W5JBtfWT45VcuIglhT8nIXra4B";
+
 /** Path to the built runtime bundle within the repo, relative to its root. */
 export const RUNTIME_BUNDLE_PATH = "runtime/dist/consent.min.js";
 
@@ -48,4 +61,22 @@ export function runtimeScriptUrl(): string {
     `https://cdn.jsdelivr.net/gh/${RUNTIME_GH_USER}/${RUNTIME_GH_REPO}` +
     `@${RUNTIME_VERSION}/${RUNTIME_BUNDLE_PATH}`
   );
+}
+
+/**
+ * Build the deferred `<script>` tag that loads the runtime.
+ *
+ * For the pinned CDN bundle it adds the {@link RUNTIME_INTEGRITY} hash (and the
+ * `crossorigin` attribute SRI requires). A custom `runtimeUrl` (self-hosting,
+ * local testing) gets a plain tag, since its bytes are not ours to vouch for.
+ *
+ * @param runtimeUrl - The script URL; defaults to {@link runtimeScriptUrl}.
+ * @param extraAttributes - Extra attribute text, e.g. `data-cc-config="…"`.
+ * @returns The ready-to-inline `<script …></script>` element.
+ */
+export function runtimeScriptTag(runtimeUrl: string = runtimeScriptUrl(), extraAttributes = ""): string {
+  const pinned = runtimeUrl === runtimeScriptUrl();
+  const integrity = pinned ? ` integrity="${RUNTIME_INTEGRITY}" crossorigin="anonymous"` : "";
+  const extra = extraAttributes ? ` ${extraAttributes}` : "";
+  return `<script src="${runtimeUrl}"${integrity}${extra} defer></script>`;
 }

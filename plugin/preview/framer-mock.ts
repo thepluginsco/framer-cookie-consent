@@ -8,6 +8,13 @@
 
 let store: Record<string, string | null> = {}
 
+let allowed = !new URLSearchParams(window.location.search).has("readonly")
+const allowedListeners = new Set<(isAllowed: boolean) => void>()
+;(window as unknown as { __setAllowed: (value: boolean) => void }).__setAllowed = (value) => {
+  allowed = value
+  for (const listener of allowedListeners) listener(value)
+}
+
 export const framer = {
   showUI: async (): Promise<void> => {},
   getPluginData: async (key: string): Promise<string | null> => store[key] ?? null,
@@ -36,8 +43,13 @@ export const framer = {
   setCustomCode: async (): Promise<void> => {},
   // Add `?readonly` to the preview URL to see the "view only" state a Framer
   // user without the custom-code permission gets.
-  isAllowedTo: (): boolean => !new URLSearchParams(window.location.search).has("readonly"),
-  subscribeToIsAllowedTo: (): (() => void) => () => {},
+  // Or flip it while the editor is open: `__setAllowed(false)` in the console.
+  isAllowedTo: (): boolean => allowed,
+  subscribeToIsAllowedTo: (...args: unknown[]): (() => void) => {
+    const callback = args[args.length - 1] as (isAllowed: boolean) => void
+    allowedListeners.add(callback)
+    return () => allowedListeners.delete(callback)
+  },
   subscribeToCustomCode: (): (() => void) => () => {},
 }
 

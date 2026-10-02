@@ -74,6 +74,9 @@ const TITLES: Record<TabId, [string, string]> = {
 
 const ONBOARDING_KEY = "consentful.onboarded"
 
+/** Takes a subtree out of focus/click reach (`inert` isn't in React 18's types). */
+const LOCKED = { inert: "" } as object
+
 export function ConsentfulShell() {
   const host = useHost()
   const m = useConsentful()
@@ -188,7 +191,8 @@ export function ConsentfulShell() {
     return (
       <div className="cf-app" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: T.ground }}>
         <ReadOnlyNotice message={readOnlyNotice} />
-        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        {/* Activating saves the key to the project, so it is unavailable too. */}
+        <div aria-disabled {...LOCKED} style={{ flex: 1, minHeight: 0, overflow: "hidden", opacity: 0.5, pointerEvents: "none" }}>
           <ActivationGate lic={lic} />
         </div>
       </div>
@@ -256,7 +260,11 @@ export function ConsentfulShell() {
           <SaveStatus saving={saving} errored={errored} error={m.error} readOnly={readOnly} />
           <div style={{ width: 1, height: 20, background: T.border }} />
           <PreviewToggle open={previewOpen} onClick={() => setPreviewOpen((v) => !v)} />
-          {host.publisher ? <HeaderPublish publisher={host.publisher} onNeedsSetup={() => setTab("preview")} /> : null}
+          {host.publisher ? (
+            <span aria-disabled={readOnly} {...(readOnly ? LOCKED : {})} style={readOnly ? { opacity: 0.5, pointerEvents: "none" } : undefined}>
+              <HeaderPublish publisher={host.publisher} onNeedsSetup={() => setTab("preview")} />
+            </span>
+          ) : null}
           <HoverButton
             title="Setup guide"
             ariaLabel="Setup guide"
@@ -334,6 +342,10 @@ export function ConsentfulShell() {
             <p style={{ fontSize: 12.5, color: T.ink3, margin: "3px 0 0", lineHeight: 1.45, maxWidth: 520 }}>{panelDesc}</p>
           </div>
           <div key={tab} className="cf-panel-scroll" style={{ flex: 1, overflowY: "auto", padding: "18px 22px 28px", animation: "cfPanelIn .22s ease-out" }}>
+            {/* Without permission to save, every editing, saving and publishing
+                control is switched off up front (the notice above says why); the
+                tabs stay readable. */}
+            <div aria-disabled={readOnly} {...(readOnly ? LOCKED : {})} style={readOnly ? { opacity: 0.55, pointerEvents: "none", userSelect: "none" } : undefined}>
             {tab === "categories" && <CategoriesPanel m={m} onAddCategory={() => setModal("category")} />}
             {tab === "behavior" && <BehaviorPanel m={m} />}
             {tab === "consent" && <ConsentPanel m={m} />}
@@ -347,6 +359,7 @@ export function ConsentfulShell() {
             {tab === "insights" && <InsightsPanel m={m} />}
             {tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} />)}
             {tab === "preview" && <PublishPanel m={m} />}
+            </div>
           </div>
         </main>
 

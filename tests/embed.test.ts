@@ -23,6 +23,8 @@ import {
   escapeForScript,
   buildLoaderHtml,
   runtimeScriptUrl,
+  runtimeScriptTag,
+  RUNTIME_INTEGRITY,
   RUNTIME_VERSION,
   MARKER_START,
   MARKER_END,
@@ -63,7 +65,7 @@ test('window form: emits the comment, inline config, consent default, and deferr
   assert.ok(snippet.includes("gtag('consent','default'"));
 
   // Version-pinned, deferred runtime tag.
-  assert.ok(snippet.includes(`<script src="${runtimeScriptUrl()}" defer></script>`));
+  assert.ok(snippet.includes(runtimeScriptTag()));
   assert.ok(snippet.includes(`@${RUNTIME_VERSION}/`));
 });
 
@@ -110,7 +112,7 @@ test('attribute form: single runtime tag carries data-cc-config, no window globa
 
   assert.ok(!snippet.includes('window.__CC_CONFIG__'));
   assert.ok(snippet.includes('data-cc-config="'));
-  assert.ok(snippet.includes(`<script src="${runtimeScriptUrl()}" data-cc-config=`));
+  assert.ok(snippet.includes(`<script src="${runtimeScriptUrl()}" integrity="${RUNTIME_INTEGRITY}" crossorigin="anonymous" data-cc-config=`));
   // Consent default still inlined for pre-runtime denial.
   assert.ok(snippet.includes("gtag('consent','default'"));
 });

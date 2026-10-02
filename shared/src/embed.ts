@@ -24,7 +24,7 @@
 
 import type { CookieConsentConfig } from "./config-schema.js";
 import { serialize, toPublishedConfig } from "./config-schema.js";
-import { runtimeScriptUrl } from "./runtime-cdn.js";
+import { runtimeScriptTag, runtimeScriptUrl } from "./runtime-cdn.js";
 import { buildConsentDefaultSnippet, escapeForScript } from "./loader.js";
 
 /* -------------------------------------------------------------------------- */
@@ -116,13 +116,13 @@ export function buildEmbedSnippet(config: CookieConsentConfig, options: BuildEmb
       ? [
           includeComment ? EMBED_COMMENT : "",
           consentDefault,
-          `<script src="${runtimeUrl}" data-cc-config="${escapeForAttribute(serialize(toPublishedConfig(config)))}" defer></script>`,
+          runtimeScriptTag(runtimeUrl, `data-cc-config="${escapeForAttribute(serialize(toPublishedConfig(config)))}"`),
         ]
       : [
           includeComment ? EMBED_COMMENT : "",
           `<script>window.__CC_CONFIG__=${escapeForScript(serialize(toPublishedConfig(config)))};</script>`,
           consentDefault,
-          `<script src="${runtimeUrl}" defer></script>`,
+          runtimeScriptTag(runtimeUrl),
         ];
 
   return parts.filter(part => part !== "").join("\n");

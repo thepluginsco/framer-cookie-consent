@@ -20,7 +20,7 @@
 
 import type { CookieConsentConfig } from "./config-schema.js";
 import { serialize, toPublishedConfig } from "./config-schema.js";
-import { runtimeScriptUrl } from "./runtime-cdn.js";
+import { runtimeScriptTag, runtimeScriptUrl } from "./runtime-cdn.js";
 
 /* -------------------------------------------------------------------------- */
 /* Markers                                                                    */
@@ -159,7 +159,7 @@ export function buildLoaderHtml(config: CookieConsentConfig, options: BuildLoade
     config.consentMode.enableConsentMode
       ? buildConsentDefaultSnippet(config.consentMode.waitForUpdateMs)
       : "",
-    `<script src="${runtimeUrl}" defer></script>`,
+    runtimeScriptTag(runtimeUrl),
     MARKER_END,
   ];
 
