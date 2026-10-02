@@ -31,7 +31,7 @@ describe("defaultFormState", () => {
     expect(s.consentModel).toBe(DEFAULT_CONFIG.behavior.consentModel);
     expect(s.enableConsentMode).toBe(DEFAULT_CONFIG.consentMode.enableConsentMode);
     for (const id of OPTIONAL_CATEGORY_IDS) expect(s.categories[id].enabled).toBe(true);
-    expect(s.categories.analytics.defaultOn).toBe(true);
+    expect(s.categories.analytics.defaultOn).toBe(false);
     expect(s.categories.marketing.defaultOn).toBe(false);
   });
 });

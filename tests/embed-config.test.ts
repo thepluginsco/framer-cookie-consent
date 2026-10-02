@@ -33,7 +33,7 @@ describe("defaultFormState", () => {
     // All three optional categories are present by default.
     for (const id of OPTIONAL_CATEGORY_IDS) expect(s.categories[id].enabled).toBe(true);
     // Analytics is opt-out default-on; marketing/preferences default-off.
-    expect(s.categories.analytics.defaultOn).toBe(true);
+    expect(s.categories.analytics.defaultOn).toBe(false);
     expect(s.categories.marketing.defaultOn).toBe(false);
   });
 });

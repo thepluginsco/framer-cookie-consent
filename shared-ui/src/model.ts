@@ -446,8 +446,8 @@ export function applyDetectedTrackers(
         label,
         description,
         required: false,
-        // Mirror the built-in presets: analytics starts on, ads/prefs opt-in.
-        defaultEnabled: id === "analytics",
+        // Mirror the built-in presets: every optional category starts off.
+        defaultEnabled: false,
         signals: [...TRACKER_CATEGORY_SIGNALS[id]],
       }
     })

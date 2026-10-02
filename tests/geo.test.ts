@@ -159,8 +159,8 @@ test('resolveConsentModel: auto → opt-in for California and for uncertain read
 });
 
 test('impliedConsentGrants: grants the author defaults (required + defaultEnabled)', () => {
-  // Defaults: necessary(req), analytics(on), marketing(off), preferences(off).
-  assert.deepEqual(impliedConsentGrants(mergeConfig()).sort(), ['analytics', 'necessary']);
+  // Defaults: only necessary is on — every optional category starts off.
+  assert.deepEqual(impliedConsentGrants(mergeConfig()).sort(), ['necessary']);
 });
 
 test('impliedConsentGrants: honours a default-on marketing category (unlike GPC)', () => {
@@ -288,8 +288,18 @@ test('isSaleCategory: only ad/marketing categories count as "sale"', () => {
 });
 
 test('gpcGrantedCategories: denies ad categories, keeps author defaults for the rest', () => {
-  // Defaults: necessary(req), analytics(on), marketing(off/ad), preferences(off).
-  const granted = gpcGrantedCategories(mergeConfig());
+  // The built-in defaults grant only `necessary` — every optional category is off.
+  assert.deepEqual(gpcGrantedCategories(mergeConfig()), ['necessary']);
+  // An author who switched analytics on: necessary(req), analytics(on), marketing(on/ad).
+  const granted = gpcGrantedCategories(
+    mergeConfig({
+      categories: [
+        { id: 'necessary', label: 'N', description: '', required: true, defaultEnabled: true, signals: ['security_storage'] },
+        { id: 'analytics', label: 'A', description: '', required: false, defaultEnabled: true, signals: ['analytics_storage'] },
+        { id: 'marketing', label: 'M', description: '', required: false, defaultEnabled: true, signals: ['ad_storage'] },
+      ],
+    }),
+  );
   assert.deepEqual(granted.sort(), ['analytics', 'necessary']);
   // Never a blanket reject — analytics (a non-ad default-on category) survives.
   assert.ok(granted.includes('analytics'));

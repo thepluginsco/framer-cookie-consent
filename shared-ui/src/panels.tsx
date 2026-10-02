@@ -342,7 +342,7 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
 
 const SHOW_WHEN_HINT: Record<string, string> = {
   all: "The banner appears for every visitor, worldwide.",
-  eea: "Only visitors detected in the EU / EEA see the banner; others get analytics by default.",
+  eea: "Only visitors detected in the EU / EEA see the banner. Visitors elsewhere aren't prompted; the consent model below decides what runs for them.",
   geo: "Only visitors in the regions you pick below see the banner. If a visitor's region can't be detected, the banner still shows.",
 }
 
@@ -433,6 +433,7 @@ const CONSENT_MODEL_HINT: Record<string, string> = {
 
 export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
   const { cfg } = m
+  const isPro = cfg.plan === "pro"
   const toggles = [
     { key: "respectDNT" as const, label: 'Respect "Do Not Track"', desc: "Skip the banner and deny all when the browser signals DNT." },
     { key: "respectGPC" as const, label: "Honor Global Privacy Control", desc: "Auto-apply an opt-out of ad/marketing (not a full reject) when the browser sends GPC. Recognized under CCPA/CPRA." },
@@ -449,7 +450,8 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
           options={[
             { value: "all", label: "Everywhere" },
             { value: "eea", label: "EU / EEA" },
-            { value: "geo", label: "By region" },
+            // Choosing your own regions is geo-targeting — paid plans only.
+            ...(isPro || cfg.showWhen === "geo" ? [{ value: "geo" as const, label: "By region" }] : []),
           ]}
         />
         <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{SHOW_WHEN_HINT[cfg.showWhen]}</div>
@@ -464,10 +466,17 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
           options={[
             { value: "opt-in", label: "Opt-in" },
             { value: "opt-out", label: "Opt-out" },
-            { value: "auto", label: "Auto" },
+            // Auto switches the model by visitor region — paid plans only.
+            ...(isPro || cfg.consentModel === "auto" ? [{ value: "auto" as const, label: "Auto" }] : []),
           ]}
         />
         <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{CONSENT_MODEL_HINT[cfg.consentModel]}</div>
+        {isPro ? null : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 11.5, color: T.ink3, lineHeight: 1.45 }}>
+            <ProChip />
+            <span>Switching automatically by visitor region (Auto, By region) is part of paid plans.</span>
+          </div>
+        )}
       </Card>
 
       <GeoEndpointCard m={m} />
@@ -507,6 +516,7 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
         ) : null}
       </Card>
 
+      <ProLock locked={!isPro} note="The floating reopen button is part of paid plans.">
       <Card style={{ padding: "6px 16px 14px" }}>
         <Eyebrow style={{ margin: "13px 0 2px" }}>Reopen button</Eyebrow>
         <Row
@@ -531,6 +541,7 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
           </div>
         ) : null}
       </Card>
+      </ProLock>
     </div>
   )
 }
@@ -873,6 +884,7 @@ export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; o
         Scan site for trackers
       </Button>
 
+      <ProLock locked={cfg.plan !== "pro"} note="Listing services and per-service switches in the preference center is part of paid plans.">
       <Card style={{ padding: "6px 16px 14px" }}>
         <Eyebrow style={{ margin: "13px 0 2px" }}>Preference center</Eyebrow>
         <Row
@@ -892,6 +904,7 @@ export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; o
           </Row>
         ) : null}
       </Card>
+      </ProLock>
 
       {cfg.scripts.map((s, i) => {
         const col = catColor(s.cat)
@@ -955,6 +968,7 @@ export function StylePanel({ m }: { m: ConsentfulModel }) {
   const A = cfg.accent // banner accent — legitimately used to preview banner colour
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <ProLock locked={cfg.plan !== "pro"} note="The free plan publishes the standard bottom-bar design. Themes, colours, layouts and corner styles are part of paid plans.">
       <Card>
         <Eyebrow style={{ marginBottom: 11 }}>Theme</Eyebrow>
         <Segmented
@@ -1063,6 +1077,7 @@ export function StylePanel({ m }: { m: ConsentfulModel }) {
           <Toggle on={cfg.overlay} onClick={() => m.toggle("overlay")} />
         </div>
       </Card>
+      </ProLock>
 
       <CustomCssCard m={m} />
     </div>
@@ -1276,6 +1291,26 @@ function LanguageBar({
             </HoverButton>
           )
         ) : null}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Wraps controls that belong to paid plans. On the free plan they are shown
+ * dimmed and cannot be changed, with a PRO chip and a one-line reason, so the
+ * editor never lets a site configure something its plan won't publish.
+ */
+function ProLock({ locked, note, children }: { locked: boolean; note: string; children: React.ReactNode }) {
+  if (!locked) return <>{children}</>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, borderRadius: T.rLg, padding: "10px 12px" }}>
+        <ProChip />
+        <div style={{ fontSize: 11.5, color: T.ink2, lineHeight: 1.45 }}>{note}</div>
+      </div>
+      <div aria-disabled {...({ inert: "" } as object)} style={{ display: "flex", flexDirection: "column", gap: 14, opacity: 0.5, pointerEvents: "none", userSelect: "none" }}>
+        {children}
       </div>
     </div>
   )
@@ -1988,9 +2023,11 @@ export function PublishPanel({ m }: { m: ConsentfulModel }) {
 
       <EmbedSnippetCard />
 
+      <ProLock locked={m.cfg.plan !== "pro"} note="The policy generator and the accessibility check are part of paid plans.">
       <LegalDocsCard />
 
       <AccessibilityCard />
+      </ProLock>
     </div>
   )
 }

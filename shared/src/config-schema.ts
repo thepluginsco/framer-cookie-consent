@@ -625,7 +625,9 @@ const DEFAULT_CATEGORIES: ConsentCategory[] = [
     label: 'Analytics',
     description: 'Helps us understand how visitors use the site.',
     required: false,
-    defaultEnabled: true,
+    // Off until the visitor switches it on: an optional category that starts
+    // enabled is a pre-ticked box, which GDPR consent doesn't allow.
+    defaultEnabled: false,
     signals: ['analytics_storage'],
   },
   {
@@ -834,7 +836,7 @@ function normalizeCategory(
     label: strOr(input.label, base?.label ?? id),
     description: strOr(input.description, base?.description ?? ''),
     required,
-    defaultEnabled: boolOr(input.defaultEnabled, base?.defaultEnabled ?? true),
+    defaultEnabled: boolOr(input.defaultEnabled, base?.defaultEnabled ?? false),
     signals: normalizeSignals(input.signals) ?? (base ? [...base.signals] : []),
   };
   // The `necessary` category is always on (and pre-enabled), never opt-out.
@@ -1198,7 +1200,57 @@ export function serialize(config: CookieConsentConfig): string {
  * @returns A copy safe to embed in public HTML / serve to visitors.
  */
 export function toPublishedConfig(config: CookieConsentConfig): CookieConsentConfig {
+  return stripLicense(applyPlanLimits(config));
+}
+
+/**
+ * Remove the editor-only license fields from a config (see
+ * {@link toPublishedConfig}). Use this on its own only for a config that has
+ * ALREADY been through {@link toPublishedConfig} — its tier is gone, so running
+ * the plan limits again would wrongly cut a paid site down to the free plan.
+ */
+export function stripLicense(config: CookieConsentConfig): CookieConsentConfig {
   return { ...config, license: { ...config.license, key: null, tier: "trial", whiteLabel: false } };
+}
+
+/** Whether a license tier is a paid plan (every paid plan unlocks every feature). */
+export function isPaidTier(tier: LicenseTier): boolean {
+  return tier !== 'trial';
+}
+
+/**
+ * Cut a config down to what its plan includes, so a site can only ever publish
+ * features it is entitled to. Paid tiers pass through untouched. The free plan
+ * keeps consent, Consent Mode and script blocking in the standard bottom-bar
+ * design, and loses every paid feature: layouts, themes and custom CSS,
+ * geo-targeting, the preference-center vendor list, extra languages, A/B tests,
+ * consent analytics and the floating reopen button.
+ *
+ * Applied at publish time only — the editor keeps the stored config intact, so
+ * upgrading brings a saved design straight back. Pure.
+ *
+ * @param config - The editor config (its `license.tier` decides the plan).
+ * @returns The config limited to its plan.
+ */
+export function applyPlanLimits(config: CookieConsentConfig): CookieConsentConfig {
+  if (isPaidTier(config.license.tier)) return config;
+  const { behavior } = config;
+  return {
+    ...config,
+    behavior: {
+      ...behavior,
+      consentModel: behavior.consentModel === 'auto' ? 'opt-in' : behavior.consentModel,
+      showMode: behavior.showMode === 'by-region' ? 'eu-only' : behavior.showMode,
+    },
+    geo: { ...config.geo, endpoint: '' },
+    analytics: { ...config.analytics, endpoint: '' },
+    preferenceCenter: { ...DEFAULT_CONFIG.preferenceCenter },
+    abTest: { enabled: false, variants: [] },
+    banner: { ...config.banner, layout: 'bar', overlay: false },
+    theme: { ...DEFAULT_CONFIG.theme },
+    strings: { ...config.strings, poweredByHidden: false, translations: {} },
+    advanced: { ...config.advanced, customCss: '', floatingButton: false },
+  };
 }
 
 /**

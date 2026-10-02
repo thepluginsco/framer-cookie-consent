@@ -127,7 +127,7 @@ test('necessary shows an always-on pill; optional toggles reflect defaultEnabled
   // Optional categories are checkboxes pre-set from `defaultEnabled`.
   const analytics = ctrl.root.querySelector('#cc-cat-analytics') as HTMLInputElement;
   assert.ok(analytics, 'analytics toggle should exist');
-  assert.equal(analytics.checked, true, 'analytics is default-enabled → starts on');
+  assert.equal(analytics.checked, false, 'analytics is not default-enabled → starts off (no pre-ticked box)');
   const marketing = ctrl.root.querySelector('#cc-cat-marketing') as HTMLInputElement;
   assert.ok(marketing, 'marketing toggle should exist');
   assert.equal(marketing.checked, false, 'marketing is not default-enabled → starts off');

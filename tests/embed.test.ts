@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   mergeConfig,
   serialize,
+  toPublishedConfig,
   parse,
   buildEmbedSnippet,
   escapeForAttribute,
@@ -56,7 +57,7 @@ test('window form: emits the comment, inline config, consent default, and deferr
   assert.ok(!snippet.includes(MARKER_END));
 
   // Config inlined on window, exactly as escaped for a <script> body.
-  assert.ok(snippet.includes(`<script>window.__CC_CONFIG__=${escapeForScript(serialize(config))};</script>`));
+  assert.ok(snippet.includes(`<script>window.__CC_CONFIG__=${escapeForScript(serialize(toPublishedConfig(config)))};</script>`));
 
   // Consent Mode default present (denied-by-default) before the runtime.
   assert.ok(snippet.includes("gtag('consent','default'"));
@@ -73,7 +74,7 @@ test('window form: is the SAME engine as the Framer loader (identical config scr
 
   // The exact inline config <script> the loader injects also appears verbatim in
   // the embed — proof the two front-ends can never drift.
-  const configScript = `<script>window.__CC_CONFIG__=${escapeForScript(serialize(config))};</script>`;
+  const configScript = `<script>window.__CC_CONFIG__=${escapeForScript(serialize(toPublishedConfig(config)))};</script>`;
   assert.ok(loader.includes(configScript));
   assert.ok(embed.includes(configScript));
 });
@@ -121,9 +122,10 @@ test('attribute form: the data-cc-config value round-trips back to the config', 
   const match = snippet.match(/data-cc-config="([^"]*)"/);
   assert.ok(match, 'expected a data-cc-config attribute');
   const decoded = decodeAttribute(match![1]);
-  // Decoded attribute is the exact serialized JSON, and parses to the same config.
-  assert.equal(decoded, serialize(config));
-  assert.deepEqual(parse(decoded), config);
+  // Decoded attribute is the exact serialized JSON of the published config
+  // (plan limits applied, license stripped), and parses back to it.
+  assert.equal(decoded, serialize(toPublishedConfig(config)));
+  assert.deepEqual(parse(decoded), toPublishedConfig(config));
 });
 
 /* -------------------------------------------------------------------------- */

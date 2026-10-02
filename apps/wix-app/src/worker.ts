@@ -35,6 +35,7 @@ import {
   parse,
   runtimeScriptUrl,
   serialize,
+  stripLicense,
   toPublishedConfig,
   WIX_CONFIG_PATH,
 } from "@framer-cookie-consent/shared";
@@ -191,8 +192,9 @@ async function handleServeConfig(url: URL, env: Env): Promise<Response> {
   const stored = await env.CONFIGS.get(`config:${siteKey}`);
   if (!stored) return json({ error: "not_found" }, 404, PUBLIC_CORS);
   // Served to every visitor: strip the editor-only license fields (the key must
-  // never be public; the runtime verifies a domain token instead).
-  return new Response(serialize(toPublishedConfig(parse(stored))), {
+  // never be public; the runtime verifies a domain token instead). The stored
+  // copy already had its plan limits applied when it was saved (storeConfig).
+  return new Response(serialize(stripLicense(parse(stored))), {
     status: 200,
     headers: { ...JSON_HEADERS, ...PUBLIC_CORS, "Cache-Control": "public, max-age=60" },
   });
