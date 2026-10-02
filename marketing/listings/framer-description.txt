@@ -1,0 +1,10 @@
+Consentful adds a cookie consent banner to your Framer site that blocks tracking scripts until visitors agree and tells Google what they chose through Consent Mode v2.
+Design your banner inside Framer. Consentful writes itself into your site's custom code as you edit — publish your site and it's live.
+Real script blocking. Google Analytics, Meta Pixel, Hotjar and other trackers stay off until their category is allowed, then start with no page reload. Reject all sits next to Accept all and nothing is pre-ticked.
+Google Consent Mode v2, built in. Ad and analytics signals start as denied before Google tags load and update when a visitor chooses.
+Private. Visitors' choices stay in their own browser — Consentful's servers never receive them.
+Free plan: one site, forever — GDPR/CCPA consent, Google Consent Mode v2 and script blocking, in a simple bottom-bar design. Preview addresses on framer.website are always free.
+Paid plans add every layout and theme, custom CSS, geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, a cookie- and privacy-policy generator and a WCAG 2.1 AA accessibility check.
+Pricing (USD): Solo, 1 site, $12/month or $99/year. Studio, 5 sites, $24/month or $199/year. Agency, 25 sites, $49/month or $399/year. Lifetime, 3 sites, $299 once (limited to 250). Billed on consentful.theplugins.co. Every plan shows a small "Powered by Consentful" credit.
+Getting started: create a free license key at consentful.theplugins.co/signup, open the plugin, paste the key and publish. Custom code must be enabled on the site.
+Docs: https://consentful.theplugins.co/docs · Support: support@theplugins.co · Privacy: https://consentful.theplugins.co/privacy · Terms: https://consentful.theplugins.co/terms

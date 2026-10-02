@@ -78,6 +78,9 @@ export function ConsentfulShell() {
   const host = useHost()
   const m = useConsentful()
   const codeDisabled = host.useCodeDisabled()
+  // `host` is fixed for the app's lifetime, so this optional hook is called
+  // unconditionally-or-never — the order of hooks never changes.
+  const readOnlyNotice = host.useReadOnlyNotice ? host.useReadOnlyNotice() : null
   // Re-verify a saved license once on start-up (relocks a lapsed plan). This is
   // also the instance the activation gate drives, so activating unlocks at once.
   const lic = useLicense({ autoCheck: true })
@@ -163,6 +166,7 @@ export function ConsentfulShell() {
   const isPro = m.cfg.plan === "pro"
   const saving = m.status === "saving" || m.status === "dirty" || m.status === "loading"
   const errored = m.status === "error"
+  const readOnly = readOnlyNotice !== null
   const [title, desc] = TITLES[tab]
   // The Publish tab describes how *this* platform ships, so its subtitle is
   // host-owned (Framer auto-syncs; the embed copies; Wix/Webflow/WP install).
@@ -179,7 +183,17 @@ export function ConsentfulShell() {
       </div>
     )
   }
-  if (host.showLicenseTab && !lic.key) return <ActivationGate lic={lic} />
+  if (host.showLicenseTab && !lic.key) {
+    if (!readOnlyNotice) return <ActivationGate lic={lic} />
+    return (
+      <div className="cf-app" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: T.ground }}>
+        <ReadOnlyNotice message={readOnlyNotice} />
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <ActivationGate lic={lic} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -239,7 +253,7 @@ export function ConsentfulShell() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <SaveStatus saving={saving} errored={errored} error={m.error} />
+          <SaveStatus saving={saving} errored={errored} error={m.error} readOnly={readOnly} />
           <div style={{ width: 1, height: 20, background: T.border }} />
           <PreviewToggle open={previewOpen} onClick={() => setPreviewOpen((v) => !v)} />
           {host.publisher ? <HeaderPublish publisher={host.publisher} onNeedsSetup={() => setTab("preview")} /> : null}
@@ -269,6 +283,8 @@ export function ConsentfulShell() {
           </HoverButton>
         </div>
       </header>
+
+      {readOnlyNotice && <ReadOnlyNotice message={readOnlyNotice} />}
 
       {/* ===== BODY ===== */}
       <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
@@ -449,7 +465,68 @@ export function ConsentfulShell() {
 /* Header pieces                                                               */
 /* -------------------------------------------------------------------------- */
 
-function SaveStatus({ saving, errored, error }: { saving: boolean; errored: boolean; error: string | null }) {
+/**
+ * A persistent bar under the header for users who can't save (e.g. a Framer
+ * viewer without the custom-code permission). It names what's missing and what
+ * to do, so a blocked save never looks like a generic failure.
+ */
+function ReadOnlyNotice({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      style={{
+        flex: "0 0 auto",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        padding: "9px 14px",
+        background: T.dangerSoft,
+        borderBottom: `1px solid ${T.border}`,
+        color: T.ink,
+        fontSize: 11.5,
+        lineHeight: 1.5,
+        fontWeight: 600,
+      }}
+    >
+      <Icon name="lock" size={15} color={T.danger} style={{ marginTop: 1, flex: "0 0 auto" }} />
+      <span>{message}</span>
+    </div>
+  )
+}
+
+function SaveStatus({
+  saving,
+  errored,
+  error,
+  readOnly,
+}: {
+  saving: boolean
+  errored: boolean
+  error: string | null
+  readOnly: boolean
+}) {
+  if (readOnly) {
+    return (
+      <span
+        title={error ?? undefined}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          fontSize: 11.5,
+          fontWeight: 700,
+          color: T.ink2,
+          background: T.sunken,
+          padding: "5px 10px 5px 8px",
+          borderRadius: T.rPill,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <Icon name="lock" size={14} />
+        View only
+      </span>
+    )
+  }
   if (errored) {
     return (
       <span

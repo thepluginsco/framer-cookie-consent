@@ -174,3 +174,25 @@ export async function setPluginData(
 export function canSetPluginData(): boolean {
   return framer.isAllowedTo("setPluginData")
 }
+
+/* -------------------------------------------------------------------------- */
+/* Write access (the one gate every save goes through)                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * True when the current user may do everything a save needs: store the config
+ * (`setPluginData`) and write the loader into the site's custom code
+ * (`setCustomCode`). Check this BEFORE starting a save — never attempt the
+ * write and catch the denial.
+ */
+export function canWriteSite(): boolean {
+  return framer.isAllowedTo("setCustomCode", "setPluginData")
+}
+
+/**
+ * Subscribe to changes in {@link canWriteSite} (a project owner can grant or
+ * revoke the permission while the plugin is open). Returns an unsubscribe.
+ */
+export function subscribeToWriteAccess(callback: (allowed: boolean) => void): () => void {
+  return framer.subscribeToIsAllowedTo("setCustomCode", "setPluginData", callback)
+}

@@ -34,7 +34,10 @@ export const framer = {
     bodyEnd: { html: null, disabled: false },
   }),
   setCustomCode: async (): Promise<void> => {},
-  isAllowedTo: (): boolean => true,
+  // Add `?readonly` to the preview URL to see the "view only" state a Framer
+  // user without the custom-code permission gets.
+  isAllowedTo: (): boolean => !new URLSearchParams(window.location.search).has("readonly"),
+  subscribeToIsAllowedTo: (): (() => void) => () => {},
   subscribeToCustomCode: (): (() => void) => () => {},
 }
 

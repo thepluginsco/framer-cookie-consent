@@ -51,6 +51,13 @@ export interface HostServices {
   /** Footer status: is the host's code-injection currently disabled? */
   useCodeDisabled: () => boolean
   /**
+   * A message to show while the current user can't save or publish (e.g. a
+   * Framer viewer without the custom-code permission), or `null` when they can.
+   * The shell shows it as a notice bar and stops presenting saves as failures.
+   * Omit on hosts with no such permission model.
+   */
+  useReadOnlyNotice?: () => string | null
+  /**
    * Footer-left status label, per platform. `ok` shows when the runtime is
    * ready to ship (Framer: "Custom code enabled"); `bad` shows when it isn't
    * (Framer: "Custom code disabled"). Non-Framer hosts have no disabled state,

@@ -18,7 +18,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { loadConfigString, saveConfigString } from "../lib/configStore"
 import { injectLoader } from "../lib/customCode"
-import { canSetCustomCode } from "../lib/framer"
+import { canWriteSite } from "../lib/framer"
+import { useWriteAccess, WRITE_ACCESS_MESSAGE } from "./useWriteAccess"
 import { DEFAULT_CONFIG, parse, serialize } from "../types"
 import type { CookieConsentConfig } from "../types"
 
@@ -33,8 +34,10 @@ const DEBOUNCE_MS = 400
  * - `saving`  — a save is in flight.
  * - `saved`   — the latest change has been persisted + re-injected.
  * - `error`   — the last load or save failed (see {@link SettingsApi.error}).
+ * - `readonly` — changed locally, but the user lacks the permission to save;
+ *   no write is attempted (see {@link useWriteAccess}).
  */
-export type SaveStatus = "loading" | "idle" | "dirty" | "saving" | "saved" | "error"
+export type SaveStatus = "loading" | "idle" | "dirty" | "saving" | "saved" | "error" | "readonly"
 
 /**
  * Argument to {@link SettingsApi.update}: either a shallow patch of top-level
@@ -74,6 +77,9 @@ export function useSettings(): SettingsApi {
   const [status, setStatus] = useState<SaveStatus>("loading")
   const [error, setError] = useState<string | null>(null)
 
+  /** Whether the user may save (custom-code + plugin-data permission). */
+  const canWrite = useWriteAccess()
+
   /** True once the initial load has completed; gates persistence. */
   const hydratedRef = useRef(false)
   /** The serialized form last written to (or read from) plugin data. */
@@ -99,7 +105,7 @@ export function useSettings(): SettingsApi {
         // Settings permission simply can't install it (that's surfaced by the
         // custom-code UI), so this must never flip the editor into an error.
         try {
-          if (canSetCustomCode()) {
+          if (canWriteSite()) {
             await injectLoader(loaded)
             lastSavedRef.current = serialize(loaded)
           }
@@ -132,6 +138,15 @@ export function useSettings(): SettingsApi {
     // Nothing new to save (e.g. the change effect firing right after load).
     if (serialized === lastSavedRef.current) return
 
+    // Check the permission BEFORE writing: without it, don't attempt the save
+    // at all. The shell shows the "view only" notice; edits stay local and are
+    // saved as soon as access is granted (this effect re-runs on `canWrite`).
+    if (!canWrite) {
+      setError(WRITE_ACCESS_MESSAGE)
+      setStatus("readonly")
+      return
+    }
+
     setStatus("dirty")
 
     const handle = setTimeout(() => {
@@ -155,7 +170,7 @@ export function useSettings(): SettingsApi {
     return () => {
       clearTimeout(handle)
     }
-  }, [config])
+  }, [config, canWrite])
 
   /* ---- Public actions ---------------------------------------------------- */
   const update = useCallback((updater: ConfigUpdater) => {

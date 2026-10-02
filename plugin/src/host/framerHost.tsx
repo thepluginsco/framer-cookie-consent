@@ -13,6 +13,7 @@ import { getLiveSiteUrl, getProjectInfo, getPluginData, setPluginData, canSetPlu
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
 import { scanSiteForTrackers } from "../lib/scanSite"
 import { useCustomCodeDisabled } from "../hooks/useCustomCodeStatus"
+import { useReadOnlyNotice } from "../hooks/useWriteAccess"
 
 /** Framer's publish action: there's nothing to copy — editing auto-syncs. */
 function FramerPublishAction({ m }: { m: ConsentfulModel }) {
@@ -45,6 +46,7 @@ export const framerHost: HostServices = {
     canSet: canSetPluginData,
   },
   useCodeDisabled: useCustomCodeDisabled,
+  useReadOnlyNotice,
   footerStatus: { ok: "Custom code enabled", bad: "Custom code disabled" },
   footerNote: `runtime ${RUNTIME_VERSION} · jsDelivr`,
   publishSubtitle: "Review what's added to your site — it stays in sync automatically.",
