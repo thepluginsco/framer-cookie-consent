@@ -2,8 +2,9 @@
  * The WordPress host adapter.
  *
  * The authoring UI is the shared Consentful shell; what's WordPress-specific is
- * the publish action — inside wp-admin (`window.CONSENTFUL_WP` present) it writes
- * the loader into the site's `<head>` over the REST store; standalone (`npm run
+ * the publish action — inside wp-admin (`window.CONSENTFUL_WP` present) it saves
+ * the published settings over the REST store, and PHP loads the bundled runtime
+ * with them; standalone (`npm run
  * dev`) it's preview-only. Config persists in localStorage, matching the old
  * admin bundle (which never loaded prior config from the server).
  */
@@ -13,12 +14,11 @@ import type { ReactNode } from "react"
 
 import {
   DEFAULT_CONFIG,
-  installWordPressLoader,
   mergeConfig,
   parse,
-  removeWordPressLoader,
   RUNTIME_VERSION,
   serialize,
+  toPublishedConfig,
   type CookieConsentConfig,
 } from "@framer-cookie-consent/shared"
 import {
@@ -46,7 +46,6 @@ import { WordPressRestStore } from "./rest-store"
 const STORAGE_KEY = "consentful.wordpress.config"
 const boot = typeof window !== "undefined" ? window.CONSENTFUL_WP : undefined
 const wpStore = boot ? new WordPressRestStore({ restBase: boot.restBase, nonce: boot.nonce }) : null
-const runtimeOpts = boot?.runtimeUrl ? { runtimeUrl: boot.runtimeUrl } : {}
 
 function loadConfig(): CookieConsentConfig {
   try {
@@ -76,22 +75,25 @@ const wordpressPublisher: HostPublisher = {
       return { ok: false, needsSetup: true, message: "Open this screen inside WordPress to publish." }
     }
     try {
-      const wrote = await installWordPressLoader(wpStore, config, runtimeOpts)
-      // Persist the config too, so reopening the screen reloads this banner.
+      // The site gets the plan-limited settings; PHP prints them before the
+      // bundled runtime. The full config is kept too, so reopening the screen
+      // reloads this banner.
+      const published = serialize(toPublishedConfig(config))
+      const unchanged = (await wpStore.readPublished()) === published
+      if (!unchanged) await wpStore.writePublished(published)
       await wpStore.writeConfigOption(serialize(config))
-      return { ok: true, message: wrote ? "Published ✓ Your banner is live." : "Already up to date." }
+      return { ok: true, message: unchanged ? "Already up to date." : "Published ✓ Your banner is live." }
     } catch (err) {
       return { ok: false, message: err instanceof Error ? err.message : String(err) }
     }
   },
   async loadPublished() {
     if (!wpStore) throw new Error("Not inside WordPress")
-    const [stored, head] = await Promise.all([wpStore.readConfigOption(), wpStore.readHeadOption()])
-    if (!stored || !head.trim()) return { config: null }
-    // The head pins a runtime URL at publish time; an older pin means the live
-    // site misses runtime fixes until it's republished.
-    const current = runtimeOpts.runtimeUrl ?? `@${RUNTIME_VERSION}/`
-    return { config: parse(stored), outdated: !head.includes(current) }
+    const [stored, published] = await Promise.all([wpStore.readConfigOption(), wpStore.readPublished()])
+    if (!stored || !published) return { config: null }
+    // The runtime ships inside the plugin, so a published banner is never on an
+    // older runtime than this screen.
+    return { config: parse(stored), outdated: false }
   },
 }
 
@@ -105,7 +107,7 @@ function WordPressPublishAction({ m }: { m: ConsentfulModel }) {
   const [busy, setBusy] = useState<null | "publish" | "remove">(null)
   const [note, setNote] = useState(
     wpStore
-      ? "Ready. Publish writes the banner into your site's <head>."
+      ? "Ready. Publish puts the banner on your site."
       : "Preview only — open this screen inside WordPress to publish.",
   )
   const [errored, setErrored] = useState(false)
@@ -140,7 +142,8 @@ function WordPressPublishAction({ m }: { m: ConsentfulModel }) {
   const remove = useCallback(() => {
     if (!wpStore) return
     void run("remove", async () => {
-      const removed = await removeWordPressLoader(wpStore)
+      const removed = (await wpStore.readPublished()) !== null
+      await wpStore.writePublished(null)
       // Drop the stored config too, so the next open starts clean.
       await wpStore.writeConfigOption(null)
       markUnpublished()
@@ -195,8 +198,12 @@ const wordpressHost: HostServices = {
   data: localStorageDataStore("consentful.wordpress."),
   useCodeDisabled: () => false,
   footerStatus: { ok: wpStore ? "Ready to publish" : "Preview only", bad: "Not connected" },
-  footerNote: `runtime ${RUNTIME_VERSION} · wp_head`,
-  publishSubtitle: "Publish writes the banner into your site's <head> — update it any time from here.",
+  footerNote: `runtime ${RUNTIME_VERSION} · bundled`,
+  runtimeDelivery: {
+    title: "Runtime bundled with the plugin",
+    desc: "Served from your own site, deferred so it never blocks your page.",
+  },
+  publishSubtitle: "Publish puts the banner on your site. Update or remove it any time from here.",
   showLicenseTab: true,
   PublishAction: WordPressPublishAction,
   publisher: wordpressPublisher,

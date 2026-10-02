@@ -6,14 +6,18 @@
  * It is the concrete `WordPressLoaderStore` seam the shared core left behind. It
  * exposes exactly what the shared engine needs and nothing more:
  *
- *   GET  /wp-json/consentful/v1/head             → { head: string }
- *   POST /wp-json/consentful/v1/head   { head }  → store the loader block (null clears)
+ *   GET  /wp-json/consentful/v1/published              → { published: string|null }
+ *   POST /wp-json/consentful/v1/published { published } → store the published settings JSON (null clears)
  *   GET  /wp-json/consentful/v1/config           → { config: string|null }
  *   POST /wp-json/consentful/v1/config { config }→ store the authoring config (null clears)
  *   GET  /wp-json/consentful/v1/active-plugins   → { plugins: string[] }
  *
  * Every route requires `manage_options`, and writes are additionally protected by
  * the standard WordPress REST nonce (`X-WP-Nonce`) that the admin bundle carries.
+ *
+ * Both stored values are JSON documents. They are validated and re-encoded by
+ * {@see Consentful_Rest::sanitize_json} before they are saved — no HTML or
+ * script text is ever stored.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -37,24 +41,24 @@ class Consentful_Rest {
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE,
-			'/head',
+			'/published',
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'get_head' ),
+					'callback'            => array( $this, 'get_published' ),
 					'permission_callback' => array( $this, 'permission_check' ),
 				),
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
-					'callback'            => array( $this, 'set_head' ),
+					'callback'            => array( $this, 'set_published' ),
 					'permission_callback' => array( $this, 'permission_check' ),
 					'args'                => array(
-						'head' => array(
-							'required' => false,
-							// Accept a string or null (clear). No sanitize_callback:
-							// the value is our own generated loader HTML, validated
-							// only for type below — never user free-text.
-							'type'     => array( 'string', 'null' ),
+						'published' => array(
+							'required'          => false,
+							// The published banner settings as a JSON string, or null to clear.
+							'type'              => array( 'string', 'null' ),
+							'validate_callback' => array( $this, 'validate_json' ),
+							'sanitize_callback' => array( $this, 'sanitize_json' ),
 						),
 					),
 				),
@@ -76,12 +80,11 @@ class Consentful_Rest {
 					'permission_callback' => array( $this, 'permission_check' ),
 					'args'                => array(
 						'config' => array(
-							'required' => false,
-							// A serialized config JSON string, or null to clear. No
-							// sanitize_callback: it's our own serialize() output stored
-							// verbatim and parsed back by the admin bundle, never
-							// rendered as HTML, so WP text sanitizers would corrupt it.
-							'type'     => array( 'string', 'null' ),
+							'required'          => false,
+							// The editor settings as a JSON string, or null to clear.
+							'type'              => array( 'string', 'null' ),
+							'validate_callback' => array( $this, 'validate_json' ),
+							'sanitize_callback' => array( $this, 'sanitize_json' ),
 						),
 					),
 				),
@@ -99,52 +102,79 @@ class Consentful_Rest {
 		);
 	}
 
-	/** Return the stored loader block (empty string when unset). */
-	public function get_head() {
-		$head = get_option( CONSENTFUL_HEAD_OPTION, '' );
-		return new WP_REST_Response( array( 'head' => is_string( $head ) ? $head : '' ), 200 );
+	/**
+	 * A value is acceptable when it is null / empty (clear) or a string holding a
+	 * JSON object.
+	 *
+	 * @param mixed $value The raw request value.
+	 * @return bool
+	 */
+	public function validate_json( $value ) {
+		if ( null === $value || '' === $value ) {
+			return true;
+		}
+		return is_string( $value ) && is_object( json_decode( $value ) );
 	}
 
 	/**
-	 * Store the loader block. A null / empty `head` deletes the option (so the
-	 * `wp_head` printer emits nothing) — this is how "Remove from site" clears it.
+	 * Normalise a JSON string by decoding and re-encoding it, so only a
+	 * well-formed JSON document can reach the database. Returns null for
+	 * anything that is not a JSON object.
+	 *
+	 * @param mixed $value The raw request value.
+	 * @return string|null
 	 */
-	public function set_head( WP_REST_Request $request ) {
-		$head = $request->get_param( 'head' );
-
-		if ( null === $head || ( is_string( $head ) && '' === trim( $head ) ) ) {
-			delete_option( CONSENTFUL_HEAD_OPTION );
-			return new WP_REST_Response( array( 'ok' => true, 'head' => '' ), 200 );
+	public function sanitize_json( $value ) {
+		if ( ! is_string( $value ) || '' === trim( $value ) ) {
+			return null;
 		}
-
-		if ( ! is_string( $head ) ) {
-			return new WP_Error( 'consentful_invalid', 'head must be a string or null', array( 'status' => 400 ) );
+		$decoded = json_decode( $value );
+		if ( ! is_object( $decoded ) ) {
+			return null;
 		}
-
-		update_option( CONSENTFUL_HEAD_OPTION, $head );
-		return new WP_REST_Response( array( 'ok' => true, 'head' => $head ), 200 );
+		$encoded = wp_json_encode( $decoded );
+		return is_string( $encoded ) ? $encoded : null;
 	}
 
-	/** Return the stored authoring config (null when unset). */
+	/** Return the published banner settings (null when no banner is published). */
+	public function get_published() {
+		$published = get_option( CONSENTFUL_PUBLISHED_OPTION, null );
+		return new WP_REST_Response( array( 'published' => is_string( $published ) && '' !== $published ? $published : null ), 200 );
+	}
+
+	/**
+	 * Store the published banner settings. A null / empty value deletes the option
+	 * (so the front end prints nothing) — this is how "Remove" takes the banner off.
+	 */
+	public function set_published( WP_REST_Request $request ) {
+		$published = $request->get_param( 'published' );
+
+		if ( null === $published ) {
+			delete_option( CONSENTFUL_PUBLISHED_OPTION );
+			return new WP_REST_Response( array( 'ok' => true, 'published' => null ), 200 );
+		}
+
+		// Autoloaded: read on every front-end page view.
+		update_option( CONSENTFUL_PUBLISHED_OPTION, $published, true );
+		return new WP_REST_Response( array( 'ok' => true, 'published' => $published ), 200 );
+	}
+
+	/** Return the stored editor settings (null when unset). */
 	public function get_config() {
 		$config = get_option( CONSENTFUL_CONFIG_OPTION, null );
-		return new WP_REST_Response( array( 'config' => is_string( $config ) ? $config : null ), 200 );
+		return new WP_REST_Response( array( 'config' => is_string( $config ) && '' !== $config ? $config : null ), 200 );
 	}
 
 	/**
-	 * Store the authoring config JSON. A null / empty `config` deletes the option
-	 * (so a removed banner leaves no stale config for the next open).
+	 * Store the editor settings JSON. A null / empty value deletes the option (so
+	 * a removed banner leaves no stale settings for the next open).
 	 */
 	public function set_config( WP_REST_Request $request ) {
 		$config = $request->get_param( 'config' );
 
-		if ( null === $config || ( is_string( $config ) && '' === trim( $config ) ) ) {
+		if ( null === $config ) {
 			delete_option( CONSENTFUL_CONFIG_OPTION );
 			return new WP_REST_Response( array( 'ok' => true, 'config' => null ), 200 );
-		}
-
-		if ( ! is_string( $config ) ) {
-			return new WP_Error( 'consentful_invalid', 'config must be a string or null', array( 'status' => 400 ) );
 		}
 
 		// autoload = false: this is read only in wp-admin, never on the front end.

@@ -1,17 +1,17 @@
 <?php
 /**
- * The `wp_head` printer — the "dumb printer" half of the WordPress adapter.
+ * The front-end printer — loads the banner on the published site.
  *
- * It echoes the stored loader block verbatim, as early as possible in `<head>`,
- * so the inline Consent Mode v2 default (baked into the block by the shared
- * engine) sets `denied` BEFORE any analytics/ads tag on the page can fire.
+ * The admin screen stores the published banner settings as JSON (see
+ * {@see Consentful_Rest}). On every front-end page this class:
+ *   1. enqueues the banner runtime that ships INSIDE this plugin
+ *      (`assets/runtime/consent.min.js`) — nothing executable is loaded from a
+ *      third-party host, and
+ *   2. prints the settings and the Google Consent Mode v2 default just before
+ *      it, as an inline script built here in PHP from the decoded JSON.
  *
- * It deliberately does NOT build, escape, validate or transform the block. The
- * shared TypeScript engine (`buildLoaderHtml`, run in the admin bundle) is the
- * single source of truth for the loader's bytes; re-processing it here would
- * risk drift from every other platform. The stored value can only have been
- * written through the capability-gated REST route (see {@see Consentful_Rest}),
- * so it is trusted admin-authored output — printed like Framer/Webflow custom code.
+ * No stored HTML or JavaScript is ever echoed: the only stored value is JSON,
+ * and it is re-encoded with `wp_json_encode` on the way out.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,22 +20,63 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Consentful_Head {
 
-	/** Hook the printer at the very top of `wp_head`. */
+	/** Script handle of the bundled banner runtime. */
+	const HANDLE = 'consentful-runtime';
+
+	/** Hook the enqueue early so the consent default lands before other tags. */
 	public function register() {
-		// Priority 1: before Site Kit, GTM, analytics plugins, etc., so the
-		// inline consent default lands first.
-		add_action( 'wp_head', array( $this, 'print_loader' ), 1 );
+		// Priority 1: before Site Kit, GTM, analytics plugins, etc. enqueue
+		// theirs, so the inline Consent Mode default is printed first.
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ), 1 );
 	}
 
-	/** Echo the stored loader block verbatim, or nothing when unset. */
-	public function print_loader() {
-		$block = get_option( CONSENTFUL_HEAD_OPTION, '' );
-		if ( ! is_string( $block ) || '' === trim( $block ) ) {
+	/**
+	 * Decode the stored published settings, or null when no banner is published.
+	 *
+	 * @return object|null
+	 */
+	public static function published_config() {
+		$json = get_option( CONSENTFUL_PUBLISHED_OPTION, '' );
+		if ( ! is_string( $json ) || '' === trim( $json ) ) {
+			return null;
+		}
+		// Decoded as objects (not arrays) so empty `{}` maps survive the round trip.
+		$config = json_decode( $json );
+		return is_object( $config ) ? $config : null;
+	}
+
+	/** Enqueue the bundled runtime with its settings inline before it. */
+	public function enqueue() {
+		$config = self::published_config();
+		if ( null === $config ) {
 			return;
 		}
-		// Intentionally unescaped: this is our own generated <script> loader, not
-		// user text. WordPress core prints custom head code the same way (e.g.
-		// wp_custom_css_cb, header scripts). See class docblock.
-		echo "\n" . $block . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+		wp_enqueue_script(
+			self::HANDLE,
+			CONSENTFUL_URL . 'assets/runtime/consent.min.js',
+			array(),
+			CONSENTFUL_VERSION,
+			array(
+				'strategy'  => 'defer',
+				'in_footer' => false,
+			)
+		);
+
+		// JSON_HEX_* keeps the literal free of <, >, & and quotes, so it cannot
+		// close the script element whatever the settings contain.
+		$inline = 'window.__CC_CONFIG__=' . wp_json_encode( $config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ) . ';';
+
+		if ( isset( $config->consentMode ) && is_object( $config->consentMode ) && ! empty( $config->consentMode->enableConsentMode ) ) {
+			$wait = isset( $config->consentMode->waitForUpdateMs ) ? absint( $config->consentMode->waitForUpdateMs ) : 500;
+			// Google Consent Mode v2: everything denied until the visitor chooses.
+			$inline .= '(function(){window.dataLayer=window.dataLayer||[];'
+				. 'function gtag(){dataLayer.push(arguments);}window.gtag=window.gtag||gtag;'
+				. "gtag('consent','default',{ad_storage:'denied',analytics_storage:'denied',"
+				. "ad_user_data:'denied',ad_personalization:'denied',security_storage:'granted',"
+				. 'wait_for_update:' . $wait . '});})();';
+		}
+
+		wp_add_inline_script( self::HANDLE, $inline, 'before' );
 	}
 }

@@ -67,6 +67,11 @@ export interface HostServices {
   /** Footer right-hand label (e.g. "runtime 1.2.3 · jsDelivr"). */
   footerNote: string
   /**
+   * How the Publish tab describes where the banner runtime is served from.
+   * Defaults to the pinned jsDelivr bundle; WordPress ships it in the plugin.
+   */
+  runtimeDelivery?: { title: string; desc: string }
+  /**
    * The Publish tab's subtitle — the one line under the "Publish" heading that
    * describes how this platform ships. Framer auto-syncs; the embed copies a
    * snippet; Wix/Webflow/WordPress install; Shopify deploys a block.

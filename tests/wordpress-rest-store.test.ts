@@ -1,34 +1,27 @@
 /**
- * Tests for the WordPress admin bundle's REST-backed loader store (Phase 3.3).
+ * Tests for the WordPress admin bundle's REST store (Phase 3.3).
  *
- * The concrete `WordPressLoaderStore` the shared core left as a seam: it reaches
- * the site's head option + active-plugin list over the WordPress REST API. These
- * lock in (a) the request shapes (paths, nonce header, body), (b) that driving
- * the SHARED `installWordPressLoader`/`removeWordPressLoader` through it stores
- * the byte-identical `buildLoaderHtml` block and is churn-free, and (c) that the
- * detect-trackers wiring routes `active_plugins` through `detectWordPressTrackers`.
+ * The store reaches the site's published settings, editor settings and
+ * active-plugin list over the WordPress REST API. These lock in (a) the request
+ * shapes (paths, nonce header, body), (b) that what is published is JSON — never
+ * HTML — and (c) that the detect-trackers wiring routes `active_plugins` through
+ * `detectWordPressTrackers`.
  */
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildLoaderHtml,
-  installWordPressLoader,
-  mergeConfig,
-  parse,
-  removeWordPressLoader,
-  serialize,
-} from "@framer-cookie-consent/shared";
+import { mergeConfig, parse, serialize, toPublishedConfig } from "@framer-cookie-consent/shared";
 import { WordPressRestStore } from "../apps/wordpress-plugin/src/rest-store.js";
 
 const BASE = "https://site.example/wp-json/consentful/v1";
 const NONCE = "nonce-123";
 
 /**
- * An in-memory fake of the PHP REST controller: a single head option plus an
- * active-plugin list, so the real store can be driven end-to-end. Records calls.
+ * An in-memory fake of the PHP REST controller: the published + editor options
+ * plus an active-plugin list, so the real store can be driven end-to-end.
+ * Records calls.
  */
 function makeServer(plugins: string[] = []) {
-  const state = { head: "", plugins, config: null as string | null };
+  const state = { published: null as string | null, plugins, config: null as string | null };
   const calls: { method: string; url: string; nonce?: string; body?: unknown }[] = [];
 
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -38,12 +31,12 @@ function makeServer(plugins: string[] = []) {
     const body = init?.body ? JSON.parse(init.body as string) : undefined;
     calls.push({ method, url, nonce, body });
 
-    if (url.endsWith("/head") && method === "GET") {
-      return new Response(JSON.stringify({ head: state.head }));
+    if (url.endsWith("/published") && method === "GET") {
+      return new Response(JSON.stringify({ published: state.published }));
     }
-    if (url.endsWith("/head") && method === "POST") {
-      state.head = body.head == null ? "" : body.head;
-      return new Response(JSON.stringify({ ok: true, head: state.head }));
+    if (url.endsWith("/published") && method === "POST") {
+      state.published = body.published == null || body.published === "" ? null : body.published;
+      return new Response(JSON.stringify({ ok: true, published: state.published }));
     }
     if (url.endsWith("/config") && method === "GET") {
       return new Response(JSON.stringify({ config: state.config }));
@@ -66,106 +59,55 @@ function makeStore(server: ReturnType<typeof makeServer>): WordPressRestStore {
 }
 
 describe("WordPressRestStore request shapes", () => {
-  it("reads the head option and sends the nonce", async () => {
+  it("reads the published settings and sends the nonce", async () => {
     const server = makeServer();
-    server.state.head = "<!-- x -->";
+    server.state.published = "{}";
     const store = makeStore(server);
-    expect(await store.readHeadOption()).toBe("<!-- x -->");
-    expect(server.calls[0]!.url).toBe(`${BASE}/head`);
+    expect(await store.readPublished()).toBe("{}");
+    expect(server.calls[0]!.url).toBe(`${BASE}/published`);
     expect(server.calls[0]!.method).toBe("GET");
     expect(server.calls[0]!.nonce).toBe(NONCE);
   });
 
-  it("returns '' for an unset head option", async () => {
-    const server = makeServer();
-    const store = makeStore(server);
-    expect(await store.readHeadOption()).toBe("");
+  it("returns null when no banner is published", async () => {
+    const store = makeStore(makeServer());
+    expect(await store.readPublished()).toBeNull();
   });
 
-  it("POSTs the html to /head with the nonce", async () => {
+  it("POSTs the settings JSON to /published with the nonce", async () => {
     const server = makeServer();
     const store = makeStore(server);
-    await store.writeHeadOption("<b>hi</b>");
+    const json = serialize(toPublishedConfig(mergeConfig({})));
+    await store.writePublished(json);
     const post = server.calls.find((c) => c.method === "POST")!;
-    expect(post.url).toBe(`${BASE}/head`);
+    expect(post.url).toBe(`${BASE}/published`);
     expect(post.nonce).toBe(NONCE);
-    expect(post.body).toEqual({ head: "<b>hi</b>" });
-    expect(server.state.head).toBe("<b>hi</b>");
+    expect(post.body).toEqual({ published: json });
+    expect(server.state.published).toBe(json);
   });
 
-  it("clears the option by POSTing head: null", async () => {
+  it("publishes JSON, never HTML", async () => {
     const server = makeServer();
-    server.state.head = "something";
     const store = makeStore(server);
-    await store.writeHeadOption(null);
+    await store.writePublished(serialize(toPublishedConfig(mergeConfig({}))));
+    expect(() => JSON.parse(server.state.published as string)).not.toThrow();
+    expect(server.state.published).not.toContain("<script");
+  });
+
+  it("takes the banner off the site by POSTing published: null", async () => {
+    const server = makeServer();
+    server.state.published = "{}";
+    const store = makeStore(server);
+    await store.writePublished(null);
     const post = server.calls.find((c) => c.method === "POST")!;
-    expect(post.body).toEqual({ head: null });
-    expect(server.state.head).toBe("");
+    expect(post.body).toEqual({ published: null });
+    expect(server.state.published).toBeNull();
   });
 
   it("throws with status + detail on a failed read", async () => {
     const impl = vi.fn(async () => new Response("boom", { status: 500 })) as unknown as typeof fetch;
     const store = new WordPressRestStore({ restBase: BASE, nonce: NONCE, fetchImpl: impl });
-    await expect(store.readHeadOption()).rejects.toThrow(/500.*boom/);
-  });
-});
-
-describe("installWordPressLoader through the REST store", () => {
-  it("stores the byte-identical buildLoaderHtml block", async () => {
-    const server = makeServer();
-    const store = makeStore(server);
-    const config = mergeConfig({});
-
-    const wrote = await installWordPressLoader(store, config);
-
-    expect(wrote).toBe(true);
-    expect(server.state.head).toBe(buildLoaderHtml(config));
-  });
-
-  it("is churn-free: a second identical install writes nothing", async () => {
-    const server = makeServer();
-    const store = makeStore(server);
-    const config = mergeConfig({});
-
-    await installWordPressLoader(store, config);
-    server.calls.length = 0; // reset
-
-    const wrote = await installWordPressLoader(store, config);
-    expect(wrote).toBe(false);
-    // A GET to read the region, but NO POST.
-    expect(server.calls.some((c) => c.method === "POST")).toBe(false);
-  });
-
-  it("preserves foreign head code when installing", async () => {
-    const server = makeServer();
-    server.state.head = "<meta name=\"foreign\" />";
-    const store = makeStore(server);
-    const config = mergeConfig({});
-
-    await installWordPressLoader(store, config);
-
-    expect(server.state.head).toContain("<meta name=\"foreign\" />");
-    expect(server.state.head).toContain(buildLoaderHtml(config));
-  });
-
-  it("removes only our block, clearing the option when nothing else remains", async () => {
-    const server = makeServer();
-    const store = makeStore(server);
-    const config = mergeConfig({});
-
-    await installWordPressLoader(store, config);
-    const removed = await removeWordPressLoader(store);
-
-    expect(removed).toBe(true);
-    expect(server.state.head).toBe("");
-  });
-
-  it("remove is a no-op when nothing is published", async () => {
-    const server = makeServer();
-    const store = makeStore(server);
-    const removed = await removeWordPressLoader(store);
-    expect(removed).toBe(false);
-    expect(server.calls.some((c) => c.method === "POST")).toBe(false);
+    await expect(store.readPublished()).rejects.toThrow(/500.*boom/);
   });
 });
 

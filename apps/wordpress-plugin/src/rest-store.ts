@@ -1,13 +1,13 @@
 /**
- * The browser-side WordPress loader store — the concrete {@link WordPressLoaderStore}
- * the Phase 3.3 core (`shared/src/wordpress.ts`) left as a seam.
+ * The browser-side WordPress store.
  *
- * The admin bundle runs inside wp-admin and reaches the site's head option and
- * active-plugin list over the WordPress REST API. This class is the WordPress
- * analogue of the Webflow app's `data-client.ts`: it owns ONLY the HTTP shapes,
- * and hands the store straight to the shared `installWordPressLoader` /
- * `removeWordPressLoader` engine — so the loader block WordPress persists is
- * byte-identical to what Framer, the embed and Webflow emit.
+ * The admin bundle runs inside wp-admin and reaches the site's stored banner
+ * settings and active-plugin list over the WordPress REST API. This class owns
+ * ONLY the HTTP shapes.
+ *
+ * WordPress stores the published settings as JSON, and PHP loads the banner
+ * runtime bundled inside the plugin with those settings printed before it — so
+ * no HTML is ever sent to or stored on the site (unlike the head-blob adapters).
  *
  * The credential-holding surface (the option read/write and reading
  * `active_plugins`) lives in the PHP plugin's REST controller, which gates every
@@ -17,7 +17,7 @@
  * Every request shape is pure and unit-testable via an injected `fetch`.
  */
 
-import type { DetectedTracker, WordPressLoaderStore } from "@framer-cookie-consent/shared";
+import type { DetectedTracker } from "@framer-cookie-consent/shared";
 import { detectWordPressTrackers } from "@framer-cookie-consent/shared";
 
 /** Options for {@link WordPressRestStore}. */
@@ -33,9 +33,9 @@ export interface RestStoreOptions {
   fetchImpl?: typeof fetch;
 }
 
-/** Shape of the `GET /head` response. */
-interface HeadResponse {
-  head?: string | null;
+/** Shape of the `GET /published` response. */
+interface PublishedResponse {
+  published?: string | null;
 }
 
 /** Shape of the `GET /config` response. */
@@ -49,13 +49,10 @@ interface ActivePluginsResponse {
 }
 
 /**
- * Reads and writes the single `wp_head` option over the WordPress REST API, and
- * exposes the site's active-plugin list for pre-publish tracker detection.
- *
- * Implements {@link WordPressLoaderStore}, so it drops straight into the shared
- * engine: `installWordPressLoader(store, config)` / `removeWordPressLoader(store)`.
+ * Reads and writes the published + editor settings over the WordPress REST API,
+ * and exposes the site's active-plugin list for pre-publish tracker detection.
  */
-export class WordPressRestStore implements WordPressLoaderStore {
+export class WordPressRestStore {
   private readonly base: string;
   private readonly nonce: string;
   private readonly doFetch: typeof fetch;
@@ -67,31 +64,34 @@ export class WordPressRestStore implements WordPressLoaderStore {
     this.doFetch = options.fetchImpl ?? fetch.bind(globalThis);
   }
 
-  /** Read the stored head option, or `""` when unset/empty (per the seam). */
-  async readHeadOption(): Promise<string> {
-    const res = await this.doFetch(`${this.base}/head`, {
+  /**
+   * Read the PUBLISHED banner settings (serialized JSON), or `null` when no
+   * banner is on the site. This is what the front end loads.
+   */
+  async readPublished(): Promise<string | null> {
+    const res = await this.doFetch(`${this.base}/published`, {
       headers: { "X-WP-Nonce": this.nonce },
     });
-    if (!res.ok) throw await this.error("GET /head", res);
-    const data = (await res.json()) as HeadResponse;
-    return data.head ?? "";
+    if (!res.ok) throw await this.error("GET /published", res);
+    const data = (await res.json()) as PublishedResponse;
+    return data.published ?? null;
   }
 
-  /** Persist the head option; `null` clears it entirely (per the seam). */
-  async writeHeadOption(html: string | null): Promise<void> {
-    const res = await this.doFetch(`${this.base}/head`, {
+  /** Persist the published banner settings JSON; `null` takes the banner off the site. */
+  async writePublished(json: string | null): Promise<void> {
+    const res = await this.doFetch(`${this.base}/published`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-WP-Nonce": this.nonce },
-      body: JSON.stringify({ head: html }),
+      body: JSON.stringify({ published: json }),
     });
-    if (!res.ok) throw await this.error("POST /head", res);
+    if (!res.ok) throw await this.error("POST /published", res);
   }
 
   /**
    * Read the stored authoring config (the serialized JSON), or `null` when none
    * has been saved yet — so the admin screen can reopen on the live banner. This
-   * is separate from {@link readHeadOption}: the head option is the rendered
-   * loader the front end prints; this is the config the editor reloads.
+   * is separate from {@link readPublished}: that is the plan-limited config the
+   * front end loads; this is the full config the editor reloads.
    */
   async readConfigOption(): Promise<string | null> {
     const res = await this.doFetch(`${this.base}/config`, {

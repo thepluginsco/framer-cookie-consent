@@ -16,8 +16,6 @@ interface ConsentfulWpBootstrap {
   readonly activePlugins: readonly string[];
   /** The public site URL (`home_url('/')`) — the domain a license activates. */
   readonly siteUrl?: string;
-  /** Optional runtime `<script src>` override (self-hosting / staging). */
-  readonly runtimeUrl?: string;
 }
 
 interface Window {

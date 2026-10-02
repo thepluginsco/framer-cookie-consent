@@ -23,8 +23,30 @@ class Consentful_Admin {
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
-		// The Vite bundle is an ES module; tag it so the browser treats it as one.
-		add_filter( 'script_loader_tag', array( $this, 'as_module' ), 10, 3 );
+		add_filter( 'plugin_action_links_' . plugin_basename( CONSENTFUL_FILE ), array( $this, 'action_links' ) );
+	}
+
+	/**
+	 * Add "Settings" and "Plans & upgrade" links to the plugin's row on the
+	 * Plugins screen.
+	 *
+	 * @param string[] $links Existing action links.
+	 * @return string[]
+	 */
+	public function action_links( $links ) {
+		$settings = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'options-general.php?page=' . self::MENU_SLUG ) ),
+			esc_html__( 'Settings', 'consentful' )
+		);
+		$upgrade = sprintf(
+			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+			esc_url( 'https://consentful.theplugins.co/pricing' ),
+			esc_html__( 'Plans & upgrade', 'consentful' )
+		);
+		array_unshift( $links, $settings );
+		$links[] = $upgrade;
+		return $links;
 	}
 
 	/** Add "Consentful" under Settings. */
@@ -55,6 +77,7 @@ class Consentful_Admin {
 		$js  = CONSENTFUL_DIR . 'assets/consentful-admin.js';
 		$css = CONSENTFUL_DIR . 'assets/consentful-admin.css';
 
+		// Version by file time so a plugin update never serves a cached bundle.
 		$js_ver  = file_exists( $js ) ? (string) filemtime( $js ) : CONSENTFUL_VERSION;
 		$css_ver = file_exists( $css ) ? (string) filemtime( $css ) : CONSENTFUL_VERSION;
 
@@ -73,9 +96,9 @@ class Consentful_Admin {
 			true // in footer
 		);
 
-		// Hand the bundle its REST coordinates + the active-plugin list. This
-		// classic inline script runs before the deferred module, so
-		// `window.CONSENTFUL_WP` is set by the time the bundle boots.
+		// Hand the bundle its REST coordinates + the active-plugin list. The
+		// localized object is printed before the bundle, so
+		// `window.CONSENTFUL_WP` is set by the time it boots.
 		$active = get_option( 'active_plugins', array() );
 		if ( ! is_array( $active ) ) {
 			$active = array();
@@ -92,16 +115,5 @@ class Consentful_Admin {
 				'siteUrl'       => esc_url_raw( home_url( '/' ) ),
 			)
 		);
-	}
-
-	/**
-	 * Add `type="module"` to our bundle's tag so the ES module loads correctly.
-	 * WordPress prints classic scripts by default; the bundle is ESM.
-	 */
-	public function as_module( $tag, $handle, $src ) {
-		if ( self::HANDLE !== $handle ) {
-			return $tag;
-		}
-		return '<script type="module" src="' . esc_url( $src ) . '"></script>' . "\n"; // phpcs:ignore WordPress.WP.EnqueuedResources
 	}
 }

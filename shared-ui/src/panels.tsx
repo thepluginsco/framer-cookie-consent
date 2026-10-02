@@ -1989,7 +1989,10 @@ export function PublishPanel({ m }: { m: ConsentfulModel }) {
   const injectList = [
     { icon: "data_object", title: "Consent loader in <head>", desc: "A small inline script sets defaults before any tag fires." },
     { icon: "shield", title: "Consent Mode defaults", desc: "All signals start denied for full compliance." },
-    { icon: "cloud_download", title: "Runtime via jsDelivr", desc: "~12 KB gzipped, deferred so it never blocks your page." },
+    {
+      icon: "cloud_download",
+      ...(host.runtimeDelivery ?? { title: "Runtime via jsDelivr", desc: "~12 KB gzipped, deferred so it never blocks your page." }),
+    },
   ]
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

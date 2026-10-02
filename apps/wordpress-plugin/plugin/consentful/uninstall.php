@@ -1,7 +1,7 @@
 <?php
 /**
  * Runs when the plugin is deleted from wp-admin. Removes the options we store
- * (the loader block + the authoring config) so no trace remains. (Deactivation
+ * (the published banner settings + the editor settings) so no trace remains. (Deactivation
  * keeps them, so a re-activation restores the banner; deletion is the explicit
  * clean-up.)
  */
@@ -10,16 +10,20 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-delete_option( 'consentful_head_html' );
-delete_option( 'consentful_config_json' );
+$consentful_options = array( 'consentful_published_config', 'consentful_config_json', 'consentful_head_html' );
+
+foreach ( $consentful_options as $consentful_option ) {
+	delete_option( $consentful_option );
+}
 
 // Multisite: drop them on every site too.
 if ( is_multisite() ) {
-	$sites = get_sites( array( 'fields' => 'ids' ) );
-	foreach ( $sites as $site_id ) {
-		switch_to_blog( $site_id );
-		delete_option( 'consentful_head_html' );
-		delete_option( 'consentful_config_json' );
+	$consentful_sites = get_sites( array( 'fields' => 'ids' ) );
+	foreach ( $consentful_sites as $consentful_site_id ) {
+		switch_to_blog( $consentful_site_id );
+		foreach ( $consentful_options as $consentful_option ) {
+			delete_option( $consentful_option );
+		}
 		restore_current_blog();
 	}
 }
