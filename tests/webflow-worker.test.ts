@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { signState, verifyState } from "../apps/webflow-app/src/oauth.js";
 import worker, { type Env, type KVNamespace } from "../apps/webflow-app/src/worker.js";
 
 /** In-memory KV standing in for the Cloudflare binding. */
@@ -33,7 +34,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
 }
 
 describe("Worker routing", () => {
-  it("/authorize redirects to Webflow with the site in state", async () => {
+  it("/authorize redirects to Webflow with the site in a signed state", async () => {
     const res = await worker.fetch(
       new Request("https://worker.example/authorize?site=site_9"),
       makeEnv(),
@@ -41,8 +42,68 @@ describe("Worker routing", () => {
     expect(res.status).toBe(302);
     const location = new URL(res.headers.get("Location")!);
     expect(location.origin + location.pathname).toBe("https://webflow.com/oauth/authorize");
-    expect(location.searchParams.get("state")).toBe("site_9");
+    expect(await verifyState(location.searchParams.get("state")!, "secret")).toBe("site_9");
     expect(location.searchParams.get("client_id")).toBe("cid");
+  });
+
+  describe("/callback", () => {
+    /** Fake Webflow: the token exchange succeeds and the token covers `sites`. */
+    function fakeWebflow(sites: string[]) {
+      const exchanges: any[] = [];
+      const impl = (async (input: string, init?: RequestInit) => {
+        if (String(input).endsWith("/oauth/access_token")) {
+          exchanges.push(JSON.parse(String(init?.body)));
+          return new Response(JSON.stringify({ access_token: "tok", token_type: "bearer" }));
+        }
+        return new Response(JSON.stringify({ sites: sites.map((id) => ({ id })) }));
+      }) as unknown as typeof fetch;
+      return { impl, exchanges };
+    }
+
+    it("stores the token for every site the user authorized", async () => {
+      const wf = fakeWebflow(["site_9", "site_10"]);
+      const tokens = memoryKV();
+      const env = makeEnv({ TOKENS: tokens, fetchImpl: wf.impl });
+      const state = await signState("site_9", "secret");
+      const res = await worker.fetch(new Request(`https://worker.example/callback?code=c&state=${state}`), env);
+      expect(res.status).toBe(302);
+      expect(await tokens.get("token:site_9")).toBe("tok");
+      expect(await tokens.get("token:site_10")).toBe("tok");
+      expect(wf.exchanges[0]).toMatchObject({ code: "c", redirect_uri: "https://worker.example/callback" });
+    });
+
+    it("refuses a token that doesn't cover the site in state (403) and stores nothing", async () => {
+      const wf = fakeWebflow(["attacker_site"]);
+      const tokens = memoryKV({ "token:site_9": "owner-tok" });
+      const env = makeEnv({ TOKENS: tokens, fetchImpl: wf.impl });
+      const state = await signState("site_9", "secret");
+      const res = await worker.fetch(new Request(`https://worker.example/callback?code=c&state=${state}`), env);
+      expect(res.status).toBe(403);
+      expect(await tokens.get("token:site_9")).toBe("owner-tok");
+      expect(await tokens.get("token:attacker_site")).toBeNull();
+    });
+
+    it("rejects a forged or expired state (400) before exchanging the code", async () => {
+      const wf = fakeWebflow(["site_9"]);
+      const env = makeEnv({ fetchImpl: wf.impl });
+      const forged = await worker.fetch(new Request("https://worker.example/callback?code=c&state=site_9"), env);
+      expect(forged.status).toBe(400);
+      const wrongKey = await signState("site_9", "other-secret");
+      expect((await worker.fetch(new Request(`https://worker.example/callback?code=c&state=${wrongKey}`), env)).status).toBe(400);
+      const expired = await signState("site_9", "secret", Date.now() - 3_600_000);
+      expect((await worker.fetch(new Request(`https://worker.example/callback?code=c&state=${expired}`), env)).status).toBe(400);
+      expect(wf.exchanges).toHaveLength(0);
+    });
+
+    it("connects an install started on Webflow's side (no state, no redirect_uri)", async () => {
+      const wf = fakeWebflow(["site_9"]);
+      const tokens = memoryKV();
+      const env = makeEnv({ TOKENS: tokens, fetchImpl: wf.impl });
+      const res = await worker.fetch(new Request("https://worker.example/callback?code=c"), env);
+      expect(res.status).toBe(302);
+      expect(await tokens.get("token:site_9")).toBe("tok");
+      expect(wf.exchanges[0]).not.toHaveProperty("redirect_uri");
+    });
   });
 
   it("/api/status reports whether a token is stored", async () => {

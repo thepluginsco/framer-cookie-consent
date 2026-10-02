@@ -9,14 +9,16 @@
 # and create the KV namespace, pasting its id below:
 #   wrangler kv namespace create TOKENS
 
-name = "consentful-webflow"
+# The name is the workers.dev hostname. It must NOT contain "webflow": the
+# Webflow Marketplace rejects app URLs on domains that borrow its name.
+name = "consentful-connect"
 main = "src/worker.ts"
 compatibility_date = "2026-01-01"
 
 # Public/build-time vars (secrets go via `wrangler secret put`).
 [vars]
 WEBFLOW_CLIENT_ID = "738f67eb06d2c4fe0f6c4a2b7c6f7f3257835af0e8977f247750cf572a38162d"
-WEBFLOW_REDIRECT_URI = "https://consentful-webflow.thepluginsco.workers.dev/callback"
+WEBFLOW_REDIRECT_URI = "https://consentful-connect.thepluginsco.workers.dev/callback"
 # APP_ORIGIN is deliberately unset: Connect opens OAuth in a new tab, so /callback
 # shows a "connected — close this window" page instead of redirecting that tab to
 # the extension origin. CORS reflects the caller's Origin and doesn't need it.

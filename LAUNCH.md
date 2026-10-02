@@ -17,7 +17,7 @@ listing copy for each marketplace. Keep the copy in sync with
 | 6a | Set the Pre-Deploy Command on the Render service so migrations run on deploy (until then, run `pnpm --filter @repo/db db:migrate` by hand after each one) | You | Open |
 | 6b | Store graphics: 17 real UI captures + 7 image prompts in `marketing/` | Claude | Captured 2026-10-01; final store images still to generate |
 | 6c | Add `plugin/public/logo-light.png` (dark-theme banner credit shows a broken image without it) | You (asset) | Open |
-| 7 | Framer Marketplace — published 2026-10-01 under The Plugins Company (no review; live immediately). Upload the zip as `Consentful.zip`: Framer takes the listing name from the file name. New versions: plugin page → ⋯ → New Version | Claude + You | **Live** |
+| 7 | Framer Marketplace — published 2026-10-01 under The Plugins Company (no review; live immediately). Upload the zip as `Consentful.zip`: Framer takes the listing name from the file name. New versions: plugin page → ⋯ → New Version | Claude + You | **Hidden** — reported and taken down a few hours after posting (`/marketplace/plugins/1675/` shows "Plugin unavailable"); no reason given. Email creators@framer.com |
 | 8 | Submit to Webflow Apps (`apps/webflow-app/bundle.zip`) | You | Copy below |
 | 9 | Submit to the Shopify App Store | You | Copy below |
 | 10 | Submit to the Wix App Market | You | Copy below |
@@ -102,8 +102,13 @@ Notes on the live switch:
 ## 8 · Webflow Apps
 
 - **Upload:** `apps/webflow-app/bundle.zip` as the Designer Extension bundle. The
-  Data Client is the `consentful-webflow` Worker; redirect URI
-  `https://consentful-webflow.thepluginsco.workers.dev/callback`.
+  Data Client is the `consentful-connect` Worker (the hostname must not contain
+  "webflow" — the Marketplace rejects that as a trademark issue); redirect URI
+  `https://consentful-connect.thepluginsco.workers.dev/callback`, install URL
+  `https://consentful-connect.thepluginsco.workers.dev/authorize`. The Worker
+  needs `wrangler secret put WEBFLOW_CLIENT_SECRET`. The old `consentful-webflow`
+  Worker can be deleted once the new one is verified. Source maps for the
+  submitted bundle: `marketing/store-assets/final/webflow-review/`.
 - **Scopes requested and why:** `sites:read` / `sites:write` (publish the site
   after installing the banner), `custom_code:read` / `custom_code:write` (register
   and apply the banner scripts), `authorized_user:read` (confirm the person

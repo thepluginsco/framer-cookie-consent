@@ -77,9 +77,10 @@ export interface ExchangeCodeParams {
   code: string;
   /**
    * Required if a `redirect_uri` was sent to the authorize endpoint — it must
-   * match exactly. Webflow validates this.
+   * match exactly. Webflow validates this. Omit it when the flow did not start
+   * at our `/authorize` (an install straight from Webflow sends none).
    */
-  redirectUri: string;
+  redirectUri?: string;
   /** Injected fetch (the Worker's global `fetch`); overridable in tests. */
   fetchImpl?: typeof fetch;
 }
@@ -105,7 +106,7 @@ export async function exchangeCodeForToken(
       client_secret: params.clientSecret,
       code: params.code,
       grant_type: "authorization_code",
-      redirect_uri: params.redirectUri,
+      ...(params.redirectUri ? { redirect_uri: params.redirectUri } : {}),
     }),
   });
   if (!res.ok) {
@@ -113,4 +114,85 @@ export async function exchangeCodeForToken(
     throw new Error(`Webflow token exchange failed (${res.status}): ${detail}`);
   }
   return (await res.json()) as WebflowTokenResponse;
+}
+
+/** How long a signed `state` stays valid — the user has this long to approve. */
+export const STATE_TTL_SECONDS = 600;
+
+const encoder = new TextEncoder();
+
+function toBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(value.replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function hmacKey(secret: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
+    "sign",
+    "verify",
+  ]);
+}
+
+/**
+ * Build the OAuth `state` for an authorize redirect: the target site and an
+ * expiry, HMAC-signed so `/callback` only accepts a state this Worker issued
+ * recently. Format: `v1.<base64url site>.<expiry epoch seconds>.<signature>`.
+ */
+export async function signState(site: string, secret: string, nowMs: number = Date.now()): Promise<string> {
+  const payload = `v1.${toBase64Url(encoder.encode(site))}.${Math.floor(nowMs / 1000) + STATE_TTL_SECONDS}`;
+  const signature = await crypto.subtle.sign("HMAC", await hmacKey(secret), encoder.encode(payload));
+  return `${payload}.${toBase64Url(new Uint8Array(signature))}`;
+}
+
+/**
+ * Verify a `state` from {@link signState}. Returns the site it carries (possibly
+ * empty), or `null` when it is malformed, forged or expired.
+ */
+export async function verifyState(state: string, secret: string, nowMs: number = Date.now()): Promise<string | null> {
+  const parts = state.split(".");
+  if (parts.length !== 4 || parts[0] !== "v1") return null;
+  const [version, site, expiry, signature] = parts as [string, string, string, string];
+  try {
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      await hmacKey(secret),
+      fromBase64Url(signature),
+      encoder.encode(`${version}.${site}.${expiry}`),
+    );
+    if (!valid) return null;
+    if (!/^\d+$/.test(expiry) || Number(expiry) * 1000 < nowMs) return null;
+    return new TextDecoder().decode(fromBase64Url(site));
+  } catch {
+    return null;
+  }
+}
+
+/** Webflow's "list sites" endpoint — returns the sites a token was authorized for. */
+export const WEBFLOW_SITES_URL = "https://api.webflow.com/v2/sites";
+
+/**
+ * The ids of the sites an access token can act on (needs `sites:read`). This is
+ * Webflow's own answer to "which sites did this user authorize", so it — not
+ * anything the browser sent — decides which sites a token is stored for.
+ *
+ * @throws Error with the HTTP status when Webflow rejects the request.
+ */
+export async function listAuthorizedSiteIds(accessToken: string, fetchImpl: typeof fetch = fetch): Promise<string[]> {
+  const res = await fetchImpl(WEBFLOW_SITES_URL, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Webflow list sites failed (${res.status}): ${detail}`);
+  }
+  const data = (await res.json()) as { sites?: { id?: unknown }[] };
+  return (data.sites ?? []).map((s) => s.id).filter((id): id is string => typeof id === "string" && id !== "");
 }

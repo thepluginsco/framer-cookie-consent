@@ -18,7 +18,7 @@ export interface WriteResult {
 
 /** Config for the browser data client. */
 export interface DataClientOptions {
-  /** Base URL of the deployed Worker (e.g. `https://consentful-webflow.workers.dev`). */
+  /** Base URL of the deployed Worker (e.g. `https://consentful-connect.workers.dev`). */
   workerBase: string;
   /** Injected fetch; overridable in tests. */
   fetchImpl?: typeof fetch;

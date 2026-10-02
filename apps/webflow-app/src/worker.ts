@@ -6,8 +6,9 @@
  * `client_secret` and a site-scoped access token. Its job is small and it defers
  * every consent decision to the shared engine:
  *
- *   GET  /authorize?site=<id>   → redirect the user to Webflow's consent screen
- *   GET  /callback?code&state   → exchange the code, store the token, close popup
+ *   GET  /authorize[?site=<id>] → redirect the user to Webflow's consent screen
+ *   GET  /callback?code&state   → exchange the code, store the token for each
+ *                                 site Webflow says it covers, close popup
  *   POST /api/install           → {siteId, idToken, config} → installWebflowLoader(...)
  *   POST /api/remove            → {siteId, idToken}         → removeWebflowLoader(...)
  *   GET  /api/status?site=<id>  → whether we hold a token for the site
@@ -30,7 +31,13 @@ import {
   removeWebflowLoader,
   serialize,
 } from "@framer-cookie-consent/shared";
-import { buildAuthorizeUrl, exchangeCodeForToken } from "./oauth.js";
+import {
+  buildAuthorizeUrl,
+  exchangeCodeForToken,
+  listAuthorizedSiteIds,
+  signState,
+  verifyState,
+} from "./oauth.js";
 import { WebflowApiClient } from "./webflow-api-client.js";
 
 /** Minimal KV namespace surface (avoids a hard dep on @cloudflare/workers-types). */
@@ -101,7 +108,7 @@ export default {
     try {
       switch (url.pathname) {
         case "/authorize":
-          return handleAuthorize(url, env);
+          return await handleAuthorize(url, env);
         case "/callback":
           return await handleCallback(url, env);
         case "/api/install":
@@ -122,33 +129,54 @@ export default {
   },
 };
 
-/** Redirect the user to Webflow's OAuth consent screen. */
-function handleAuthorize(url: URL, env: Env): Response {
+/**
+ * Redirect the user to Webflow's OAuth consent screen. `site` is optional: the
+ * Designer passes the site it is open on; an install from the Marketplace
+ * listing arrives with none.
+ */
+async function handleAuthorize(url: URL, env: Env): Promise<Response> {
   const site = url.searchParams.get("site") ?? "";
-  // `state` carries the target site so `/callback` knows what to key the token by.
-  // In production sign/verify this (e.g. HMAC) to make it a real CSRF guard.
   const authorizeUrl = buildAuthorizeUrl({
     clientId: env.WEBFLOW_CLIENT_ID,
     redirectUri: env.WEBFLOW_REDIRECT_URI,
-    state: site,
+    state: await signState(site, env.WEBFLOW_CLIENT_SECRET),
   });
   return new Response(null, { status: 302, headers: { Location: authorizeUrl } });
 }
 
-/** Exchange the returned code for a token and stash it keyed by site. */
+/**
+ * Exchange the returned code for a token and store it for every site the user
+ * authorized. Which sites those are comes from Webflow (the token's own site
+ * list), never from the request — so a token can't be planted on a site its
+ * owner has no access to, and an install that started on Webflow's side (no
+ * `state`) still connects.
+ */
 async function handleCallback(url: URL, env: Env): Promise<Response> {
   const code = url.searchParams.get("code");
-  const site = url.searchParams.get("state") ?? "";
   if (!code) return json({ error: "missing_code" }, 400);
 
+  // A `state` must be one we signed recently; a flow started by Webflow has none.
+  const state = url.searchParams.get("state");
+  let site = "";
+  if (state) {
+    const verified = await verifyState(state, env.WEBFLOW_CLIENT_SECRET);
+    if (verified === null) return json({ error: "invalid_state" }, 400);
+    site = verified;
+  }
+
+  const fetchImpl = env.fetchImpl ?? fetch.bind(globalThis);
   const token = await exchangeCodeForToken({
     clientId: env.WEBFLOW_CLIENT_ID,
     clientSecret: env.WEBFLOW_CLIENT_SECRET,
     code,
-    redirectUri: env.WEBFLOW_REDIRECT_URI,
+    // Only our /authorize sends a redirect_uri, and it must then be repeated.
+    ...(state ? { redirectUri: env.WEBFLOW_REDIRECT_URI } : {}),
+    fetchImpl,
   });
 
-  if (site) await env.TOKENS.put(`token:${site}`, token.access_token);
+  const authorizedSites = await listAuthorizedSiteIds(token.access_token, fetchImpl);
+  if (site && !authorizedSites.includes(site)) return json({ error: "site_not_authorized" }, 403);
+  for (const id of authorizedSites) await env.TOKENS.put(`token:${id}`, token.access_token);
 
   // Bounce back to the Designer extension (or show a minimal success page).
   const back = env.APP_ORIGIN;
