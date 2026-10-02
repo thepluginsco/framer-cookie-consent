@@ -7,6 +7,9 @@
  */
 
 let store: Record<string, string | null> = {}
+const customCode: Record<string, string | null> = {}
+const customCodeWrites: string[] = []
+;(window as unknown as { __customCodeWrites: string[] }).__customCodeWrites = customCodeWrites
 
 let allowed = !new URLSearchParams(window.location.search).has("readonly")
 const allowedListeners = new Set<(isAllowed: boolean) => void>()
@@ -35,12 +38,17 @@ export const framer = {
     staging: null,
   }),
   getCustomCode: async (): Promise<Record<string, { html: string | null; disabled: boolean }>> => ({
-    headStart: { html: null, disabled: false },
-    headEnd: { html: null, disabled: false },
-    bodyStart: { html: null, disabled: false },
-    bodyEnd: { html: null, disabled: false },
+    headStart: { html: customCode.headStart ?? null, disabled: false },
+    headEnd: { html: customCode.headEnd ?? null, disabled: false },
+    bodyStart: { html: customCode.bodyStart ?? null, disabled: false },
+    bodyEnd: { html: customCode.bodyEnd ?? null, disabled: false },
   }),
-  setCustomCode: async (): Promise<void> => {},
+  // Records every write on `window.__customCodeWrites`, so a preview session can
+  // confirm nothing is written until Install / Update banner is clicked.
+  setCustomCode: async (options: { html: string | null; location: string }): Promise<void> => {
+    customCode[options.location] = options.html
+    customCodeWrites.push(options.location)
+  },
   // Add `?readonly` to the preview URL to see the "view only" state a Framer
   // user without the custom-code permission gets.
   // Or flip it while the editor is open: `__setAllowed(false)` in the console.

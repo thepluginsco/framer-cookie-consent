@@ -4,8 +4,12 @@
  * Owns the single {@link CookieConsentConfig} instance for the whole editor UI:
  * loads it from Framer plugin data on mount (migrating older saved configs
  * forward via the shared `parse`/`mergeConfig`), exposes immutable updates, and
- * debounced-persists every change back to Framer while re-injecting the site
- * loader so the published site stays in sync automatically.
+ * debounced-persists every change back to the plugin's own data.
+ *
+ * It NEVER touches the site's custom code. Writing the loader into the project
+ * is a separate, explicit user action (Install / Update banner — see
+ * `host/framerHost.tsx`), so opening the plugin or editing a field changes
+ * nothing on the site.
  *
  * All Framer API calls are wrapped in try/catch and surfaced through
  * {@link SettingsApi.status} / {@link SettingsApi.error} for the UI to show.
@@ -17,8 +21,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { loadConfigString, saveConfigString } from "../lib/configStore"
-import { injectLoader } from "../lib/customCode"
-import { canWriteSite } from "../lib/framer"
 import { useWriteAccess, WRITE_ACCESS_MESSAGE } from "./useWriteAccess"
 import { DEFAULT_CONFIG, parse, serialize } from "../types"
 import type { CookieConsentConfig } from "../types"
@@ -32,7 +34,7 @@ const DEBOUNCE_MS = 400
  * - `idle`    — loaded and in sync with what's stored.
  * - `dirty`   — changed locally; a debounced save is pending.
  * - `saving`  — a save is in flight.
- * - `saved`   — the latest change has been persisted + re-injected.
+ * - `saved`   — the latest change has been persisted.
  * - `error`   — the last load or save failed (see {@link SettingsApi.error}).
  * - `readonly` — changed locally, but the user lacks the permission to save;
  *   no write is attempted (see {@link useWriteAccess}).
@@ -56,7 +58,7 @@ export interface SettingsApi {
   status: SaveStatus
   /** Human-readable message for the most recent failure, or `null`. */
   error: string | null
-  /** Apply a change. Persists (debounced) and re-injects the loader. */
+  /** Apply a change. Persists it (debounced) to the plugin's saved config. */
   update: (updater: ConfigUpdater) => void
   /** Reset the config back to {@link DEFAULT_CONFIG}. */
   reset: () => void
@@ -100,18 +102,6 @@ export function useSettings(): SettingsApi {
         setConfig(loaded)
         setError(null)
         setStatus("idle")
-        // First-configure: make sure the published site has the loader even if
-        // the user never edits a field. Best-effort — a viewer without Site
-        // Settings permission simply can't install it (that's surfaced by the
-        // custom-code UI), so this must never flip the editor into an error.
-        try {
-          if (canWriteSite()) {
-            await injectLoader(loaded)
-            lastSavedRef.current = serialize(loaded)
-          }
-        } catch (injectError) {
-          console.warn("[cookie-consent] initial loader injection failed:", injectError)
-        }
       } catch (loadError) {
         if (cancelled) return
         // Keep the UI usable on a load failure: fall back to defaults, but
@@ -153,10 +143,9 @@ export function useSettings(): SettingsApi {
       void (async () => {
         setStatus("saving")
         try {
+          // Saves the editor's config only. The site's custom code is written
+          // solely by the explicit Install / Update action.
           await saveConfigString(serialized)
-          // Keep the live site in sync with the editor on every change: this
-          // re-writes only our marker block in the site's custom code.
-          await injectLoader(config)
           lastSavedRef.current = serialized
           setError(null)
           setStatus("saved")

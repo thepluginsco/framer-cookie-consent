@@ -12,8 +12,9 @@ import { framerHost } from "./host/framerHost"
  * Hosts the shared settings state (`SettingsProvider`) and the Consentful shell
  * (`ConsentfulShell`) — a three-column editor (tab rail, panel, live preview)
  * with onboarding, add-category / add-script dialogs and a publish flow. Every
- * field maps onto the shared config schema and auto-saves (debounced), keeping
- * the published site's loader in sync.
+ * field maps onto the shared config schema and auto-saves (debounced) to the
+ * plugin's own data. The site's custom code is only written when the user
+ * clicks Install / Update banner (see `host/framerHost.tsx`).
  */
 
 // Size the panel to the Consentful layout: a fixed 820×640 window. The redesign

@@ -18,6 +18,7 @@
 import type { CookieConsentConfig } from "../types"
 import type { CustomCodeLocation } from "@framer/plugin"
 import {
+  hasBlock,
   installLoader as installLoaderCore,
   removeLoader as removeLoaderCore,
   type PlatformAdapter,
@@ -82,13 +83,13 @@ export const framerAdapter: PlatformAdapter = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Re-generate the loader and write it into the site's custom code so the
- * published site always reflects the editor config.
+ * Generate the loader and write it into the site's custom code.
  *
- * Delegates the build + marker-scoped splice + churn-free skip to the core
- * {@link installLoaderCore}; the only Framer-specific part is the adapter. The
- * license key is stripped from the published config by the core builder. Safe
- * to call on every debounced config change.
+ * This changes the Framer project, so it runs ONLY from an explicit user action
+ * (the Install / Update button) — never on open and never as a side effect of
+ * editing. Delegates the build + marker-scoped splice + churn-free skip to the
+ * core {@link installLoaderCore}; the only Framer-specific part is the adapter.
+ * The license key is stripped from the published config by the core builder.
  *
  * @param config - The configuration to embed and publish.
  */
@@ -104,4 +105,14 @@ export async function injectLoader(config: CookieConsentConfig): Promise<void> {
  */
 export async function removeLoader(): Promise<void> {
   await removeLoaderCore(framerAdapter)
+}
+
+/**
+ * The custom code at {@link LOADER_LOCATION} when it contains our loader block,
+ * or `null` when the banner isn't installed on this site. A read — always
+ * allowed, and it changes nothing.
+ */
+export async function readInstalledLoader(): Promise<string | null> {
+  const html = await framerAdapter.readLoaderRegion()
+  return hasBlock(html) ? html : null
 }

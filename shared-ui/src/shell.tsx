@@ -161,10 +161,10 @@ export function ConsentfulShell() {
     if (host.data.canSet()) host.data.set(ONBOARDING_KEY, "1").catch(() => {})
   }
 
-  // Note: saving IS syncing. `useSettings` persists the config AND re-injects the
-  // site loader in the same debounced step (see hooks/useSettings.ts), so there is
-  // no separate publish/sync action — editing keeps the site's custom code current.
-  // Going live still needs Framer's own Publish (a plugin can't trigger that).
+  // Note: saving is NOT publishing. Edits are persisted to the editor's own
+  // store only; the site changes when the user runs the host's publish action
+  // (Install / Update banner on Framer), and on Framer going live still needs
+  // Framer's own Publish (a plugin can't trigger that).
 
   const isPro = m.cfg.plan === "pro"
   const saving = m.status === "saving" || m.status === "dirty" || m.status === "loading"
