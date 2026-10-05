@@ -9,7 +9,7 @@
  * admin bundle (which never loaded prior config from the server).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import type { ReactNode } from "react"
 
 import {
@@ -32,6 +32,7 @@ import {
   markUnpublished,
   SettingsContext,
   T,
+  Toggle,
   useSettingsContext,
   type ConfigUpdater,
   type ConsentfulModel,
@@ -63,6 +64,72 @@ function saveConfig(config: CookieConsentConfig): void {
   } catch {
     /* ignore */
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* "Powered by" credit — the site owner's opt-in                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * WordPress.org plugins may only credit themselves on the public site when the
+ * owner asks for it, so the credit is OFF until the owner turns it on here. The
+ * choice lives in a WP option (PHP enforces it when printing the settings); this
+ * store mirrors it for the toggle and the preview.
+ */
+let creditOn = false
+const creditListeners = new Set<() => void>()
+
+function setCreditOn(next: boolean): void {
+  creditOn = next
+  creditListeners.forEach((l) => l())
+}
+
+function useCreditVisible(): boolean {
+  return useSyncExternalStore(
+    (l) => {
+      creditListeners.add(l)
+      return () => creditListeners.delete(l)
+    },
+    () => creditOn,
+  )
+}
+
+if (wpStore) {
+  wpStore.readCredit().then(setCreditOn, () => {
+    /* stays off */
+  })
+}
+
+function CreditOptIn() {
+  const on = useCreditVisible()
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const toggle = useCallback(() => {
+    if (!wpStore || saving) return
+    const next = !on
+    setSaving(true)
+    setError(null)
+    wpStore
+      .writeCredit(next)
+      .then(() => setCreditOn(next))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setSaving(false))
+  }, [on, saving])
+
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 12px", borderRadius: 10, background: T.accentSoft }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink }}>Support Consentful</div>
+        <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2, lineHeight: 1.5 }}>
+          Show a small &ldquo;Powered by Consentful&rdquo; line in your banner. It&rsquo;s off unless you turn it on, and
+          every feature works either way. Applies to your live site straight away.
+        </div>
+        {error ? <div style={{ fontSize: 11, color: T.danger, marginTop: 4, fontWeight: 600 }}>{error}</div> : null}
+      </div>
+      <Toggle on={on} onClick={toggle} />
+    </div>
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -172,6 +239,7 @@ function WordPressPublishAction({ m }: { m: ConsentfulModel }) {
       <div style={{ fontSize: 11.5, color: errored ? T.danger : T.ink3, lineHeight: 1.5, fontWeight: errored ? 600 : 400 }}>
         {note}
       </div>
+      {wpStore ? <CreditOptIn /> : null}
     </Card>
   )
 }
@@ -207,6 +275,7 @@ const wordpressHost: HostServices = {
   showLicenseTab: true,
   PublishAction: WordPressPublishAction,
   publisher: wordpressPublisher,
+  useCreditVisible,
 }
 
 function WordPressSettingsProvider({ children }: { children: ReactNode }) {

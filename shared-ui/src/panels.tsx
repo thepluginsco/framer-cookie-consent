@@ -1764,6 +1764,15 @@ function LegalDocsCard() {
   )
 }
 
+/**
+ * Build-time switch for {@link EmbedSnippetCard}. A host build that must not
+ * reference the CDN runtime (the WordPress plugin, which bundles its own) defines
+ * it as `false`, and the card plus the CDN loader it uses compile out. Undefined
+ * everywhere else, which keeps the card.
+ */
+declare const __CC_EMBED_SNIPPET__: boolean | undefined
+const SHOW_EMBED_SNIPPET = typeof __CC_EMBED_SNIPPET__ === "undefined" || __CC_EMBED_SNIPPET__
+
 function EmbedSnippetCard() {
   const { config } = useSettingsContext()
   const [form, setForm] = useState<EmbedForm>("window")
@@ -2024,7 +2033,7 @@ export function PublishPanel({ m }: { m: ConsentfulModel }) {
         ))}
       </Card>
 
-      <EmbedSnippetCard />
+      {SHOW_EMBED_SNIPPET && <EmbedSnippetCard />}
 
       <ProLock locked={m.cfg.plan !== "pro"} note="The policy generator and the accessibility check are part of paid plans.">
       <LegalDocsCard />

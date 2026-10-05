@@ -10,6 +10,8 @@
  *   POST /wp-json/consentful/v1/published { published } → store the published settings JSON (null clears)
  *   GET  /wp-json/consentful/v1/config           → { config: string|null }
  *   POST /wp-json/consentful/v1/config { config }→ store the authoring config (null clears)
+ *   GET  /wp-json/consentful/v1/credit             → { enabled: bool }
+ *   POST /wp-json/consentful/v1/credit { enabled }  → opt in / out of the "Powered by" credit
  *   GET  /wp-json/consentful/v1/active-plugins   → { plugins: string[] }
  *
  * Every route requires `manage_options`, and writes are additionally protected by
@@ -85,6 +87,29 @@ class Consentful_Rest {
 							'type'              => array( 'string', 'null' ),
 							'validate_callback' => array( $this, 'validate_json' ),
 							'sanitize_callback' => array( $this, 'sanitize_json' ),
+						),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/credit',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_credit' ),
+					'permission_callback' => array( $this, 'permission_check' ),
+				),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'set_credit' ),
+					'permission_callback' => array( $this, 'permission_check' ),
+					'args'                => array(
+						'enabled' => array(
+							'required' => true,
+							'type'     => 'boolean',
 						),
 					),
 				),
@@ -180,6 +205,18 @@ class Consentful_Rest {
 		// autoload = false: this is read only in wp-admin, never on the front end.
 		update_option( CONSENTFUL_CONFIG_OPTION, $config, false );
 		return new WP_REST_Response( array( 'ok' => true, 'config' => $config ), 200 );
+	}
+
+	/** Return whether the "Powered by Consentful" credit is turned on. */
+	public function get_credit() {
+		return new WP_REST_Response( array( 'enabled' => consentful_credit_enabled() ), 200 );
+	}
+
+	/** Turn the "Powered by Consentful" credit on or off (the owner's explicit choice). */
+	public function set_credit( WP_REST_Request $request ) {
+		$enabled = (bool) $request->get_param( 'enabled' );
+		update_option( CONSENTFUL_CREDIT_OPTION, $enabled ? '1' : '0', true );
+		return new WP_REST_Response( array( 'ok' => true, 'enabled' => $enabled ), 200 );
 	}
 
 	/** Return the site's active plugins, for pre-publish tracker detection. */

@@ -228,3 +228,29 @@ test('DOM: an unlicensed site STILL blocks scripts until consent (compliance nev
   assert.equal(s.hasAttribute(ACTIVATED_ATTR), false, 'placeholder was not activated');
   blocker.disconnect();
 });
+
+/* -------------------------------------------------------------------------- */
+/* Self-hosted (WordPress) build: the credit is the owner's opt-in             */
+/* -------------------------------------------------------------------------- */
+
+test('self-hosted build: the credit follows the published poweredByHidden flag', () => {
+  const g = globalThis as { __CC_SELF_HOSTED__?: boolean };
+  g.__CC_SELF_HOSTED__ = true;
+  try {
+    const hidden = mergeConfig({ strings: { poweredByHidden: true } });
+    assert.equal(resolveBannerConfig(hidden, null).strings.poweredByHidden, true, 'unlicensed fallback keeps it hidden');
+    assert.equal(resolveBannerConfig(hidden, null, { preview: true }).strings.poweredByHidden, true, 'preview keeps it hidden');
+    assert.equal(basicBannerConfig(hidden).strings.poweredByHidden, true);
+
+    const shown = mergeConfig({ strings: { poweredByHidden: false } });
+    assert.equal(resolveBannerConfig(shown, null).strings.poweredByHidden, false, 'an opt-in shows it');
+  } finally {
+    delete g.__CC_SELF_HOSTED__;
+  }
+});
+
+test('CDN build: the credit is forced on whatever the config says', () => {
+  const hidden = mergeConfig({ strings: { poweredByHidden: true } });
+  assert.equal(resolveBannerConfig(hidden, null).strings.poweredByHidden, false);
+  assert.equal(resolveBannerConfig(hidden, null, { preview: true }).strings.poweredByHidden, false);
+});

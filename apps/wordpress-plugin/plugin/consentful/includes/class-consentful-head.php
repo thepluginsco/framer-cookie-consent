@@ -28,6 +28,20 @@ class Consentful_Head {
 		// Priority 1: before Site Kit, GTM, analytics plugins, etc. enqueue
 		// theirs, so the inline Consent Mode default is printed first.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ), 1 );
+		add_action( 'wp_head', array( $this, 'print_attribution' ), 1 );
+	}
+
+	/**
+	 * An HTML comment naming the plugin, in the page source only. Visitors never
+	 * see it; it lets site-technology lookups identify the consent tool.
+	 */
+	public function print_attribution() {
+		if ( null === self::published_config() ) {
+			return;
+		}
+		echo "
+<!-- Cookie consent by Consentful - https://consentful.theplugins.co -->
+";
 	}
 
 	/**
@@ -62,6 +76,12 @@ class Consentful_Head {
 				'in_footer' => false,
 			)
 		);
+
+		// The credit follows the owner's opt-in alone, whatever the stored settings say.
+		if ( ! isset( $config->strings ) || ! is_object( $config->strings ) ) {
+			$config->strings = new stdClass();
+		}
+		$config->strings->poweredByHidden = ! consentful_credit_enabled();
 
 		// JSON_HEX_* keeps the literal free of <, >, & and quotes, so it cannot
 		// close the script element whatever the settings contain.

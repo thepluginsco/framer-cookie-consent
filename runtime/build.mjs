@@ -18,7 +18,7 @@
 import { build, context } from 'esbuild';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +43,24 @@ const MAX_BYTES = 65 * 1024; // 65 KB (≈18.6 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 
+/**
+ * The self-hosted variant shipped inside platform plugins (WordPress). Same
+ * runtime, but its banner images resolve to an `images/` folder beside the file
+ * instead of jsDelivr, so a published site loads nothing from a CDN. Built from
+ * the same sources, so the CDN bundle (and its SRI hash) is unaffected.
+ */
+const SELF_HOSTED_OUTFILE = join(__dirname, 'dist', 'consent.self-hosted.min.js');
+
+/** @type {import('esbuild').Plugin} */
+const selfHostedAssets = {
+  name: 'self-hosted-assets',
+  setup(b) {
+    b.onResolve({ filter: /\/brand-mark\.ts$/ }, (args) => ({
+      path: join(args.resolveDir, 'brand-mark.self-hosted.ts'),
+    }));
+  },
+};
+
 /** @type {import('esbuild').BuildOptions} */
 const options = {
   entryPoints: [join(__dirname, 'src', 'index.ts')],
@@ -56,7 +74,9 @@ const options = {
   charset: 'utf8',
   // Dev-only code (e.g. the WCAG contrast assertion) is guarded by __CC_DEV__ and
   // dead-code-eliminated from the production bundle. `--watch` keeps it enabled.
-  define: { __CC_DEV__: process.argv.includes('--watch') ? 'true' : 'false' },
+  // __CC_SELF_HOSTED__ is true only in the self-hosted (WordPress) bundle below,
+  // where the "Powered by" credit is the site owner's opt-in.
+  define: { __CC_DEV__: process.argv.includes('--watch') ? 'true' : 'false', __CC_SELF_HOSTED__: 'false' },
 };
 
 /** Format a byte count as a compact KB string. */
@@ -65,14 +85,14 @@ function kb(bytes) {
 }
 
 /** Report the built bundle's size and enforce the budget. */
-function reportSize() {
-  const bytes = readFileSync(OUTFILE).byteLength;
+function reportSize(file = OUTFILE) {
+  const bytes = readFileSync(file).byteLength;
   const budget = `${kb(bytes)} / ${kb(MAX_BYTES)} budget`;
   if (bytes > MAX_BYTES) {
-    console.error(`✖ consent.min.js is ${budget} — OVER budget. Trim the runtime.`);
+    console.error(`✖ ${basename(file)} is ${budget} — OVER budget. Trim the runtime.`);
     process.exit(1);
   }
-  console.log(`✔ consent.min.js — ${budget} (${bytes} bytes)`);
+  console.log(`✔ ${basename(file)} — ${budget} (${bytes} bytes)`);
 }
 
 const watch = process.argv.includes('--watch');
@@ -84,4 +104,12 @@ if (watch) {
 } else {
   await build(options);
   reportSize();
+  await build({
+    ...options,
+    outfile: SELF_HOSTED_OUTFILE,
+    sourcemap: false,
+    plugins: [selfHostedAssets],
+    define: { ...options.define, __CC_SELF_HOSTED__: 'true' },
+  });
+  reportSize(SELF_HOSTED_OUTFILE);
 }

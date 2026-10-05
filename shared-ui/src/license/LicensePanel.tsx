@@ -13,6 +13,7 @@ import { useEffect, useState } from "react"
 
 import { PORTAL_DASHBOARD_URL, type LicenseTier } from "@framer-cookie-consent/shared"
 
+import { useHost } from "../host"
 import type { ConsentfulModel } from "../model"
 import { T } from "../tokens"
 import { Button, Card, Eyebrow, Icon } from "../ui"
@@ -78,6 +79,8 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
   const licensed = lic.status === "active"
   /** Activated on a paid plan (Free keys activate too, but unlock nothing). */
   const paid = licensed && lic.tier !== "trial"
+  // Hosts where the credit is the owner's opt-in (WordPress) don't promise it here.
+  const creditOptIn = useHost().useCreditVisible !== undefined
   const busy = lic.status === "validating"
 
   const [draft, setDraft] = useState(lic.key)
@@ -163,7 +166,7 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
                 ? `Preview domain ${lic.domain ?? ""} — runs the full banner free. Add your real domain on the dashboard (or activate again after publishing to it).`
                 : paid
                   ? `Activated for ${lic.domain ?? "this site"} and all its subdomains. Your live site unlocks automatically — the key is never shown on the page.`
-                  : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner with the Consentful credit. Upgrade to unlock the full design.`
+                  : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner${creditOptIn ? "" : " with the Consentful credit"}. Upgrade to unlock the full design.`
               : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here. Preview domains (*.framer.website, *.webflow.io, localhost…) always show the banner.`}
           </div>
         )}

@@ -10,7 +10,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-$consentful_options = array( 'consentful_published_config', 'consentful_config_json', 'consentful_head_html' );
+$consentful_options = array( 'consentful_published_config', 'consentful_config_json', 'consentful_head_html', 'consentful_show_credit' );
 
 foreach ( $consentful_options as $consentful_option ) {
 	delete_option( $consentful_option );

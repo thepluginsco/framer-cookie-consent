@@ -12,6 +12,7 @@ import type { CSSProperties } from "react"
 import logoUrl from "./assets/logo.png"
 import cookieUrl from "./assets/cookie.png"
 import settingsCookieUrl from "./assets/settings-cookie.png"
+import { useHost } from "./host"
 import { T } from "./tokens"
 import { Icon, Segmented, Toggle } from "./ui"
 import type { Cfg } from "./model"
@@ -25,6 +26,8 @@ const CAT_TILE: Record<string, { glyph: string; bg: string; fg: string }> = {
   marketing: { glyph: "campaign", bg: "#f1e9ff", fg: "#8b5cf6" },
   preferences: { glyph: "tune", bg: "#e4f6ec", fg: "#1ba565" },
 }
+const creditAlwaysVisible = () => true
+
 const catTile = (id: string) => CAT_TILE[id] ?? { glyph: "tune", bg: "#e4f6ec", fg: "#1ba565" }
 
 export function PreviewPane({
@@ -38,6 +41,7 @@ export function PreviewPane({
   onMode: (m: PreviewMode) => void
   onToggleCat: (id: string) => void
 }) {
+  const showCredit = (useHost().useCreditVisible ?? creditAlwaysVisible)()
   const A = cfg.accent
   const dark = cfg.theme === "dark"
   const bBg = dark ? "#16181d" : "#ffffff"
@@ -239,7 +243,7 @@ export function PreviewPane({
               </div>
 
               {/* Powered-by credit */}
-              {isBar ? (
+              {!showCredit ? null : isBar ? (
                 <div style={{ position: "absolute", top: 8, right: 12 }}>{poweredBy}</div>
               ) : (
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 11 }}>{poweredBy}</div>

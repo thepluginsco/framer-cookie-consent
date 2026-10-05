@@ -117,6 +117,26 @@ export class WordPressRestStore {
    * shared {@link detectWordPressTrackers} — the pre-publish analogue of the
    * design-time HTML scan. Returns `[]` when nothing recognised.
    */
+  /** Whether the site owner turned on the "Powered by Consentful" credit. */
+  async readCredit(): Promise<boolean> {
+    const res = await this.doFetch(`${this.base}/credit`, {
+      headers: { "X-WP-Nonce": this.nonce },
+    });
+    if (!res.ok) throw await this.error("GET /credit", res);
+    const data = (await res.json()) as { enabled?: boolean };
+    return data.enabled === true;
+  }
+
+  /** Turn the "Powered by Consentful" credit on or off. */
+  async writeCredit(enabled: boolean): Promise<void> {
+    const res = await this.doFetch(`${this.base}/credit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-WP-Nonce": this.nonce },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) throw await this.error("POST /credit", res);
+  }
+
   async detectTrackers(): Promise<DetectedTracker[]> {
     const res = await this.doFetch(`${this.base}/active-plugins`, {
       headers: { "X-WP-Nonce": this.nonce },

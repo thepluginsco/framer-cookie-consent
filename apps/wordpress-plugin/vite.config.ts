@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { defineConfig, type Plugin } from "vite";
@@ -7,16 +7,23 @@ import react from "@vitejs/plugin-react";
 /**
  * Ship the banner runtime INSIDE the plugin. WordPress serves it from the
  * plugin's own folder, so a published site loads no script from a CDN. The file
- * is the same `runtime/dist/consent.min.js` every other platform uses.
+ * is the self-hosted runtime build (`runtime/dist/consent.self-hosted.min.js`):
+ * the same runtime every other platform uses, except its banner images resolve
+ * to `images/` beside it, which this step fills from `plugin/public/`.
  */
 function bundleRuntime(): Plugin {
   return {
     name: "consentful-bundle-runtime",
     apply: "build",
     closeBundle() {
+      const repo = resolve(import.meta.dirname, "../..");
       const out = resolve(import.meta.dirname, "plugin/consentful/assets/runtime");
-      mkdirSync(out, { recursive: true });
-      copyFileSync(resolve(import.meta.dirname, "../../runtime/dist/consent.min.js"), resolve(out, "consent.min.js"));
+      mkdirSync(resolve(out, "images"), { recursive: true });
+      copyFileSync(resolve(repo, "runtime/dist/consent.self-hosted.min.js"), resolve(out, "consent.min.js"));
+      for (const image of ["logo.png", "logo-mark.png", "logo-light.png", "cookie.png", "settings-cookie.png"]) {
+        const from = resolve(repo, "plugin/public", image);
+        if (existsSync(from)) copyFileSync(from, resolve(out, "images", image));
+      }
     },
   };
 }
@@ -37,6 +44,9 @@ function bundleRuntime(): Plugin {
 export default defineConfig({
   base: "./",
   plugins: [react(), bundleRuntime()],
+  // The plugin bundles its own runtime, so drop the "Embed on another site"
+  // card: its snippet points at the CDN runtime.
+  define: { __CC_EMBED_SNIPPET__: "false" },
   build: {
     target: "es2022",
     // One stylesheet file PHP can enqueue (an IIFE build would otherwise inject

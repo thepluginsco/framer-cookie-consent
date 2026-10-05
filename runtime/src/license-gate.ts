@@ -21,6 +21,19 @@
 import type { CookieConsentConfig } from '@framer-cookie-consent/shared';
 import type { FeatureSet, VerifiedEntitlement } from './license-token.ts';
 
+/**
+ * `true` in the self-hosted build shipped inside the WordPress plugin, where the
+ * "Powered by Consentful" credit is opt-in: the plugin prints the owner's choice
+ * as `strings.poweredByHidden` and the runtime leaves it alone. Everywhere else
+ * (CDN build, tests) the credit is forced on.
+ */
+declare const __CC_SELF_HOSTED__: boolean | undefined;
+
+/** The credit flag to render: the owner's choice when self-hosted, else shown. */
+function creditHidden(config: CookieConsentConfig): boolean {
+  return typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__ ? config.strings.poweredByHidden : false;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Feature helpers                                                            */
 /* -------------------------------------------------------------------------- */
@@ -111,7 +124,7 @@ export function basicBannerConfig(config: CookieConsentConfig): CookieConsentCon
     banner: { ...config.banner, layout: 'bar', overlay: false },
     theme: { ...NEUTRAL_THEME },
     advanced: { ...config.advanced, customCss: '', floatingButton: false },
-    strings: { ...config.strings, poweredByHidden: false },
+    strings: { ...config.strings, poweredByHidden: creditHidden(config) },
     license: { ...config.license, whiteLabel: false },
   };
 }
@@ -148,14 +161,14 @@ export function resolveBannerConfig(
       ...config,
       // The "Powered by Consentful" credit shows on every plan, Pro included —
       // a hand-edited `poweredByHidden` in the published config can't hide it.
-      strings: { ...config.strings, poweredByHidden: false },
+      strings: { ...config.strings, poweredByHidden: creditHidden(config) },
       license: { ...config.license, whiteLabel: hasWhiteLabel(entitlement) },
     };
   }
   if (opts.preview) {
     return {
       ...config,
-      strings: { ...config.strings, poweredByHidden: false },
+      strings: { ...config.strings, poweredByHidden: creditHidden(config) },
       license: { ...config.license, whiteLabel: false },
     };
   }

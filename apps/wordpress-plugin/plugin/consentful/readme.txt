@@ -32,7 +32,7 @@ The banner only appears on a site that has been activated with a Consentful lice
 * GDPR and CCPA consent, with opt-in and opt-out models.
 * Google Consent Mode v2.
 * Script blocking by category.
-* Bottom-bar banner in the default theme, with a small "Powered by Consentful" credit.
+* Bottom-bar banner in the default theme.
 
 = Paid plans and how to upgrade =
 
@@ -50,23 +50,26 @@ Consentful is an independent product of The Plugins Company. It is not affiliate
 
 == External services ==
 
-The banner script itself is included in this plugin and served from your own site. The plugin relies on the following external services.
+The banner script and its images are included in this plugin and served from your own site. Nothing is loaded from a CDN. The plugin connects to the following external services.
 
-= Consentful license service =
+= Consentful licensing service (required) =
 
-Used to check whether your site's domain has an active license and which plan features it includes. Without it the banner is not shown.
+Consentful is a service: the plugin is the WordPress connector for a Consentful account, and each site has to be activated against a license key (free or paid). The service records which domains are activated on your account and which plan features they include. It is what decides whether the banner is shown, and in which form.
 
-* **When:** when you activate a key in wp-admin, and on your published site when a visitor's browser loads the banner (the result is cached in that browser).
-* **What is sent:** the site's domain name, and the license key when you activate it in wp-admin. No visitor consent choices or personal data are sent.
-* **Provider:** The Plugins Company (consentful.theplugins.co and its API host consentful-api.onrender.com) — [Terms](https://consentful.theplugins.co/terms), [Privacy Policy](https://consentful.theplugins.co/privacy).
+* **What it is used for:** activating a license key for your site in wp-admin, and checking on your published site whether the domain is activated and which plan features apply.
+* **What is sent, and when:**
+  * When you activate or re-check a key on the plugin's License tab in wp-admin: the license key and your site's domain name.
+  * On your published site, when a visitor's browser loads the banner: your site's domain name. The answer is a signed token that is cached in that visitor's browser, so most page views send nothing.
+  * No visitor consent choices, cookies or other personal data are sent.
+* **Servers:** consentful.theplugins.co and its API host consentful-api.onrender.com.
+* **Provider:** The Plugins Company. [Terms of Service](https://consentful.theplugins.co/terms), [Privacy Policy](https://consentful.theplugins.co/privacy).
 
-= jsDelivr CDN (images only) =
+= Google tag (gtag.js), only if you enable it =
 
-The banner's image files (the cookie illustration and the "Powered by Consentful" logo) are loaded from the jsDelivr CDN at a pinned version. No script is loaded from it.
+If you enter a Google tag ID (for example a GA4 measurement ID) in the plugin's Consent Mode settings, the banner loads Google's tag script for you. It stays blocked until the visitor allows the matching cookie category. With no tag ID set, nothing is loaded from Google.
 
-* **When:** on a front-end page view when the banner or the preference window is displayed.
-* **What is sent:** a standard HTTP request for the image file, which includes the visitor's IP address and browser user agent, as with any CDN request.
-* **Provider:** jsDelivr — [Terms](https://www.jsdelivr.com/terms), [Privacy Policy](https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net).
+* **What is sent, and when:** after the visitor allows the category, their browser requests https://www.googletagmanager.com/gtag/js with your tag ID. From then on Google's tag sends what Google Analytics / Google Ads normally collect (page address, IP address, browser details and the consent state).
+* **Provider:** Google LLC. [Terms of Service](https://policies.google.com/terms), [Privacy Policy](https://policies.google.com/privacy).
 
 = Optional endpoints you set up yourself (paid plans, off by default) =
 
@@ -74,11 +77,11 @@ Geo-targeting and consent analytics make no network request unless you enter an 
 
 * **Geo endpoint:** the visitor's browser asks your endpoint which country it is in, so the banner can apply the right consent model. With no endpoint set, the region is inferred from the browser's time zone and nothing is sent.
 * **Analytics endpoint:** the banner sends an anonymous event (the choice made, the banner variant and the region) to your endpoint so you can see consent rates. With no endpoint set, nothing is sent.
-* **Provider:** Cloudflare, under your own account — [Terms](https://www.cloudflare.com/terms/), [Privacy Policy](https://www.cloudflare.com/privacypolicy/).
+* **Provider:** Cloudflare, under your own account. [Terms of Service](https://www.cloudflare.com/terms/), [Privacy Policy](https://www.cloudflare.com/privacypolicy/).
 
 = Scripts you add yourself =
 
-Consentful blocks and unblocks the third-party scripts **you** list in the plugin (for example Google Analytics or Meta Pixel). Those scripts are loaded from their own providers only after a visitor allows their category, and are governed by those providers' terms.
+Consentful blocks and unblocks the third-party scripts **you** list in the plugin (for example Google Analytics or Meta Pixel). Those scripts load from their own providers only after a visitor allows their category, and those providers' terms apply. The plugin's list of known trackers only fills in a script address and a privacy-policy link when you pick one. It loads nothing by itself.
 
 == Installation ==
 
@@ -101,6 +104,10 @@ Open the License tab in Settings → Consentful, or visit https://consentful.the
 
 No. Consent Mode v2 defaults and updates are sent by the banner itself.
 
+= Does the banner show a "Powered by Consentful" credit? =
+
+Only if you turn it on. The credit is off by default, and every feature works whether it is on or off. You can switch it on or off at any time on the Publish tab.
+
 = Where are visitors' choices stored? =
 
 In the visitor's own browser. Consentful's servers do not receive them.
@@ -118,9 +125,10 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 == Changelog ==
 
 = 0.2.0 =
-* The banner script now ships inside the plugin instead of loading from a CDN.
+* The banner script and its images now ship inside the plugin. Nothing is loaded from a CDN.
 * Banner settings are stored as JSON and printed with WordPress script APIs.
 * Added Settings and Plans links on the Plugins screen.
+* The "Powered by Consentful" credit is now off unless you turn it on.
 
 = 0.1.0 =
 * First release.

@@ -50,6 +50,22 @@ define( 'CONSENTFUL_HEAD_OPTION', 'consentful_head_html' );
  */
 define( 'CONSENTFUL_CONFIG_OPTION', 'consentful_config_json' );
 
+/**
+ * Option holding the site owner's opt-in to the "Powered by Consentful" credit
+ * in the banner ('1' = shown). Missing or anything else = hidden: the credit is
+ * never shown on the public site unless the owner turns it on.
+ */
+define( 'CONSENTFUL_CREDIT_OPTION', 'consentful_show_credit' );
+
+/**
+ * Whether the site owner opted in to the "Powered by Consentful" credit.
+ *
+ * @return bool
+ */
+function consentful_credit_enabled() {
+	return '1' === get_option( CONSENTFUL_CREDIT_OPTION, '0' );
+}
+
 require_once CONSENTFUL_DIR . 'includes/class-consentful-head.php';
 require_once CONSENTFUL_DIR . 'includes/class-consentful-rest.php';
 require_once CONSENTFUL_DIR . 'includes/class-consentful-admin.php';

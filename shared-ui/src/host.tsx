@@ -98,6 +98,13 @@ export interface HostServices {
    * copy-based (Shopify, universal embed) hosts.
    */
   publisher?: HostPublisher
+
+  /**
+   * Hook reporting whether the preview shows the "Powered by Consentful" credit.
+   * Omitted = always shown (the credit is on for every plan). WordPress makes it
+   * the site owner's opt-in, so its preview follows that choice.
+   */
+  useCreditVisible?: () => boolean
 }
 
 const HostContext = createContext<HostServices | null>(null)
