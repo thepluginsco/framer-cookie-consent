@@ -152,6 +152,15 @@ async function handleAuthorize(url: URL, env: Env): Promise<Response> {
  * `state`) still connects.
  */
 async function handleCallback(url: URL, env: Env): Promise<Response> {
+  // The user pressed Cancel on Webflow's consent screen: nothing was granted.
+  if (url.searchParams.get("error") === "access_denied") {
+    return page(
+      "Consentful was not connected",
+      "You cancelled the authorization, so Consentful has no access to your Webflow site and nothing was changed. You can close this window. To connect later, open Consentful in the Webflow Designer and choose Connect.",
+      200,
+    );
+  }
+
   const code = url.searchParams.get("code");
   if (!code) return json({ error: "missing_code" }, 400);
 
@@ -183,10 +192,17 @@ async function handleCallback(url: URL, env: Env): Promise<Response> {
   if (back) {
     return new Response(null, { status: 302, headers: { Location: `${back}?connected=1` } });
   }
-  return new Response("Consentful connected to Webflow. You can close this window.", {
-    status: 200,
-    headers: { "Content-Type": "text/html" },
-  });
+  return page(
+    "Consentful is connected",
+    "Consentful connected to Webflow. You can close this window and return to the Webflow Designer.",
+    200,
+  );
+}
+
+/** A minimal standalone page for the OAuth result (fixed text only, no input echoed). */
+function page(title: string, message: string, status: number): Response {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f5fb;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a1530}main{max-width:440px;margin:24px;padding:32px;background:#fff;border:1px solid #e6e2f5;border-radius:16px}h1{margin:0 0 12px;font-size:22px;color:#4b23d3}p{margin:0}</style></head><body><main><h1>${title}</h1><p>${message}</p></main></body></html>`;
+  return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
 /** Report whether we hold a token for a site (drives the Designer's connect UI). */
