@@ -30,6 +30,9 @@ import { useHost } from "../host"
 import { useSettingsContext } from "../settings-context"
 import { createPortalClient, PortalNetworkError, type ActivationResult } from "./portal-client"
 
+/** Build flag (see shared-ui/src/env.d.ts): true in the Framer build. */
+declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
+
 /**
  * The UI-facing license status:
  * - `trial`      — no key activated; the editor's Pro controls are locked.
@@ -139,7 +142,8 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
   const [isDev, setIsDev] = useState(false)
 
   // Same optional per-site API override the runtime honours (staging/dev).
-  const apiBase = config.license.portalApiBaseUrl || undefined
+  // Builds that forbid custom endpoints (Framer) always use the fixed portal.
+  const apiBase = (typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? undefined : config.license.portalApiBaseUrl || undefined
   const client = useMemo(() => createPortalClient(apiBase ? { apiBase } : {}), [apiBase])
   const domain = hostDomain ?? typedDomain
 

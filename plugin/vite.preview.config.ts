@@ -24,5 +24,7 @@ export default defineConfig({
       },
     ],
   },
+  // Same as the shipped build: no user-configurable endpoints on Framer.
+  define: { __CF_NO_CUSTOM_ENDPOINTS__: "true" },
   server: { port: 5273, open: false },
 })

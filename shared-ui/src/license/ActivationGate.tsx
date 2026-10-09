@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react"
-import { PORTAL_DASHBOARD_URL } from "@framer-cookie-consent/shared"
+import { PORTAL_API_BASE, PORTAL_DASHBOARD_URL } from "@framer-cookie-consent/shared"
 
 import logoUrl from "../assets/logo.png"
 import { T } from "../tokens"
@@ -82,6 +82,10 @@ export function ActivationGate({ lic }: { lic: LicenseApi }) {
           </h1>
           <p style={{ fontSize: 12.5, color: T.ink3, textAlign: "center", lineHeight: 1.5, margin: "6px 0 20px" }}>
             Every site needs a license key — Free or paid. Your key stays in the editor and is never shown on your site.
+          </p>
+          <p style={{ fontSize: 11, color: T.ink4, textAlign: "center", lineHeight: 1.5, margin: "-12px 0 18px" }}>
+            Activating sends only your key and this site's domain to Consentful's licensing service (
+            {new URL(PORTAL_API_BASE).host}). No site content leaves the editor.
           </p>
 
           <label style={{ display: "block" }}>

@@ -4,40 +4,133 @@
  * Every call the rest of the plugin makes into Framer goes through here, so
  * there is exactly one place that:
  *   - knows the concrete API surface we depend on,
- *   - enforces Framer's runtime permission model (`framer.isAllowedTo`), and
- *   - detects the "custom code disabled by the user" state and surfaces it.
+ *   - checks Framer's runtime permission model (`framer.isAllowedTo`) BEFORE
+ *     every call — reads included — and turns a denial into a
+ *     {@link FramerPermissionError} with a message the UI can show as-is, and
+ *   - turns any other API failure into a {@link FramerApiError} with a clear,
+ *     user-facing message (never a raw rejection).
  *
  * Framer's permission model is entirely runtime — there is no permissions
- * field in framer.json. "Plugins can do only what the user can", so writes
- * (`setCustomCode`, `setPluginData`) require the user to have Site Settings
- * permission; reads (`getProjectInfo`, `getCustomCode`, `getPluginData`,
- * `subscribeToCustomCode`) are always allowed.
+ * field in framer.json. "Plugins can do only what the user can": the writes we
+ * use (`setCustomCode`, `setPluginData`) are PROTECTED methods and are checked
+ * with `framer.isAllowedTo` before every call ({@link guarded}). The reads
+ * (`getProjectInfo`, `getPublishInfo`, `getCustomCode`, `getPluginData`,
+ * `subscribeToCustomCode`, `showUI`) are UNPROTECTED in the SDK — they are not
+ * part of its `ProtectedMethod` type, so there is no permission to check — and
+ * go through {@link safeRead}, which turns any failure into a clear message.
  * @see https://www.framer.com/developers/plugins-permissions
  */
 
 import { framer } from "@framer/plugin"
-import type { CustomCode, CustomCodeLocation, ProjectInfo, PublishInfo } from "@framer/plugin"
+import type { CustomCode, CustomCodeLocation, ProjectInfo, PublishInfo, ProtectedMethod } from "@framer/plugin"
 
 /* -------------------------------------------------------------------------- */
 /* Errors                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/** User-facing explanations for each permission the plugin may be denied. */
+const DENIED_MESSAGES: Partial<Record<string, string>> = {
+  setCustomCode:
+    "You don't have permission to edit this site's custom code. Ask a project owner for edit access (Site Settings → Custom Code).",
+  setPluginData:
+    "You don't have permission to save plugin settings in this project. Ask a project owner for edit access.",
+}
+
 /**
- * Thrown by a write helper when the current user lacks the Framer permission
- * required to perform it. Callers should catch this and show a friendly
- * message (e.g. "Ask a project admin to publish the banner").
+ * Thrown when the current user lacks the Framer permission a protected call needs. Its
+ * `message` is written for the person using the plugin and is shown as-is.
  */
 export class FramerPermissionError extends Error {
   /** The `framer.isAllowedTo` method that was denied. */
   readonly method: string
 
   constructor(method: string) {
-    super(
-      `Framer denied "${method}": the current user lacks the required ` +
-        `permission. Plugins can only do what the user can.`,
-    )
+    super(DENIED_MESSAGES[method] ?? `You don't have permission to do this in Framer (${method}).`)
     this.name = "FramerPermissionError"
     this.method = method
+  }
+}
+
+/** Thrown when a Framer API call fails for any reason other than a denied permission. */
+export class FramerApiError extends Error {
+  /** The Framer API method that failed. */
+  readonly method: string
+
+  constructor(method: string, cause: unknown) {
+    super(`Framer couldn't complete "${method}". Close and reopen Consentful, then try again.`)
+    this.name = "FramerApiError"
+    this.method = method
+    ;(this as { cause?: unknown }).cause = cause
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Permission checks                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * True when the current user may call every one of `methods`. Never throws: an
+ * unavailable permission API (e.g. outside Framer) counts as not allowed.
+ */
+export function isAllowed(...methods: [ProtectedMethod, ...ProtectedMethod[]]): boolean {
+  try {
+    return framer.isAllowedTo(...methods)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Run a Framer API call only after its permission check passes. A denial
+ * throws {@link FramerPermissionError}; any other failure {@link FramerApiError}.
+ */
+async function guarded<T>(method: ProtectedMethod, call: () => Promise<T>): Promise<T> {
+  if (!isAllowed(method)) throw new FramerPermissionError(method)
+  try {
+    return await call()
+  } catch (err) {
+    if (err instanceof FramerPermissionError) throw err
+    throw new FramerApiError(method, err)
+  }
+}
+
+/** User-facing explanations for each read that can fail. */
+const READ_FAILED: Partial<Record<string, string>> = {
+  getCustomCode: "Consentful couldn't read this site's custom code. Close and reopen the plugin, then try again.",
+  getPluginData: "Consentful couldn't read its saved settings. Close and reopen the plugin, then try again.",
+  getProjectInfo: "Consentful couldn't read this project's details.",
+  getPublishInfo: "Consentful couldn't read this site's publish status.",
+}
+
+/**
+ * Run an UNPROTECTED Framer read (no permission exists to check). Any failure
+ * becomes a {@link FramerApiError} carrying a user-facing message.
+ */
+async function safeRead<T>(method: string, call: () => Promise<T>): Promise<T> {
+  try {
+    return await call()
+  } catch (err) {
+    const e = new FramerApiError(method, err)
+    const msg = READ_FAILED[method]
+    if (msg) e.message = msg
+    throw e
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Plugin window                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Open the plugin window (unprotected). Returns `false` (never throws) when it
+ * fails or Framer isn't available, e.g. in a plain browser during local checks.
+ */
+export async function showPluginUI(options: Parameters<typeof framer.showUI>[0]): Promise<boolean> {
+  try {
+    await framer.showUI(options)
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -45,27 +138,28 @@ export class FramerPermissionError extends Error {
 /* Project info                                                               */
 /* -------------------------------------------------------------------------- */
 
-/** Get the current project's info (name + id). Always allowed. */
+/** Get the current project's info (name + id). Unprotected. */
 export function getProjectInfo(): Promise<ProjectInfo> {
-  return framer.getProjectInfo()
+  return safeRead("getProjectInfo", () => framer.getProjectInfo())
 }
 
 /**
- * Get the current publish info for staging + production. Always allowed. Each
- * side is `null` until the site has been published there, so callers must guard
- * before using a `url`.
+ * Get the current publish info for staging + production. Each side is `null`
+ * until the site has been published there, so callers must guard before using
+ * a `url`. Unprotected.
  */
 export function getPublishInfo(): Promise<PublishInfo> {
-  return framer.getPublishInfo()
+  return safeRead("getPublishInfo", () => framer.getPublishInfo())
 }
 
 /**
  * The best live URL to link a visitor to: production if the site is published,
- * otherwise the staging URL, otherwise `null` (never published).
+ * otherwise the staging URL, otherwise `null` (never published, or the publish
+ * status can't be read). Never throws.
  */
 export async function getLiveSiteUrl(): Promise<string | null> {
   try {
-    const info = await framer.getPublishInfo()
+    const info = await getPublishInfo()
     return info.production?.url ?? info.staging?.url ?? null
   } catch {
     return null
@@ -84,9 +178,9 @@ export interface SetCustomCodeOptions {
   location: CustomCodeLocation
 }
 
-/** Read the custom code the plugin has set, including per-location disabled state. Always allowed. */
+/** Read the custom code the plugin has set, including per-location disabled state. Unprotected. */
 export function getCustomCode(): Promise<CustomCode> {
-  return framer.getCustomCode()
+  return safeRead("getCustomCode", () => framer.getCustomCode())
 }
 
 /**
@@ -96,26 +190,25 @@ export function getCustomCode(): Promise<CustomCode> {
  * it. Throws {@link FramerPermissionError} if the user cannot edit site
  * settings — check {@link canSetCustomCode} first to disable the UI.
  */
-export async function setCustomCode(options: SetCustomCodeOptions): Promise<void> {
-  if (!framer.isAllowedTo("setCustomCode")) {
-    throw new FramerPermissionError("setCustomCode")
-  }
-  await framer.setCustomCode({ html: options.html, location: options.location })
+export function setCustomCode(options: SetCustomCodeOptions): Promise<void> {
+  return guarded("setCustomCode", () => framer.setCustomCode({ html: options.html, location: options.location }))
 }
 
 /** True when the current user is allowed to set custom code. */
 export function canSetCustomCode(): boolean {
-  return framer.isAllowedTo("setCustomCode")
+  return isAllowed("setCustomCode")
 }
 
 /**
- * Subscribe to custom-code changes (set/cleared/enabled/disabled). Always
- * allowed. Returns an unsubscribe function; call it on cleanup.
+ * Subscribe to custom-code changes (set/cleared/enabled/disabled). Returns an
+ * unsubscribe function; a no-op one when the subscription is unavailable.
  */
-export function subscribeToCustomCode(
-  callback: (customCode: CustomCode) => void,
-): () => void {
-  return framer.subscribeToCustomCode(callback)
+export function subscribeToCustomCode(callback: (customCode: CustomCode) => void): () => void {
+  try {
+    return framer.subscribeToCustomCode(callback)
+  } catch {
+    return () => {}
+  }
 }
 
 /**
@@ -127,32 +220,17 @@ export function subscribeToCustomCode(
  * surface a warning telling the user the banner will not load until they
  * re-enable custom code.
  */
-export function isCustomCodeDisabled(
-  code: CustomCode,
-  location: CustomCodeLocation,
-): boolean {
+export function isCustomCodeDisabled(code: CustomCode, location: CustomCodeLocation): boolean {
   return code[location].disabled
-}
-
-/**
- * Convenience: fetch the current custom code and report whether the loader at
- * `location` is disabled. See {@link isCustomCodeDisabled} for the caveat that
- * we cannot re-enable it for the user.
- */
-export async function getCustomCodeDisabled(
-  location: CustomCodeLocation,
-): Promise<boolean> {
-  const code = await framer.getCustomCode()
-  return isCustomCodeDisabled(code, location)
 }
 
 /* -------------------------------------------------------------------------- */
 /* Plugin data (persisted key/value store, scoped to this plugin + project)   */
 /* -------------------------------------------------------------------------- */
 
-/** Read a persisted plugin-data value by key (`null` if unset). Always allowed. */
+/** Read a persisted plugin-data value by key (`null` if unset). Unprotected. */
 export function getPluginData(key: string): Promise<string | null> {
-  return framer.getPluginData(key)
+  return safeRead("getPluginData", () => framer.getPluginData(key))
 }
 
 /**
@@ -160,19 +238,13 @@ export function getPluginData(key: string): Promise<string | null> {
  *
  * Throws {@link FramerPermissionError} if the user cannot edit site settings.
  */
-export async function setPluginData(
-  key: string,
-  value: string | null,
-): Promise<void> {
-  if (!framer.isAllowedTo("setPluginData")) {
-    throw new FramerPermissionError("setPluginData")
-  }
-  await framer.setPluginData(key, value)
+export function setPluginData(key: string, value: string | null): Promise<void> {
+  return guarded("setPluginData", () => framer.setPluginData(key, value))
 }
 
 /** True when the current user is allowed to write plugin data. */
 export function canSetPluginData(): boolean {
-  return framer.isAllowedTo("setPluginData")
+  return isAllowed("setPluginData")
 }
 
 /* -------------------------------------------------------------------------- */
@@ -186,7 +258,7 @@ export function canSetPluginData(): boolean {
  * write and catch the denial.
  */
 export function canWriteSite(): boolean {
-  return framer.isAllowedTo("setCustomCode", "setPluginData")
+  return isAllowed("setCustomCode", "setPluginData")
 }
 
 /**
@@ -194,5 +266,9 @@ export function canWriteSite(): boolean {
  * revoke the permission while the plugin is open). Returns an unsubscribe.
  */
 export function subscribeToWriteAccess(callback: (allowed: boolean) => void): () => void {
-  return framer.subscribeToIsAllowedTo("setCustomCode", "setPluginData", callback)
+  try {
+    return framer.subscribeToIsAllowedTo("setCustomCode", "setPluginData", callback)
+  } catch {
+    return () => {}
+  }
 }

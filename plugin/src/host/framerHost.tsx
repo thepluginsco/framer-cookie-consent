@@ -35,7 +35,6 @@ import {
 import { injectLoader, readInstalledLoader, removeLoader } from "../lib/customCode"
 import { canWriteSite, getLiveSiteUrl, getProjectInfo, getPluginData, setPluginData, canSetPluginData } from "../lib/framer"
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
-import { scanSiteForTrackers } from "../lib/scanSite"
 import { useCustomCodeDisabled } from "../hooks/useCustomCodeStatus"
 import { useReadOnlyNotice } from "../hooks/useWriteAccess"
 import type { CookieConsentConfig } from "../types"
@@ -106,8 +105,10 @@ function FramerPublishAction({ m }: { m: ConsentfulModel }) {
       .then((block) => {
         if (active) setInstalled(block !== null)
       })
-      .catch(() => {
-        if (active) setInstalled(false)
+      .catch((err: unknown) => {
+        // Unknown install state: keep the buttons disabled and say why, rather
+        // than guessing "not installed" and offering a second install.
+        if (active) setNote({ text: err instanceof Error ? err.message : String(err), error: true })
       })
     return () => {
       active = false
@@ -196,7 +197,6 @@ function FramerPublishAction({ m }: { m: ConsentfulModel }) {
 export const framerHost: HostServices = {
   platformLabel: "Framer",
   runtimeVersion: RUNTIME_VERSION,
-  scanSite: scanSiteForTrackers,
   getLiveSiteUrl: () => getLiveSiteUrl().catch(() => null),
   getSiteName: () => getProjectInfo().then((info) => info.name || null).catch(() => null),
   data: {

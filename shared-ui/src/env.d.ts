@@ -23,3 +23,13 @@ declare module "*.css" {
   const content: string
   export default content
 }
+
+/*
+ * Build flag `__CF_NO_CUSTOM_ENDPOINTS__`: `true` in builds that must not talk to
+ * user-configured URLs (the Framer plugin — Marketplace rule). Files that read
+ * it declare it locally and read it ONLY as the inline expression
+ * `typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__`,
+ * so Vite's `define` folds it to a constant and the guarded code (custom geo /
+ * analytics endpoints, the Insights stats fetch, the portal URL override) is
+ * dropped from that bundle entirely. Undefined everywhere else.
+ */

@@ -21,6 +21,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { loadConfigString, saveConfigString } from "../lib/configStore"
+import { withoutCustomEndpoints } from "../lib/fixedEndpoints"
 import { useWriteAccess, WRITE_ACCESS_MESSAGE } from "./useWriteAccess"
 import { DEFAULT_CONFIG, parse, serialize } from "../types"
 import type { CookieConsentConfig } from "../types"
@@ -97,7 +98,8 @@ export function useSettings(): SettingsApi {
         if (cancelled) return
         // `parse` runs through `mergeConfig`, so older/partial saved configs
         // are migrated forward; fall back to defaults when nothing is stored.
-        const loaded = saved != null ? parse(saved) : DEFAULT_CONFIG
+        // Custom endpoints aren't allowed on Framer; drop any an older version saved.
+        const loaded = withoutCustomEndpoints(saved != null ? parse(saved) : DEFAULT_CONFIG)
         lastSavedRef.current = serialize(loaded)
         setConfig(loaded)
         setError(null)

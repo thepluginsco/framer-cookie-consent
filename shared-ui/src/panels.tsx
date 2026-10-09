@@ -25,6 +25,9 @@ import {
   type LocalizableFieldKey,
 } from "./model"
 
+/** Build flag (see shared-ui/src/env.d.ts): true in the Framer build. */
+declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
+
 /* -------------------------------------------------------------------------- */
 /* Shared field primitives                                                    */
 /* -------------------------------------------------------------------------- */
@@ -416,9 +419,13 @@ function RegionPicker({ m }: { m: ConsentfulModel }) {
           ? "Choosing regions is a Pro feature — Free sites show the banner in the EU/EEA, UK, Switzerland and California."
           : selected.size === 0
             ? "No regions selected — the banner will only show when a visitor's region can't be detected."
-            : picksCountry && !cfg.geoEndpoint
-              ? "Canada, Brazil, Australia and India need the accurate geo endpoint (below) — without it they're detected as “Rest of world”."
-              : "Detection uses the visitor's time zone, or the accurate geo endpoint below when set."}
+            : (typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__)
+              ? picksCountry
+                ? "Detection uses the visitor's time zone, so Canada, Brazil, Australia and India are detected as “Rest of world”."
+                : "Detection uses the visitor's time zone."
+              : picksCountry && !cfg.geoEndpoint
+                ? "Canada, Brazil, Australia and India need the accurate geo endpoint (below) — without it they're detected as “Rest of world”."
+                : "Detection uses the visitor's time zone, or the accurate geo endpoint below when set."}
       </div>
     </div>
   )
@@ -480,7 +487,7 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
         )}
       </Card>
 
-      <GeoEndpointCard m={m} />
+      {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? null : <GeoEndpointCard m={m} />}
 
       <AbTestCard m={m} />
 
@@ -870,6 +877,9 @@ export function ConsentPanel({ m }: { m: ConsentfulModel }) {
 
 export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; onAddScript: () => void; onScan: () => void }) {
   const { cfg } = m
+  // No scan on Framer (the plugin must not fetch the published site).
+  const host = useHost()
+  const canScan = !(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) && !!host.scanSite
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, borderRadius: T.rLg, padding: "12px 13px" }}>
@@ -881,9 +891,11 @@ export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; o
         </div>
       </div>
 
-      <Button variant="secondary" onClick={onScan} icon="radar" full>
-        Scan site for trackers
-      </Button>
+      {canScan ? (
+        <Button variant="secondary" onClick={onScan} icon="radar" full>
+          Scan site for trackers
+        </Button>
+      ) : null}
 
       <ProLock locked={cfg.plan !== "pro"} note="Listing services and per-service switches in the preference center is part of paid plans.">
       <Card style={{ padding: "6px 16px 14px" }}>

@@ -38,8 +38,12 @@ export interface HostServices {
   /** The CDN runtime version shown in the footer / publish checklist. */
   runtimeVersion: string
 
-  /** Scan the host site for known trackers (never rejects). */
-  scanSite: () => Promise<ScanResult>
+  /**
+   * Scan the host site for known trackers (never rejects). Omit it to hide the
+   * scan button entirely (e.g. Framer, where the plugin must not fetch the
+   * published site).
+   */
+  scanSite?: () => Promise<ScanResult>
   /** Live URL of the published site, or null when unknown / unpublished. */
   getLiveSiteUrl: () => Promise<string | null>
   /** Display name of the current site for the header pill, or null to hide it. */

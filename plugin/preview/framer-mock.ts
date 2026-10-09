@@ -6,6 +6,8 @@
  * It never ships — the production build imports the real package.
  */
 
+import { useEffect, useState } from "react"
+
 let store: Record<string, string | null> = {}
 const customCode: Record<string, string | null> = {}
 const customCodeWrites: string[] = []
@@ -52,7 +54,8 @@ export const framer = {
   // Add `?readonly` to the preview URL to see the "view only" state a Framer
   // user without the custom-code permission gets.
   // Or flip it while the editor is open: `__setAllowed(false)` in the console.
-  isAllowedTo: (): boolean => allowed,
+  // Only writes are restricted; reads stay allowed, as in Framer.
+  isAllowedTo: (...methods: string[]): boolean => allowed || methods.every((m) => !m.startsWith("set")),
   subscribeToIsAllowedTo: (...args: unknown[]): (() => void) => {
     const callback = args[args.length - 1] as (isAllowed: boolean) => void
     allowedListeners.add(callback)
@@ -87,4 +90,17 @@ if (previewPlan === "free" || previewPlan === "pro") {
       { status: 200, headers: { "Content-Type": "application/json" } },
     )
   }
+}
+
+/** Mock of Framer's `useIsAllowedTo` hook (re-renders when `__setAllowed` flips). */
+export function useIsAllowedTo(...methods: string[]): boolean {
+  const [value, setValue] = useState(() => framer.isAllowedTo(...methods))
+  useEffect(() => {
+    const listener = (): void => setValue(framer.isAllowedTo(...methods))
+    allowedListeners.add(listener)
+    return () => {
+      allowedListeners.delete(listener)
+    }
+  }, [])
+  return value
 }

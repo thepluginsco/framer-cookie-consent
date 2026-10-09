@@ -415,7 +415,8 @@ export function ScanTrackersModal({ m, onClose }: { m: ConsentfulModel; onClose:
   // (i.e. not already managed and with a usable payload).
   useEffect(() => {
     let active = true
-    host.scanSite().then((r) => {
+    const scan = host.scanSite ?? (async (): Promise<ScanResult> => ({ ok: false, reason: "unsupported", url: null, message: "Add your tags by hand." }))
+    scan().then((r) => {
       if (!active) return
       setResult(r)
       if (r.ok) {

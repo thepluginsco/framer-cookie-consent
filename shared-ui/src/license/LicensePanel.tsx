@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react"
 
-import { PORTAL_DASHBOARD_URL, type LicenseTier } from "@framer-cookie-consent/shared"
+import { PORTAL_API_BASE, PORTAL_DASHBOARD_URL, type LicenseTier } from "@framer-cookie-consent/shared"
 
 import { useHost } from "../host"
 import type { ConsentfulModel } from "../model"
@@ -206,6 +206,10 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
         <Icon name={paid ? "settings" : licensed ? "shopping_bag" : "key"} size={18} color={paid ? T.ink3 : "#fff"} />
         {paid ? "Manage your sites" : licensed ? "Upgrade to Pro" : "Get a free key"}
       </a>
+      <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5, textAlign: "center" }}>
+        Activation sends only your license key and this site's domain to Consentful's licensing service (
+        {new URL(PORTAL_API_BASE).host}). No site content leaves the editor.
+      </div>
     </div>
   )
 }

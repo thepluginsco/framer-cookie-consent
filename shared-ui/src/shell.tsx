@@ -33,6 +33,9 @@ import {
 import { PreviewPane, type PreviewMode } from "./preview"
 import { AddCategoryModal, AddScriptModal, ScanTrackersModal, Onboarding } from "./modals"
 
+/** Build flag (see shared-ui/src/env.d.ts): true in the Framer build. */
+declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
+
 type TabId = "categories" | "behavior" | "consent" | "scripts" | "theme" | "insights" | "license" | "preview"
 
 type NavItemDef = [TabId, string, string]
@@ -54,7 +57,9 @@ const NAV_GROUPS: Array<{ label: string; items: NavItemDef[] }> = [
   {
     label: "Manage",
     items: [
-      ["insights", "Insights", "query_stats"],
+      // Insights reads stats from a user-configured endpoint, so builds that
+      // forbid custom endpoints (Framer) leave the tab out.
+      ...(((typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? [] : [["insights", "Insights", "query_stats"]]) as Array<[TabId, string, string]>),
       ["license", "License", "workspace_premium"],
       ["preview", "Publish", "rocket_launch"],
     ],
@@ -356,7 +361,7 @@ export function ConsentfulShell() {
                 <TextPanel m={m} />
               </div>
             )}
-            {tab === "insights" && <InsightsPanel m={m} />}
+            {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? null : tab === "insights" && <InsightsPanel m={m} />}
             {tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} />)}
             {tab === "preview" && <PublishPanel m={m} />}
             </div>
@@ -469,7 +474,7 @@ export function ConsentfulShell() {
       )}
       {modal === "category" && <AddCategoryModal m={m} onClose={() => setModal(null)} />}
       {modal === "script" && <AddScriptModal m={m} onClose={() => setModal(null)} />}
-      {modal === "scan" && <ScanTrackersModal m={m} onClose={() => setModal(null)} />}
+      {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? null : modal === "scan" && <ScanTrackersModal m={m} onClose={() => setModal(null)} />}
     </div>
   )
 }
