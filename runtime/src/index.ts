@@ -31,6 +31,12 @@ import { mountBanner } from './banner.ts';
 import { detectLanguages, detectPageLanguage, shownLanguage } from './i18n.ts';
 import { loadLocalePack } from './locale-loader.ts';
 import { resolveBannerConfig } from './license-gate.ts';
+
+/**
+ * `true` only in the self-hosted build bundled inside the WordPress plugin,
+ * which never contacts the licensing API (WordPress.org forbids license checks).
+ */
+declare const __CC_SELF_HOSTED__: boolean | undefined;
 import { resolveSiteStatus, type SiteStatus } from './entitlement.ts';
 import { installConsentAnalytics, type AnalyticsContext } from './analytics.ts';
 import { resolveActiveVariant } from './variant.ts';
@@ -182,10 +188,14 @@ export async function boot(): Promise<void> {
     //     safe. Fails closed (→ free banner) on any error/timeout.
     //     Free preview/staging hosts (*.framer.website, localhost, …) skip the
     //     network entirely: they run the full design without a seat.
+    //     The self-hosted (WordPress) build makes NO licensing call at all: the
+    //     plugin is fully functional on its own, so it renders the published
+    //     config as-is, exactly like a preview host (the admin screen already
+    //     limited what a free site publishes).
     const host = typeof location !== 'undefined' ? location.hostname : '';
-    const preview = isPreviewHost(host);
+    const preview = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || isPreviewHost(host);
     const apiBaseOverride = config.license.portalApiBaseUrl;
-    const statusPromise: Promise<SiteStatus> = preview
+    const statusPromise: Promise<SiteStatus> = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || preview
       ? Promise.resolve({ entitlement: null, activated: true })
       : resolveSiteStatus(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
 

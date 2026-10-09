@@ -17,11 +17,11 @@ listing copy for each marketplace. Keep the copy in sync with
 | 6a | Set the Pre-Deploy Command on the Render service so migrations run on deploy (until then, run `pnpm --filter @repo/db db:migrate` by hand after each one) | You | Open |
 | 6b | Store graphics: 17 real UI captures + 7 image prompts in `marketing/` | Claude | Captured 2026-10-01; final store images still to generate |
 | 6c | Add `plugin/public/logo-light.png` (dark-theme banner credit shows a broken image without it) | You (asset) | Open |
-| 7 | Framer Marketplace — published 2026-10-01 under The Plugins Company (no review; live immediately). Upload the zip as `Consentful.zip`: Framer takes the listing name from the file name. New versions: plugin page → ⋯ → New Version | Claude + You | **Hidden** — reported and taken down a few hours after posting (`/marketplace/plugins/1675/` shows "Plugin unavailable"); no reason given. Email creators@framer.com |
-| 8 | Submit to Webflow Apps (`apps/webflow-app/bundle.zip`) | You | Copy below |
-| 9 | Submit to the Shopify App Store | You | Copy below |
-| 10 | Submit to the Wix App Market | You | Copy below |
-| 11 | WordPress.org directory (optional — the zip is already downloadable from the site) | You | Copy below |
+| 7 | Framer Marketplace — published 2026-10-01 under The Plugins Company. Upload the zip as `Consentful.zip`: Framer takes the listing name from the file name. New versions: plugin page → ⋯ → New Version | Claude + You | **Live.** Passed three Framer reviews (custom-code permission check, integrity-pinned runtime, custom code written only on Install / Update banner) |
+| 8 | Webflow Apps (`apps/webflow-app/bundle.zip`) | You | **Submitted 2026-10-02** — in review (10–15 business days); decision by email |
+| 9 | Shopify App Store | You | **Deferred** until Consentful has revenue ($19 registration). App is built and released (`consentful-2`) |
+| 10 | Wix App Market | — | **Dropped** (2026-10-05): Wix requires paid apps to bill through Wix and forbids outside checkout links |
+| 11 | WordPress.org directory (slug `consentful`) | You | **Round 2 fix 2026-10-09:** license check removed. Free core 0.3.0 (no key) + separate Pro add-on. Re-upload `marketing/store-assets/upload/wordpress/consentful.zip` and reply in the thread. The zip is also downloadable from the site |
 | — | Register the business, then set the governing law in the Terms (`consentful-portal/apps/web/src/content/legal/en.ts`, "Governing law") | You | Open |
 | — | Have a lawyer review the legal pages | You | Recommended |
 
@@ -69,7 +69,7 @@ Notes on the live switch:
 > before Google tags load and updated the moment a visitor chooses. Nothing to set
 > up in Tag Manager.
 >
-> **Fast and private.** About 11 KB, loaded deferred. Visitors' choices stay in
+> **Fast and private.** About 20 KB gzipped, loaded deferred. Visitors' choices stay in
 > their own browser — Consentful's servers never receive them.
 >
 > **Pro features:** card, bar and modal layouts with your colors and fonts,
@@ -78,7 +78,7 @@ Notes on the live switch:
 > WCAG 2.1 AA accessibility check.
 >
 > Free for one site, forever. One license covers your domain on Framer, Webflow,
-> WordPress, Shopify, Wix or any website.
+> WordPress, Shopify or any website.
 
 ### Screenshots to capture (same set for every store)
 
@@ -92,22 +92,29 @@ Notes on the live switch:
 ## 7 · Framer Marketplace
 
 - **Upload:** `plugin/plugin.zip` (rebuild with `npm run build --workspace=plugin && (cd plugin && npm run pack)`).
-- **Platform paragraph:** *Design your cookie banner inside Framer. Consentful
-  writes itself into your site's custom code as you edit — publish your site and
+- **Platform paragraph:** *Design your cookie banner inside Framer. When you're
+  ready, click Install banner — Consentful adds its script to your site's custom
+  code only then, and Update banner pushes later changes. Publish your site and
   it's live. Preview addresses on framer.website get the full banner free.*
 - **Reviewer notes:** A free license key is created at
   https://consentful.theplugins.co/signup. The plugin needs custom code enabled
-  on the site.
+  on the site; users without the custom-code permission get a View only notice
+  and nothing is written. The runtime is pinned to a jsDelivr version with an
+  SRI `integrity` hash.
 
 ## 8 · Webflow Apps
 
 - **Upload:** `apps/webflow-app/bundle.zip` as the Designer Extension bundle. The
   Data Client is the `consentful-connect` Worker (the hostname must not contain
   "webflow" — the Marketplace rejects that as a trademark issue); redirect URI
-  `https://consentful-connect.thepluginsco.workers.dev/callback`, install URL
-  `https://consentful-connect.thepluginsco.workers.dev/authorize`. The Worker
-  needs `wrangler secret put WEBFLOW_CLIENT_SECRET`. The old `consentful-webflow`
-  Worker can be deleted once the new one is verified. Source maps for the
+  `https://consentful-connect.thepluginsco.workers.dev/callback`. The form
+  rejects `workers.dev` install URLs, so the install URL is Webflow's own
+  `https://webflow.com/oauth/authorize?response_type=code&client_id=…&scope=…`
+  (the callback handles installs without a `state`). If a user cancels the
+  consent screen, the callback shows a styled "not connected" page. The old
+  `consentful-webflow` Worker can be deleted.
+- **If changes are requested:** Publish → Upload Bundle for Review, and reply in
+  the same email thread. Total attachments must stay under 4 MB. Source maps for the
   submitted bundle: `marketing/store-assets/final/webflow-review/`.
 - **Scopes requested and why:** `sites:read` / `sites:write` (publish the site
   after installing the banner), `custom_code:read` / `custom_code:write` (register
@@ -138,29 +145,31 @@ Notes on the live switch:
 - **Listing requires:** app icon (1200×1200), at least 3 desktop screenshots
   (1600×900), a demo store URL, and the privacy policy URL above.
 
-## 10 · Wix App Market
+## 10 · Wix App Market — dropped
 
-- **Before submitting:** rename the app from "My New App-1" to **Consentful**
-  (App Profile), and email Wix's consent-apps team the app id
-  `8e3924a2-1065-41e3-b69b-b5869300378c` so uninstalling resets a site's default
-  consent policy.
-- **Permissions requested and why:** *Manage Embedded Scripts* (add the banner
-  to the site) and *Manage Consent Policy* (set opt-in as the site default).
-- **Platform paragraph:** *Replace Wix's built-in cookie banner with one you
-  fully design. Consentful sets your site's consent policy to opt-in and passes
-  each visitor's choice to Wix, so Wix analytics and marketing tools respect it.*
-- **Reviewer notes:** Turn off Wix's own cookie banner first (one consent app
-  per site). Site dashboard → Apps → Consentful → activate → Install banner →
-  publish the site. The banner shows on the published site, not in the Editor.
+Not listing (2026-10-05). Wix requires paid apps to bill through Wix (or report
+every charge as a Partner Billed App) and forbids links to an outside checkout.
+The app draft `8e3924a2-…` and the `consentful-wix` Worker are left in place.
 
-## 11 · WordPress.org (optional)
+## 11 · WordPress.org
 
 - **Download today:** https://consentful.theplugins.co/downloads/consentful-wordpress.zip
-  (rebuild with `npm run build:wordpress-zip`).
-- **For the directory:** needs a `readme.txt` in WordPress format, GPL-compatible
-  licensing of everything in the zip, and a review that can take several weeks.
-  Note that directory guidelines restrict features locked behind a paid key —
-  check this before submitting.
+  (rebuild with `npm run build:wordpress-zip`). Directory upload zip:
+  `marketing/store-assets/upload/wordpress/consentful.zip`.
+- **Status:** submitted 2026-10-02 (slug `consentful`); round-1 fixes
+  re-uploaded 2026-10-05 via "Upload updated plugin for review" — never resubmit
+  as a new plugin. Review mail goes to thepluginsco@yahoo.com.
+- **What the round-1 fixes changed:** the runtime and its images are bundled in
+  the plugin (no CDN), the "Powered by" credit is opt-in on WordPress only, and
+  the readme has an External services section (licensing service, plus Google's
+  tag only if a tag ID is set).
+- **Round 2 (2026-10-09):** the reviewer rejected the license check (trialware /
+  license-check rule). Restructured: the WordPress.org plugin (0.3.0) is free and
+  fully functional, with no key, no locked controls and no call to any Consentful
+  server. Pro is a separate add-on (`apps/wordpress-plugin/plugin/consentful-pro`,
+  `consentful-pro-wordpress.zip`) sold on consentful.theplugins.co and downloaded
+  from the dashboard; it swaps in the full editor through the
+  `consentful_admin_assets` filter.
 - **Short description (≤ 150 chars):** Lightweight cookie consent banner with
   Google Consent Mode v2 and real script blocking. GDPR and CCPA ready.
 

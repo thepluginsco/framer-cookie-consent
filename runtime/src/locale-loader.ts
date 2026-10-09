@@ -52,9 +52,11 @@ export function localePackUrl(code: string, selfSrc: string = SELF_SRC): string 
     } catch {
       return '';
     }
+  } else {
+    // An `else` (not a fall-through) so the self-hosted build drops the CDN URL.
+    if (selfSrc.includes(RUNTIME_PATH)) return selfSrc.split(RUNTIME_PATH)[0] + `/runtime/dist/locales/${file}`;
+    return `https://cdn.jsdelivr.net/gh/${RUNTIME_GH_USER}/${RUNTIME_GH_REPO}@${RUNTIME_VERSION}/runtime/dist/locales/${file}`;
   }
-  if (selfSrc.includes(RUNTIME_PATH)) return selfSrc.split(RUNTIME_PATH)[0] + `/runtime/dist/locales/${file}`;
-  return `https://cdn.jsdelivr.net/gh/${RUNTIME_GH_USER}/${RUNTIME_GH_REPO}@${RUNTIME_VERSION}/runtime/dist/locales/${file}`;
 }
 
 /**

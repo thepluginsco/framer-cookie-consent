@@ -45,13 +45,26 @@ import {
 import { WordPressRestStore } from "./rest-store"
 
 const STORAGE_KEY = "consentful.wordpress.config"
+/**
+ * `true` in the free WordPress.org build, `false` in the Pro add-on's build
+ * (see vite.config.ts). The free core never licenses, so it drops any license
+ * a Pro install left in the saved config: it always publishes the free plan.
+ */
+declare const __CC_FREE_CORE__: boolean | undefined
+
+function freeCore(config: CookieConsentConfig): CookieConsentConfig {
+  return (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__)
+    ? { ...config, license: { ...config.license, key: null, tier: "trial", whiteLabel: false } }
+    : config
+}
+
 const boot = typeof window !== "undefined" ? window.CONSENTFUL_WP : undefined
 const wpStore = boot ? new WordPressRestStore({ restBase: boot.restBase, nonce: boot.nonce }) : null
 
 function loadConfig(): CookieConsentConfig {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw) return parse(raw)
+    if (raw) return freeCore(parse(raw))
   } catch {
     /* start from defaults */
   }
@@ -273,6 +286,9 @@ const wordpressHost: HostServices = {
   },
   publishSubtitle: "Publish puts the banner on your site. Update or remove it any time from here.",
   showLicenseTab: true,
+  // Pro add-on build: the free core it extends keeps working without a key, so
+  // only the Pro controls lock (the free build has no license code at all).
+  requireActivation: false,
   PublishAction: WordPressPublishAction,
   publisher: wordpressPublisher,
   useCreditVisible,
@@ -293,7 +309,7 @@ function WordPressSettingsProvider({ children }: { children: ReactNode }) {
         setStatus("loading")
         const stored = await wpStore.readConfigOption()
         if (active && stored) {
-          const remote = parse(stored)
+          const remote = freeCore(parse(stored))
           setConfig(remote)
           saveConfig(remote)
         }

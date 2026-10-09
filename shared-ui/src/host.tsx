@@ -84,6 +84,13 @@ export interface HostServices {
 
   /** Whether to show the License tab (every Consentful host does). */
   showLicenseTab: boolean
+  /**
+   * Whether the editor stays behind the activation gate until a key is
+   * activated. Defaults to `true` wherever the License tab shows. The WordPress
+   * Pro add-on sets `false`: the free core it extends must keep working without
+   * a key, so only the Pro controls stay locked.
+   */
+  requireActivation?: boolean
   /** Override the shared License panel (rarely needed; defaults to `LicensePanel`). */
   LicensePanel?: ComponentType<{ m: ConsentfulModel }>
 

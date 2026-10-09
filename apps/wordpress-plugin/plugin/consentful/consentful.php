@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Consentful — Cookie Consent
  * Plugin URI:        https://consentful.theplugins.co
- * Description:       GDPR / CCPA cookie consent banner with Google Consent Mode v2 and script blocking. Design the banner in wp-admin and publish it to your site. Requires a free Consentful license key.
- * Version:           0.2.0
+ * Description:       GDPR / CCPA cookie consent banner with Google Consent Mode v2 and script blocking. Design the banner in wp-admin and publish it to your site.
+ * Version:           0.3.0
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * Author:            The Plugins Company
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // No direct access.
 }
 
-define( 'CONSENTFUL_VERSION', '0.2.0' );
+define( 'CONSENTFUL_VERSION', '0.3.0' );
 define( 'CONSENTFUL_FILE', __FILE__ );
 define( 'CONSENTFUL_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CONSENTFUL_URL', plugin_dir_url( __FILE__ ) );

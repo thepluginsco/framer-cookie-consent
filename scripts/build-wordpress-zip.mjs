@@ -1,13 +1,16 @@
 /**
- * Build the WordPress plugin and zip it into the Consentful portal, which
- * serves it at /downloads/consentful-wordpress.zip (linked from the docs and
- * the homepage "Get the plugin" menu).
+ * Build the WordPress plugins and zip them into the Consentful portal:
+ *   - /downloads/consentful-wordpress.zip — the FREE plugin (the same code that
+ *     goes to WordPress.org; no license code), linked from the docs and the
+ *     homepage "Get the plugin" menu;
+ *   - /downloads/consentful-pro-wordpress.zip — the Pro add-on, linked from the
+ *     dashboard and the WordPress page. Useless without a paid key.
  *
  *   npm run build:wordpress-zip
  *
- * Expects the portal repo as a sibling: ../consentful-portal. Commit the zip
- * there (apps/web/public/downloads) and deploy the dashboard. The zip's top
- * folder is `consentful/`, as wp-admin → Plugins → Upload expects.
+ * Expects the portal repo as a sibling: ../consentful-portal. Commit the zips
+ * there (apps/web/public/downloads) and deploy the dashboard. Each zip's top
+ * folder is the plugin's own (`consentful/`, `consentful-pro/`), as wp-admin → Plugins → Upload expects.
  *
  * The zip is written with Node's zlib (no `zip`/`tar` binary), so it works the
  * same on Windows, macOS and Linux.
@@ -21,7 +24,11 @@ import { crc32, deflateRawSync } from 'node:zlib';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pluginDir = resolve(root, 'apps/wordpress-plugin/plugin');
 const outDir = resolve(root, '../consentful-portal/apps/web/public/downloads');
-const out = resolve(outDir, 'consentful-wordpress.zip');
+/** Plugin folder → zip name. */
+const PACKAGES = [
+  ['consentful', 'consentful-wordpress.zip'],
+  ['consentful-pro', 'consentful-pro-wordpress.zip'],
+];
 
 if (!existsSync(resolve(outDir, '..'))) {
   console.error(`✖ Portal public folder not found at ${resolve(outDir, '..')}`);
@@ -81,10 +88,13 @@ function zip(files) {
   return Buffer.concat([...locals, centralBuf, end]);
 }
 
-const files = walk(join(pluginDir, 'consentful')).map((full) => ({
-  name: relative(pluginDir, full).split(sep).join('/'),
-  data: readFileSync(full),
-}));
 mkdirSync(outDir, { recursive: true });
-writeFileSync(out, zip(files));
-console.log(`✔ WordPress plugin zipped (${files.length} files) to ${out}`);
+for (const [folder, name] of PACKAGES) {
+  const files = walk(join(pluginDir, folder)).map((full) => ({
+    name: relative(pluginDir, full).split(sep).join('/'),
+    data: readFileSync(full),
+  }));
+  const out = resolve(outDir, name);
+  writeFileSync(out, zip(files));
+  console.log(`✔ ${folder} zipped (${files.length} files) to ${out}`);
+}

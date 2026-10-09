@@ -27,8 +27,8 @@ class Consentful_Admin {
 	}
 
 	/**
-	 * Add "Settings" and "Plans & upgrade" links to the plugin's row on the
-	 * Plugins screen.
+	 * Add "Settings" and (unless the Pro add-on is active) "Get Pro" links to
+	 * the plugin's row on the Plugins screen.
 	 *
 	 * @param string[] $links Existing action links.
 	 * @return string[]
@@ -39,13 +39,14 @@ class Consentful_Admin {
 			esc_url( admin_url( 'options-general.php?page=' . self::MENU_SLUG ) ),
 			esc_html__( 'Settings', 'consentful' )
 		);
-		$upgrade = sprintf(
-			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
-			esc_url( 'https://consentful.theplugins.co/pricing' ),
-			esc_html__( 'Plans & upgrade', 'consentful' )
-		);
 		array_unshift( $links, $settings );
-		$links[] = $upgrade;
+		if ( ! defined( 'CONSENTFUL_PRO_VERSION' ) ) {
+			$links[] = sprintf(
+				'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+				esc_url( 'https://consentful.theplugins.co/docs/platforms/wordpress#pro' ),
+				esc_html__( 'Get Pro', 'consentful' )
+			);
+		}
 		return $links;
 	}
 
@@ -74,8 +75,22 @@ class Consentful_Admin {
 			return;
 		}
 
-		$js  = CONSENTFUL_DIR . 'assets/consentful-admin.js';
-		$css = CONSENTFUL_DIR . 'assets/consentful-admin.css';
+		/**
+		 * Where the admin bundle is loaded from. The separate Consentful Pro
+		 * add-on (not hosted on WordPress.org) points this at its own build.
+		 *
+		 * @param array{dir: string, url: string} $assets Folder path and URL, each with a trailing slash.
+		 */
+		$assets = apply_filters(
+			'consentful_admin_assets',
+			array(
+				'dir' => CONSENTFUL_DIR . 'assets/',
+				'url' => CONSENTFUL_URL . 'assets/',
+			)
+		);
+
+		$js  = $assets['dir'] . 'consentful-admin.js';
+		$css = $assets['dir'] . 'consentful-admin.css';
 
 		// Version by file time so a plugin update never serves a cached bundle.
 		$js_ver  = file_exists( $js ) ? (string) filemtime( $js ) : CONSENTFUL_VERSION;
@@ -83,14 +98,14 @@ class Consentful_Admin {
 
 		wp_enqueue_style(
 			self::HANDLE,
-			CONSENTFUL_URL . 'assets/consentful-admin.css',
+			$assets['url'] . 'consentful-admin.css',
 			array(),
 			$css_ver
 		);
 
 		wp_enqueue_script(
 			self::HANDLE,
-			CONSENTFUL_URL . 'assets/consentful-admin.js',
+			$assets['url'] . 'consentful-admin.js',
 			array(),
 			$js_ver,
 			true // in footer
@@ -110,8 +125,8 @@ class Consentful_Admin {
 				'restBase'      => esc_url_raw( rest_url( Consentful_Rest::NAMESPACE ) ),
 				'nonce'         => wp_create_nonce( 'wp_rest' ),
 				'activePlugins' => array_values( $active ),
-				// The public site URL, so license activation can bind this domain
-				// without asking the user for it.
+				// The public site URL: the editor's header, and the domain the Pro
+				// add-on activates its license for.
 				'siteUrl'       => esc_url_raw( home_url( '/' ) ),
 			)
 		);

@@ -19,6 +19,7 @@ import { LicensePanel } from "./license/LicensePanel"
 import { useLicense } from "./license/use-license"
 import { ActivationGate } from "./license/ActivationGate"
 import { useSettingsContext } from "./settings-context"
+import { WORDPRESS_PRO_URL } from "@framer-cookie-consent/shared"
 import { markPublished, setPublishedSnapshot, usePublishState, type HostPublisher } from "./publish-state"
 import {
   BehaviorPanel,
@@ -35,6 +36,14 @@ import { AddCategoryModal, AddScriptModal, ScanTrackersModal, Onboarding } from 
 
 /** Build flag (see shared-ui/src/env.d.ts): true in the Framer build. */
 declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
+/**
+ * Build flag `__CC_FREE_CORE__`: `true` in the free WordPress.org plugin, which
+ * may not check licenses or carry key-locked features. That build has no License
+ * tab, no activation gate and no licensing code (read only as the inline
+ * expression so it folds and the code drops out); Pro controls are replaced by a
+ * pointer to the separate Pro add-on.
+ */
+declare const __CC_FREE_CORE__: boolean | undefined
 
 type TabId = "categories" | "behavior" | "consent" | "scripts" | "theme" | "insights" | "license" | "preview"
 
@@ -59,7 +68,8 @@ const NAV_GROUPS: Array<{ label: string; items: NavItemDef[] }> = [
     items: [
       // Insights reads stats from a user-configured endpoint, so builds that
       // forbid custom endpoints (Framer) leave the tab out.
-      ...(((typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? [] : [["insights", "Insights", "query_stats"]]) as Array<[TabId, string, string]>),
+      // The free WordPress core leaves it out too: it is a Pro-only tab.
+      ...(((typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) || (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? [] : [["insights", "Insights", "query_stats"]]) as Array<[TabId, string, string]>),
       ["license", "License", "workspace_premium"],
       ["preview", "Publish", "rocket_launch"],
     ],
@@ -73,7 +83,9 @@ const TITLES: Record<TabId, [string, string]> = {
   scripts: ["Scripts", "Manage third-party tags that stay blocked until consent is given."],
   theme: ["Theme", "Match the banner to your brand — colour, layout and shape — and write its copy."],
   insights: ["Insights", "See how visitors respond to your banner — accept, reject and grant rates."],
-  license: ["License", "Activate this site with your free or paid key — the live banner only shows once activated."],
+  license: (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__)
+    ? ["License", ""]
+    : ["License", "Activate this site with your free or paid key — the live banner only shows once activated."],
   preview: ["Publish", "Review what's added to your site — it stays in sync automatically."],
 }
 
@@ -91,7 +103,10 @@ export function ConsentfulShell() {
   const readOnlyNotice = host.useReadOnlyNotice ? host.useReadOnlyNotice() : null
   // Re-verify a saved license once on start-up (relocks a lapsed plan). This is
   // also the instance the activation gate drives, so activating unlocks at once.
-  const lic = useLicense({ autoCheck: true })
+  // The free WordPress core never licenses: the flag is a build constant, so
+  // the hook is either always or never called.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const lic = (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : useLicense({ autoCheck: true })
 
   const [tab, setTab] = useState<TabId>("categories")
   const [previewMode, setPreviewMode] = useState<PreviewMode>("banner")
@@ -184,14 +199,15 @@ export function ConsentfulShell() {
   // site has an activated key. A key is only saved once the portal accepts it,
   // and a rejected re-check clears it, so "has a key" means "activated". Wait
   // for the saved config first so an activated site never flashes the gate.
-  if (host.showLicenseTab && m.status === "loading" && !lic.key) {
+  const gated = !(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) && lic !== null && host.showLicenseTab && host.requireActivation !== false
+  if (gated && m.status === "loading" && !lic.key) {
     return (
       <div className="cf-app" style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.ground }}>
         <Spinner />
       </div>
     )
   }
-  if (host.showLicenseTab && !lic.key) {
+  if (gated && !lic.key) {
     if (!readOnlyNotice) return <ActivationGate lic={lic} />
     return (
       <div className="cf-app" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: T.ground }}>
@@ -329,7 +345,7 @@ export function ConsentfulShell() {
                   {group.label}
                 </div>
                 {group.items
-                  .filter(([id]) => id !== "license" || host.showLicenseTab)
+                  .filter(([id]) => id !== "license" || (host.showLicenseTab && !(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__)))
                   .map(([id, label, icon]) => (
                     <NavItem key={id} icon={icon} label={label} active={tab === id} onClick={() => setTab(id)} />
                   ))}
@@ -337,7 +353,13 @@ export function ConsentfulShell() {
             ))}
           </div>
           <div style={{ flex: "1 0 12px" }} />
-          {isPro ? <ProBadge /> : <UpgradeCard onClick={() => setTab("license")} />}
+          {isPro ? (
+            <ProBadge />
+          ) : (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? (
+            <UpgradeCard addOn onClick={() => window.open(WORDPRESS_PRO_URL, "_blank", "noopener,noreferrer")} />
+          ) : (
+            <UpgradeCard onClick={() => setTab("license")} />
+          )}
         </nav>
 
         {/* PANEL */}
@@ -361,8 +383,8 @@ export function ConsentfulShell() {
                 <TextPanel m={m} />
               </div>
             )}
-            {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? null : tab === "insights" && <InsightsPanel m={m} />}
-            {tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} />)}
+            {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) || (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : tab === "insights" && <InsightsPanel m={m} />}
+            {(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} />)}
             {tab === "preview" && <PublishPanel m={m} />}
             </div>
           </div>
@@ -876,7 +898,8 @@ function NavItem({ icon, label, active, onClick }: { icon: string; label: string
   )
 }
 
-function UpgradeCard({ onClick }: { onClick: () => void }) {
+/** `addOn`: the free WordPress core, whose upgrade is the separate Pro add-on. */
+function UpgradeCard({ onClick, addOn = false }: { onClick: () => void; addOn?: boolean }) {
   return (
     <div
       style={{
@@ -939,7 +962,9 @@ function UpgradeCard({ onClick }: { onClick: () => void }) {
           Unlock everything
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginBottom: 12 }}>
-          Every banner design, geo-targeting, A/B testing and more.
+          {addOn
+            ? "Every banner design, geo-targeting, A/B testing and more with the Consentful Pro add-on."
+            : "Every banner design, geo-targeting, A/B testing and more."}
         </div>
         <HoverButton
           onClick={onClick}
@@ -966,7 +991,7 @@ function UpgradeCard({ onClick }: { onClick: () => void }) {
           hover={{ backgroundPosition: "100% 50%", filter: "brightness(1.04)" }}
         >
           <Icon name="workspace_premium" size={16} color={T.indigo} />
-          Upgrade to Pro
+          {addOn ? "Get Consentful Pro" : "Upgrade to Pro"}
         </HoverButton>
       </div>
     </div>

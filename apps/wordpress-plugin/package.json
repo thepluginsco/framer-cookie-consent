@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --mode pro",
+    "build:free": "vite build",
+    "build:pro": "vite build --mode pro",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

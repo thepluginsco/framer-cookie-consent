@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 
-import { packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
+import { WORDPRESS_PRO_URL, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
 import { useSettingsContext } from "./settings-context"
 import { T, focusRing, tint } from "./tokens"
@@ -27,6 +27,8 @@ import {
 
 /** Build flag (see shared-ui/src/env.d.ts): true in the Framer build. */
 declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
+/** `true` in the free WordPress.org build (see shell.tsx). */
+declare const __CC_FREE_CORE__: boolean | undefined
 
 /* -------------------------------------------------------------------------- */
 /* Shared field primitives                                                    */
@@ -1390,6 +1392,21 @@ function LanguageBar({
  */
 function ProLock({ locked, note, children }: { locked: boolean; note: string; children: React.ReactNode }) {
   if (!locked) return <>{children}</>
+  // The free WordPress core carries no key-locked controls: it says where the
+  // feature lives (the separate Pro add-on) and shows nothing it can't use.
+  if (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 9, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, borderRadius: T.rLg, padding: "10px 12px" }}>
+        <ProChip />
+        <div style={{ fontSize: 11.5, color: T.ink2, lineHeight: 1.45 }}>
+          {note.replace(/part of paid plans\.?$/i, "part of the Consentful Pro add-on.")}{" "}
+          <a href={WORDPRESS_PRO_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.accentText, fontWeight: 700 }}>
+            Learn more
+          </a>
+        </div>
+      </div>
+    )
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, borderRadius: T.rLg, padding: "10px 12px" }}>

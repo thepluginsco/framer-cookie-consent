@@ -37,6 +37,13 @@ export const PORTAL_PUBLISHABLE_KEY = 'cnsnt_pk_-u8h4YMytVe1RLH5MEqWyTFI';
 export const PORTAL_DASHBOARD_URL = 'https://consentful.theplugins.co';
 
 /** Read-only entitlement endpoint (POST, `x-api-key`, `{ domain }` → token). */
+/**
+ * Where the WordPress free plugin points people for the Pro add-on (a separate
+ * plugin sold and downloaded from the dashboard, never from WordPress.org).
+ */
+export const WORDPRESS_PRO_URL = 'https://consentful.theplugins.co/docs/platforms/wordpress#pro';
+
+/** Path of the licensing API's keyless site-entitlement endpoint. */
 export const ENTITLEMENT_PATH = '/public/site-entitlement';
 
 /** Public JWKS the entitlement token is verified against (GET). */
