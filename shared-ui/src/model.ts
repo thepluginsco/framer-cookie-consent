@@ -227,7 +227,7 @@ export const LOCALE_FIELD_MAP: Record<LocalizableFieldKey, Exclude<keyof LocaleS
   receiptLabel: "downloadReceipt",
 }
 
-/** Common languages offered in the "add language" picker (code → English name). */
+/** Languages offered in the pickers (code → English name) — every one has a built-in pack. */
 export const COMMON_LANGUAGES: Array<[string, string]> = [
   ["de", "German"],
   ["fr", "French"],
@@ -241,6 +241,23 @@ export const COMMON_LANGUAGES: Array<[string, string]> = [
   ["fi", "Finnish"],
   ["no", "Norwegian"],
   ["cs", "Czech"],
+  ["pt-br", "Portuguese (Brazil)"],
+  ["sk", "Slovak"],
+  ["hu", "Hungarian"],
+  ["ro", "Romanian"],
+  ["el", "Greek"],
+  ["bg", "Bulgarian"],
+  ["hr", "Croatian"],
+  ["sl", "Slovenian"],
+  ["et", "Estonian"],
+  ["lv", "Latvian"],
+  ["lt", "Lithuanian"],
+  ["tr", "Turkish"],
+  ["uk", "Ukrainian"],
+  ["ja", "Japanese"],
+  ["ko", "Korean"],
+  ["zh", "Chinese (Simplified)"],
+  ["zh-hant", "Chinese (Traditional)"],
 ]
 
 /** English display name for a locale code, falling back to the upper-cased code. */

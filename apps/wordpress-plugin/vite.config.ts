@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { defineConfig, type Plugin } from "vite";
@@ -9,7 +9,8 @@ import react from "@vitejs/plugin-react";
  * plugin's own folder, so a published site loads no script from a CDN. The file
  * is the self-hosted runtime build (`runtime/dist/consent.self-hosted.min.js`):
  * the same runtime every other platform uses, except its banner images resolve
- * to `images/` beside it, which this step fills from `plugin/public/`.
+ * to `images/` beside it, which this step fills from `plugin/public/`, and its
+ * built-in language packs load from `locales/` beside it.
  */
 function bundleRuntime(): Plugin {
   return {
@@ -20,6 +21,9 @@ function bundleRuntime(): Plugin {
       const out = resolve(import.meta.dirname, "plugin/consentful/assets/runtime");
       mkdirSync(resolve(out, "images"), { recursive: true });
       copyFileSync(resolve(repo, "runtime/dist/consent.self-hosted.min.js"), resolve(out, "consent.min.js"));
+      // Built-in language packs, fetched by the runtime from `locales/` beside it.
+      rmSync(resolve(out, "locales"), { recursive: true, force: true });
+      cpSync(resolve(repo, "runtime/dist/locales"), resolve(out, "locales"), { recursive: true });
       for (const image of ["logo.png", "logo-mark.png", "logo-light.png", "cookie.png", "settings-cookie.png"]) {
         const from = resolve(repo, "plugin/public", image);
         if (existsSync(from)) copyFileSync(from, resolve(out, "images", image));

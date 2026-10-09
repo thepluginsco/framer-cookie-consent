@@ -27,6 +27,7 @@
  */
 export * from './config-schema.js';
 export * from './locale-packs.js';
+export * from './locale-pack-data.js';
 export * from './ab-test.js';
 export * from './tracker-scan.js';
 export * from './runtime-cdn.js';

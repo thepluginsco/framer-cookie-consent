@@ -9,7 +9,7 @@
  */
 
 import { applyLocalePack, primaryLanguage as primarySubtag } from '@framer-cookie-consent/shared';
-import type { StringsConfig, CategoryStrings, LocaleStrings } from '@framer-cookie-consent/shared';
+import type { StringsConfig, CategoryStrings, LocaleStrings, LocalePack } from '@framer-cookie-consent/shared';
 
 /**
  * Choose which authored locale to use for a visitor. Matches the visitor's
@@ -57,26 +57,35 @@ function localizeCategories(
 }
 
 /**
+ * The language the visitor will be shown: the matched translation's locale,
+ * else the base copy's declared `language`, else the page's `<html lang>`.
+ * Boot uses it to pick which built-in pack to fetch.
+ */
+export function shownLanguage(strings: StringsConfig, languages: readonly string[], pageLang = ''): string {
+  const locale = pickLocale(Object.keys(strings.translations), languages);
+  return locale && strings.translations[locale] ? locale : strings.language || pageLang;
+}
+
+/**
  * Produce a {@link StringsConfig} localized for the given visitor languages. When
  * a matching translation exists, its provided fields override the base copy (and
  * its category overrides are merged in); every missing field falls back to the
  * base. Finally, copy still at its English default is swapped for the built-in
- * pack of the language being shown: the matched translation's, else the base
- * copy's declared `language`, else the page's `<html lang>`.
+ * `pack` of the language being shown (see {@link shownLanguage}), when given.
  *
  * @param strings - The base copy (with its `translations` map).
  * @param languages - Visitor languages, most-preferred first.
- * @param pageLang - The page's `<html lang>` (fallback base-copy language).
+ * @param pack - The built-in pack for the shown language, if one was loaded.
  * @returns The effective copy to render.
  */
 export function localizeStrings(
   strings: StringsConfig,
   languages: readonly string[],
-  pageLang = '',
+  pack?: LocalePack,
 ): StringsConfig {
   const locale = pickLocale(Object.keys(strings.translations), languages);
   const t: Partial<LocaleStrings> | undefined = locale ? strings.translations[locale] : undefined;
-  if (!locale || !t) return applyLocalePack(strings, strings.language || pageLang);
+  if (!t) return applyLocalePack(strings, pack);
   return applyLocalePack(
     {
       ...strings,
@@ -97,7 +106,7 @@ export function localizeStrings(
       privacyPolicyLabel: t.privacyPolicyLabel || strings.privacyPolicyLabel,
       categories: localizeCategories(strings.categories, t.categories),
     },
-    locale,
+    pack,
   );
 }
 

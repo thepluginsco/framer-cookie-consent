@@ -1179,7 +1179,7 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
             ))}
           </select>
           <div style={{ fontSize: 11, color: T.ink4, marginTop: 6, lineHeight: 1.5 }}>
-            Text you haven't changed is shown in this language when a built-in translation exists (Swedish today).
+            Text you haven't changed is translated automatically into this language. Built-in translations cover every language in this list.
           </div>
         </div>
       ) : null}

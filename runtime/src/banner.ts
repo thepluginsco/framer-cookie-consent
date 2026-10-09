@@ -18,11 +18,11 @@
  * (the privacy policy) is validated to a safe scheme.
  */
 
-import type { CookieConsentConfig, ConsentCategory, ThemeMode } from '@framer-cookie-consent/shared';
+import type { CookieConsentConfig, ConsentCategory, LocalePack, ThemeMode } from '@framer-cookie-consent/shared';
 import { installConsentApi, type CookieConsentApi, type ConsentState } from './consent-state.ts';
 import { needsReconsent, shouldShowFloatingButton } from './geo.ts';
 import { injectStyles, ROOT_CLASS, assertThemeContrast } from './styles.ts';
-import { localizeStrings, detectLanguages, detectPageLanguage } from './i18n.ts';
+import { localizeStrings, detectLanguages } from './i18n.ts';
 import {
   brandLogoUrl,
   brandLightLogoUrl,
@@ -296,6 +296,11 @@ export interface MountOptions {
    * confirmation badge is shown so the visitor can see their signal was honoured.
    */
   gpcHonored?: boolean;
+  /**
+   * The built-in language pack for the language being shown (fetched by boot,
+   * see `locale-loader.ts`). Untouched default copy renders in its wording.
+   */
+  localePack?: LocalePack | undefined;
 }
 
 /** Imperative handle returned by {@link mountBanner}. */
@@ -342,7 +347,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
 
   // Localize the copy to the visitor's browser language (Pro multi-language).
   // With no translations authored this returns the base copy unchanged.
-  const s = localizeStrings(config.strings, detectLanguages(), detectPageLanguage());
+  const s = localizeStrings(config.strings, detectLanguages(), options.localePack);
   // A centered `modal` banner is a blocking dialog that requires a choice.
   const isModalBanner = config.banner.layout === 'modal';
   const cleanups: Array<() => void> = [];

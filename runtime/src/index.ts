@@ -11,7 +11,7 @@
  * loader the Framer plugin injects.
  */
 
-import { parse, mergeConfig, isPreviewHost, type CookieConsentConfig, type DeepPartial } from '@framer-cookie-consent/shared';
+import { parse, mergeConfig, isPreviewHost, packLanguage, type CookieConsentConfig, type DeepPartial, type LocalePack } from '@framer-cookie-consent/shared';
 import { installConsentApi, readConsent, onConsentChange, type CookieConsentApi } from './consent-state.ts';
 import { bootstrapConsentDefaults, updateConsent } from './consent-mode.ts';
 import { installScriptBlocker } from './script-blocker.ts';
@@ -28,6 +28,8 @@ import {
   regionBucket,
 } from './geo.ts';
 import { mountBanner } from './banner.ts';
+import { detectLanguages, detectPageLanguage, shownLanguage } from './i18n.ts';
+import { loadLocalePack } from './locale-loader.ts';
 import { resolveBannerConfig } from './license-gate.ts';
 import { resolveSiteStatus, type SiteStatus } from './entitlement.ts';
 import { installConsentAnalytics, type AnalyticsContext } from './analytics.ts';
@@ -187,6 +189,13 @@ export async function boot(): Promise<void> {
       ? Promise.resolve({ entitlement: null, activated: true })
       : resolveSiteStatus(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
 
+    // Built-in language pack for the language this visitor will be shown —
+    // fetched now so it resolves alongside the entitlement (awaited in step f).
+    const packCode = (strings: CookieConsentConfig['strings']): string =>
+      packLanguage(shownLanguage(strings, detectLanguages(), detectPageLanguage()));
+    const earlyPackCode = packCode(config.strings);
+    const earlyPack: Promise<LocalePack | undefined> = loadLocalePack(earlyPackCode);
+
     // (c) Consent Mode defaults — MUST precede any tracker. Then keep the
     //     signals in sync on every future consent change. Always runs, licensed
     //     or not: we never leave an unpaid site's trackers ungated.
@@ -283,6 +292,10 @@ export async function boot(): Promise<void> {
     if (!entitlement && !preview) warnUnlicensed(activated);
     if (activated === false) return;
     const bannerConfig = resolveBannerConfig(config, entitlement, { preview });
+    // The licence gate can drop translations, changing the shown language; only
+    // then fetch a different pack.
+    const finalPackCode = packCode(bannerConfig.strings);
+    const localePack = await (finalPackCode === earlyPackCode ? earlyPack : loadLocalePack(finalPackCode));
     whenDomReady(() => {
       try {
         const state = readConsent(config);
@@ -290,6 +303,7 @@ export async function boot(): Promise<void> {
           api,
           autoShow: shouldShowBanner(config, state, region),
           gpcHonored,
+          localePack,
         });
       } catch (err) {
         logError(err, 'mount');

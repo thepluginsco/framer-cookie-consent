@@ -12,6 +12,8 @@ build/
 !runtime/dist/
 runtime/dist/*
 !runtime/dist/consent.min.js
+# Built-in language packs, fetched by the runtime from the same tag.
+!runtime/dist/locales/
 
 # Environment & secrets
 .env

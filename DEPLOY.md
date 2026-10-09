@@ -9,7 +9,7 @@ Runtime is served from jsDelivr pinned to the tag in
 embed **at publish time**, so a new runtime only reaches a live site when that
 surface is **re-published**.
 
-Current shipped runtime: **v0.1.14** (translatable preference center + built-in Swedish copy; 2026-10-09). Sites pick it up when re-published.
+Current shipped runtime: **v0.1.15** (built-in default copy in 29 languages, fetched on demand from runtime/dist/locales; 2026-10-09). Sites pick it up when re-published.
 
 ---
 
