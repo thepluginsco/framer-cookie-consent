@@ -407,6 +407,18 @@ export interface LocaleStrings {
   downloadReceipt: string;
   /** Heading above a category's per-vendor list in the preference center. */
   vendorsHeading: string;
+  /** Preference-center heading. */
+  preferencesTitle: string;
+  /** Preference-center subheading. */
+  preferencesSubtitle: string;
+  /** Badge beside a required category's name. */
+  alwaysOn: string;
+  /** Text inside a required category's static switch. */
+  onLabel: string;
+  /** Reassurance line in the preference-center footer. */
+  preferencesNote: string;
+  /** Accessible label of the close (×) buttons. */
+  closeLabel: string;
   /** Privacy policy link label (the URL stays shared across locales). */
   privacyPolicyLabel: string;
   /** Per-category copy overrides, keyed by category id. */
@@ -435,6 +447,18 @@ export interface StringsConfig {
   downloadReceipt: string;
   /** Heading above a category's per-vendor list in the preference center. */
   vendorsHeading: string;
+  /** Preference-center heading. */
+  preferencesTitle: string;
+  /** Preference-center subheading. */
+  preferencesSubtitle: string;
+  /** Badge beside a required category's name. */
+  alwaysOn: string;
+  /** Text inside a required category's static switch. */
+  onLabel: string;
+  /** Reassurance line in the preference-center footer. */
+  preferencesNote: string;
+  /** Accessible label of the close (×) buttons. */
+  closeLabel: string;
   /** Privacy policy link label. */
   privacyPolicyLabel: string;
   /** Privacy policy URL. */
@@ -450,6 +474,12 @@ export interface StringsConfig {
    * the base copy. Empty by default.
    */
   translations: Record<string, Partial<LocaleStrings>>;
+  /**
+   * Language the base copy is written in (a language subtag like `'sv'`). Picks
+   * the built-in pack that localizes any copy still at its English default.
+   * Empty = use the page's `<html lang>`.
+   */
+  language: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -722,11 +752,18 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     savePreferences: 'Save choices',
     downloadReceipt: 'Download consent receipt',
     vendorsHeading: 'Services',
+    preferencesTitle: 'Privacy preferences',
+    preferencesSubtitle: 'Choose which cookies to allow. You can update your preferences anytime from here.',
+    alwaysOn: 'Always on',
+    onLabel: 'ON',
+    preferencesNote: 'You can change your preferences at any time.',
+    closeLabel: 'Close',
     privacyPolicyLabel: 'Privacy Policy',
     privacyPolicyUrl: 'https://yoursite.com/privacy',
     categories: defaultCategoryStrings(),
     poweredByHidden: false,
     translations: {},
+    language: '',
   },
   scripts: [],
   advanced: {
@@ -1025,6 +1062,12 @@ const LOCALE_STRING_KEYS: readonly Exclude<keyof LocaleStrings, 'categories'>[] 
   'savePreferences',
   'downloadReceipt',
   'vendorsHeading',
+  'preferencesTitle',
+  'preferencesSubtitle',
+  'alwaysOn',
+  'onLabel',
+  'preferencesNote',
+  'closeLabel',
   'privacyPolicyLabel',
 ];
 
@@ -1077,11 +1120,18 @@ function mergeStrings(d: StringsConfig, p: DeepPartial<StringsConfig> | undefine
     savePreferences: strOr(p?.savePreferences, d.savePreferences),
     downloadReceipt: strOr(p?.downloadReceipt, d.downloadReceipt),
     vendorsHeading: strOr(p?.vendorsHeading, d.vendorsHeading),
+    preferencesTitle: strOr(p?.preferencesTitle, d.preferencesTitle),
+    preferencesSubtitle: strOr(p?.preferencesSubtitle, d.preferencesSubtitle),
+    alwaysOn: strOr(p?.alwaysOn, d.alwaysOn),
+    onLabel: strOr(p?.onLabel, d.onLabel),
+    preferencesNote: strOr(p?.preferencesNote, d.preferencesNote),
+    closeLabel: strOr(p?.closeLabel, d.closeLabel),
     privacyPolicyLabel: strOr(p?.privacyPolicyLabel, d.privacyPolicyLabel),
     privacyPolicyUrl: strOr(p?.privacyPolicyUrl, d.privacyPolicyUrl),
     categories: mergeCategoryStrings(d.categories, p?.categories),
     poweredByHidden: boolOr(p?.poweredByHidden, d.poweredByHidden),
     translations: mergeTranslations(d.translations, p?.translations),
+    language: strOr(p?.language, d.language).trim().toLowerCase(),
   };
 }
 

@@ -22,7 +22,7 @@ import type { CookieConsentConfig, ConsentCategory, ThemeMode } from '@framer-co
 import { installConsentApi, type CookieConsentApi, type ConsentState } from './consent-state.ts';
 import { needsReconsent, shouldShowFloatingButton } from './geo.ts';
 import { injectStyles, ROOT_CLASS, assertThemeContrast } from './styles.ts';
-import { localizeStrings, detectLanguages } from './i18n.ts';
+import { localizeStrings, detectLanguages, detectPageLanguage } from './i18n.ts';
 import {
   brandLogoUrl,
   brandLightLogoUrl,
@@ -342,7 +342,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
 
   // Localize the copy to the visitor's browser language (Pro multi-language).
   // With no translations authored this returns the base copy unchanged.
-  const s = localizeStrings(config.strings, detectLanguages());
+  const s = localizeStrings(config.strings, detectLanguages(), detectPageLanguage());
   // A centered `modal` banner is a blocking dialog that requires a choice.
   const isModalBanner = config.banner.layout === 'modal';
   const cleanups: Array<() => void> = [];
@@ -460,7 +460,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
         class: 'cc-banner__close',
         type: 'button',
         text: '×',
-        attrs: { 'aria-label': 'Close' },
+        attrs: { 'aria-label': s.closeLabel },
         on: { click: () => closeBanner() },
       }),
     );
@@ -491,7 +491,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     // (mirrors the design). The badge is decorative next to the static ON control.
     const head = el('div', { class: 'cc-cat__head' }, [el('span', { class: 'cc-cat__label', text: label })]);
     if (category.required) {
-      head.append(el('span', { class: 'cc-cat__always', text: 'Always on' }));
+      head.append(el('span', { class: 'cc-cat__always', text: s.alwaysOn }));
     }
     const textCol = el('div', { class: 'cc-cat__text' }, [
       head,
@@ -504,8 +504,8 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
       // Required categories are always on — show a static "ON" pill.
       control = el('span', {
         class: 'cc-cat__on',
-        text: 'ON',
-        attrs: { 'aria-label': `${label}: always on` },
+        text: s.onLabel,
+        attrs: { 'aria-label': `${label}: ${s.alwaysOn}` },
       });
     } else {
       const inputId = `cc-cat-${category.id}`;
@@ -642,7 +642,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   const footerNote = el('div', { class: 'cc-modal__note' }, [
     infoIcon,
     el('div', { class: 'cc-modal__note-text' }, [
-      el('span', { class: 'cc-modal__note-line', text: 'You can change your preferences at any time.' }),
+      el('span', { class: 'cc-modal__note-line', text: s.preferencesNote }),
       noteLinks,
     ]),
   ]);
@@ -671,10 +671,10 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   }
 
   const prefsHeadingBlock = el('div', { class: 'cc-modal__heading' }, [
-    el('h2', { class: 'cc-modal__title', id: prefsTitleId, text: 'Privacy preferences' }),
+    el('h2', { class: 'cc-modal__title', id: prefsTitleId, text: s.preferencesTitle }),
     el('p', {
       class: 'cc-modal__subtitle',
-      text: 'Choose which cookies to allow. You can update your preferences anytime from here.',
+      text: s.preferencesSubtitle,
     }),
   ]);
 
@@ -692,7 +692,7 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
       class: 'cc-modal__close',
       type: 'button',
       text: '×',
-      attrs: { 'aria-label': 'Close preferences' },
+      attrs: { 'aria-label': s.closeLabel },
       on: { click: () => closePreferences() },
     }),
   ]);

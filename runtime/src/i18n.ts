@@ -8,12 +8,8 @@
  * multi-language on can never blank out a banner.
  */
 
+import { applyLocalePack, primaryLanguage as primarySubtag } from '@framer-cookie-consent/shared';
 import type { StringsConfig, CategoryStrings, LocaleStrings } from '@framer-cookie-consent/shared';
-
-/** The primary language subtag of a BCP-47 tag, lowercased (`'de-DE'` → `'de'`). */
-function primarySubtag(tag: string): string {
-  return tag.trim().toLowerCase().split('-')[0] ?? '';
-}
 
 /**
  * Choose which authored locale to use for a visitor. Matches the visitor's
@@ -64,30 +60,54 @@ function localizeCategories(
  * Produce a {@link StringsConfig} localized for the given visitor languages. When
  * a matching translation exists, its provided fields override the base copy (and
  * its category overrides are merged in); every missing field falls back to the
- * base. When nothing matches, the base `strings` is returned unchanged.
+ * base. Finally, copy still at its English default is swapped for the built-in
+ * pack of the language being shown: the matched translation's, else the base
+ * copy's declared `language`, else the page's `<html lang>`.
  *
  * @param strings - The base copy (with its `translations` map).
  * @param languages - Visitor languages, most-preferred first.
+ * @param pageLang - The page's `<html lang>` (fallback base-copy language).
  * @returns The effective copy to render.
  */
-export function localizeStrings(strings: StringsConfig, languages: readonly string[]): StringsConfig {
+export function localizeStrings(
+  strings: StringsConfig,
+  languages: readonly string[],
+  pageLang = '',
+): StringsConfig {
   const locale = pickLocale(Object.keys(strings.translations), languages);
-  if (!locale) return strings;
-  const t: Partial<LocaleStrings> | undefined = strings.translations[locale];
-  if (!t) return strings;
-  return {
-    ...strings,
-    title: t.title || strings.title,
-    message: t.message || strings.message,
-    acceptAll: t.acceptAll || strings.acceptAll,
-    rejectAll: t.rejectAll || strings.rejectAll,
-    customize: t.customize || strings.customize,
-    savePreferences: t.savePreferences || strings.savePreferences,
-    downloadReceipt: t.downloadReceipt || strings.downloadReceipt,
-    vendorsHeading: t.vendorsHeading || strings.vendorsHeading,
-    privacyPolicyLabel: t.privacyPolicyLabel || strings.privacyPolicyLabel,
-    categories: localizeCategories(strings.categories, t.categories),
-  };
+  const t: Partial<LocaleStrings> | undefined = locale ? strings.translations[locale] : undefined;
+  if (!locale || !t) return applyLocalePack(strings, strings.language || pageLang);
+  return applyLocalePack(
+    {
+      ...strings,
+      title: t.title || strings.title,
+      message: t.message || strings.message,
+      acceptAll: t.acceptAll || strings.acceptAll,
+      rejectAll: t.rejectAll || strings.rejectAll,
+      customize: t.customize || strings.customize,
+      savePreferences: t.savePreferences || strings.savePreferences,
+      downloadReceipt: t.downloadReceipt || strings.downloadReceipt,
+      vendorsHeading: t.vendorsHeading || strings.vendorsHeading,
+      preferencesTitle: t.preferencesTitle || strings.preferencesTitle,
+      preferencesSubtitle: t.preferencesSubtitle || strings.preferencesSubtitle,
+      alwaysOn: t.alwaysOn || strings.alwaysOn,
+      onLabel: t.onLabel || strings.onLabel,
+      preferencesNote: t.preferencesNote || strings.preferencesNote,
+      closeLabel: t.closeLabel || strings.closeLabel,
+      privacyPolicyLabel: t.privacyPolicyLabel || strings.privacyPolicyLabel,
+      categories: localizeCategories(strings.categories, t.categories),
+    },
+    locale,
+  );
+}
+
+/** Read the page's declared language (`<html lang>`); `''` when unset. */
+export function detectPageLanguage(): string {
+  try {
+    return typeof document !== 'undefined' ? document.documentElement.lang || '' : '';
+  } catch {
+    return '';
+  }
 }
 
 /** Read the visitor's ordered browser languages (SSR-safe, never throws). */

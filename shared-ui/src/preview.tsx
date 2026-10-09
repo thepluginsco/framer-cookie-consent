@@ -15,7 +15,8 @@ import settingsCookieUrl from "./assets/settings-cookie.png"
 import { useHost } from "./host"
 import { T } from "./tokens"
 import { Icon, Segmented, Toggle } from "./ui"
-import type { Cfg } from "./model"
+import { packCategory, packText } from "@framer-cookie-consent/shared"
+import { LOCALE_FIELD_MAP, type Cfg, type LocalizableFieldKey } from "./model"
 
 export type PreviewMode = "banner" | "prefs"
 
@@ -42,6 +43,8 @@ export function PreviewPane({
   onToggleCat: (id: string) => void
 }) {
   const showCredit = (useHost().useCreditVisible ?? creditAlwaysVisible)()
+  // Copy as visitors see it: untouched defaults in the declared copy language.
+  const tx = (k: LocalizableFieldKey) => packText(cfg.copyLanguage, LOCALE_FIELD_MAP[k], cfg[k] as string)
   const A = cfg.accent
   const dark = cfg.theme === "dark"
   const bBg = dark ? "#16181d" : "#ffffff"
@@ -226,19 +229,19 @@ export function PreviewPane({
 
                 {/* Copy */}
                 <div style={{ flex: "1 1 120px", minWidth: 120 }}>
-                  <div style={{ fontSize: isBar ? 14 : 15.5, fontWeight: 800, color: bText, letterSpacing: "-.02em", paddingRight: isBar ? 40 : 16 }}>{cfg.heading}</div>
-                  {!isBar ? <div style={{ fontSize: 11, color: bSub, marginTop: 5, lineHeight: 1.5 }}>{cfg.body}</div> : null}
+                  <div style={{ fontSize: isBar ? 14 : 15.5, fontWeight: 800, color: bText, letterSpacing: "-.02em", paddingRight: isBar ? 40 : 16 }}>{tx("heading")}</div>
+                  {!isBar ? <div style={{ fontSize: 11, color: bSub, marginTop: 5, lineHeight: 1.5 }}>{tx("body")}</div> : null}
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: isBar ? 4 : 9 }}>
-                    <span style={manageStyle}>{cfg.manageLabel}</span>
+                    <span style={manageStyle}>{tx("manageLabel")}</span>
                     <span style={linkSep}>|</span>
-                    <span style={policyStyle}>Privacy Policy</span>
+                    <span style={policyStyle}>{tx("privacyLabel")}</span>
                   </div>
                 </div>
 
                 {/* Actions — right-hand column on card/modal, inline row on bar */}
                 <div style={{ display: "flex", flexDirection: isBar ? "row" : "column", gap: isBar ? 8 : 7, flex: "0 0 auto", minWidth: isBar ? 0 : 90, alignSelf: isBar ? "auto" : "center" }}>
-                  <button type="button" style={rejectStyle}>{cfg.rejectLabel}</button>
-                  <button type="button" style={acceptStyle}>{cfg.acceptLabel}</button>
+                  <button type="button" style={rejectStyle}>{tx("rejectLabel")}</button>
+                  <button type="button" style={acceptStyle}>{tx("acceptLabel")}</button>
                 </div>
               </div>
 
@@ -257,8 +260,8 @@ export function PreviewPane({
                   <img src={settingsCookieUrl} alt="" style={{ width: 39, height: 39, objectFit: "contain", filter: "drop-shadow(0 4px 7px rgba(23,28,45,.16))" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0, paddingTop: 1 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 800, color: bText, letterSpacing: "-.02em" }}>Privacy preferences</div>
-                  <div style={{ fontSize: 10.5, color: bSub, marginTop: 4, lineHeight: 1.45 }}>Choose which cookies to allow. You can update your preferences anytime from here.</div>
+                  <div style={{ fontSize: 14.5, fontWeight: 800, color: bText, letterSpacing: "-.02em" }}>{tx("prefsTitle")}</div>
+                  <div style={{ fontSize: 10.5, color: bSub, marginTop: 4, lineHeight: 1.45 }}>{tx("prefsSubtitle")}</div>
                 </div>
                 <Icon name="close" size={17} color={bSub} style={{ cursor: "pointer", marginTop: -1 }} />
               </div>
@@ -267,6 +270,7 @@ export function PreviewPane({
               <div style={{ maxHeight: 176, overflow: "auto", padding: "2px 16px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {cfg.categories.map((c) => {
                   const tile = catTile(c.id)
+                  const text = packCategory(cfg.copyLanguage, c.id, { label: c.name, description: c.desc })
                   return (
                     <div
                       key={c.id}
@@ -277,12 +281,12 @@ export function PreviewPane({
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 12.5, fontWeight: 700, color: bText }}>{c.name}</span>
+                          <span style={{ fontSize: 12.5, fontWeight: 700, color: bText }}>{text.label}</span>
                           {c.locked ? (
-                            <span style={{ fontSize: 9, fontWeight: 700, color: "#3b7bf6", background: "#e6efff", padding: "1px 7px", borderRadius: 20 }}>Always on</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "#3b7bf6", background: "#e6efff", padding: "1px 7px", borderRadius: 20 }}>{tx("alwaysOnLabel")}</span>
                           ) : null}
                         </div>
-                        {c.desc ? <div style={{ fontSize: 10.5, color: bSub, marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div> : null}
+                        {text.description ? <div style={{ fontSize: 10.5, color: bSub, marginTop: 2, lineHeight: 1.4 }}>{text.description}</div> : null}
                       </div>
                       {c.locked ? (
                         <div style={{ position: "relative", flex: "0 0 auto", width: 44, height: 24, borderRadius: 20, background: rejBorder }}>
@@ -301,17 +305,17 @@ export function PreviewPane({
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 7, flex: "1 1 150px", minWidth: 0 }}>
                   <Icon name="info" size={15} color={bSub} style={{ marginTop: 1 }} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 10.5, color: bSub, lineHeight: 1.4 }}>You can change your preferences at any time.</div>
+                    <div style={{ fontSize: 10.5, color: bSub, lineHeight: 1.4 }}>{tx("prefsNote")}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 3 }}>
-                      <span style={policyStyle}>Privacy Policy</span>
+                      <span style={policyStyle}>{tx("privacyLabel")}</span>
                       <span style={linkSep}>|</span>
-                      <span style={manageStyle}>{cfg.manageLabel}</span>
+                      <span style={manageStyle}>{tx("manageLabel")}</span>
                     </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
-                  <button type="button" style={prefsSaveStyle}>{cfg.saveLabel}</button>
-                  <button type="button" style={prefsAcceptStyle}>{cfg.acceptLabel}</button>
+                  <button type="button" style={prefsSaveStyle}>{tx("saveLabel")}</button>
+                  <button type="button" style={prefsAcceptStyle}>{tx("acceptLabel")}</button>
                 </div>
               </div>
             </div>

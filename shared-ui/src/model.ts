@@ -127,6 +127,17 @@ export interface Cfg {
   rejectLabel: string
   manageLabel: string
   saveLabel: string
+  privacyLabel: string
+  prefsTitle: string
+  prefsSubtitle: string
+  alwaysOnLabel: string
+  onLabel: string
+  prefsNote: string
+  closeLabel: string
+  vendorsHeading: string
+  receiptLabel: string
+  /** Language the base copy is written in (`""` = the page's `<html lang>`). */
+  copyLanguage: string
   privacyUrl: string
   showWhen: ShowWhen
   /** Regions that see the banner when `showWhen` is `geo` (Pro). */
@@ -187,6 +198,15 @@ export type LocalizableFieldKey =
   | "rejectLabel"
   | "manageLabel"
   | "saveLabel"
+  | "privacyLabel"
+  | "prefsTitle"
+  | "prefsSubtitle"
+  | "alwaysOnLabel"
+  | "onLabel"
+  | "prefsNote"
+  | "closeLabel"
+  | "vendorsHeading"
+  | "receiptLabel"
 
 /** Map a design text-field key to its (string-valued) {@link LocaleStrings} field. */
 export const LOCALE_FIELD_MAP: Record<LocalizableFieldKey, Exclude<keyof LocaleStrings, "categories">> = {
@@ -196,6 +216,15 @@ export const LOCALE_FIELD_MAP: Record<LocalizableFieldKey, Exclude<keyof LocaleS
   rejectLabel: "rejectAll",
   manageLabel: "customize",
   saveLabel: "savePreferences",
+  privacyLabel: "privacyPolicyLabel",
+  prefsTitle: "preferencesTitle",
+  prefsSubtitle: "preferencesSubtitle",
+  alwaysOnLabel: "alwaysOn",
+  onLabel: "onLabel",
+  prefsNote: "preferencesNote",
+  closeLabel: "closeLabel",
+  vendorsHeading: "vendorsHeading",
+  receiptLabel: "downloadReceipt",
 }
 
 /** Common languages offered in the "add language" picker (code → English name). */
@@ -271,6 +300,16 @@ export function toCfg(c: CookieConsentConfig): Cfg {
     rejectLabel: c.strings.rejectAll,
     manageLabel: c.strings.customize,
     saveLabel: c.strings.savePreferences,
+    privacyLabel: c.strings.privacyPolicyLabel,
+    prefsTitle: c.strings.preferencesTitle,
+    prefsSubtitle: c.strings.preferencesSubtitle,
+    alwaysOnLabel: c.strings.alwaysOn,
+    onLabel: c.strings.onLabel,
+    prefsNote: c.strings.preferencesNote,
+    closeLabel: c.strings.closeLabel,
+    vendorsHeading: c.strings.vendorsHeading,
+    receiptLabel: c.strings.downloadReceipt,
+    copyLanguage: c.strings.language,
     privacyUrl: c.strings.privacyPolicyUrl,
     showWhen: MODE_TO_SHOW_WHEN[c.behavior.showMode],
     showRegions: [...c.behavior.showRegions],
@@ -543,6 +582,10 @@ export interface ConsentfulModel {
   localeValue: (locale: string, key: LocalizableFieldKey) => string
   /** Write a locale's override for a design field (empty clears it). */
   setLocaleValue: (locale: string, key: LocalizableFieldKey, value: string) => void
+  /** Read a category's copy: the base text (`locale` `""`) or a locale's override (`""` when unset). */
+  categoryText: (locale: string, id: string, field: "label" | "description") => string
+  /** Write a category's copy for the base text or a locale (an empty override clears it). */
+  setCategoryText: (locale: string, id: string, field: "label" | "description", value: string) => void
   /* A/B testing ops (Phase 4.1) */
   /** Turn the A/B consent-rate test on/off. */
   setAbEnabled: (enabled: boolean) => void
@@ -556,7 +599,15 @@ type ScalarKey = Exclude<keyof Cfg, "categories" | "scripts">
 /** Apply one scalar cfg edit onto the canonical config. */
 function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown): CookieConsentConfig {
   const next: CookieConsentConfig = { ...prev }
+  // Every localizable copy field maps 1:1 onto a strings key.
+  if (key in LOCALE_FIELD_MAP) {
+    next.strings = { ...prev.strings, [LOCALE_FIELD_MAP[key as LocalizableFieldKey]]: value as string }
+    return next
+  }
   switch (key) {
+    case "copyLanguage":
+      next.strings = { ...prev.strings, language: (value as string).trim().toLowerCase() }
+      break
     case "accent":
       next.theme = { ...prev.theme, accent: value as string }
       break
@@ -574,24 +625,6 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
       break
     case "overlay":
       next.banner = { ...prev.banner, overlay: value as boolean }
-      break
-    case "heading":
-      next.strings = { ...prev.strings, title: value as string }
-      break
-    case "body":
-      next.strings = { ...prev.strings, message: value as string }
-      break
-    case "acceptLabel":
-      next.strings = { ...prev.strings, acceptAll: value as string }
-      break
-    case "rejectLabel":
-      next.strings = { ...prev.strings, rejectAll: value as string }
-      break
-    case "manageLabel":
-      next.strings = { ...prev.strings, customize: value as string }
-      break
-    case "saveLabel":
-      next.strings = { ...prev.strings, savePreferences: value as string }
       break
     case "privacyUrl":
       next.strings = { ...prev.strings, privacyPolicyUrl: value as string }
@@ -837,6 +870,43 @@ export function useConsentful(): ConsentfulModel {
     [update],
   )
 
+  const categoryText = useCallback(
+    (locale: string, id: string, field: "label" | "description"): string => {
+      if (locale === "") {
+        const cat = config.categories.find((c) => c.id === id)
+        const cs = config.strings.categories[id]
+        return (field === "label" ? cs?.label ?? cat?.label : cs?.description ?? cat?.description) ?? ""
+      }
+      return config.strings.translations[locale]?.categories?.[id]?.[field] ?? ""
+    },
+    [config],
+  )
+
+  const setCategoryText = useCallback(
+    (locale: string, id: string, field: "label" | "description", value: string) => {
+      if (locale === "") {
+        const key = field === "label" ? "name" : "desc"
+        setCategories((cats) => cats.map((c) => (c.id === id ? { ...c, [key]: value } : c)))
+        return
+      }
+      update((prev) => {
+        const current = prev.strings.translations[locale] ?? {}
+        const cats = { ...current.categories }
+        const entry = { label: "", description: "", ...cats[id], [field]: value.trim() === "" ? "" : value }
+        // Both fields empty = no override, so drop the entry instead of storing blanks.
+        if (!entry.label && !entry.description) delete cats[id]
+        else cats[id] = entry
+        const nextLocale: Partial<LocaleStrings> = { ...current, categories: cats }
+        if (Object.keys(cats).length === 0) delete nextLocale.categories
+        return {
+          ...prev,
+          strings: { ...prev.strings, translations: { ...prev.strings.translations, [locale]: nextLocale } },
+        }
+      })
+    },
+    [update, setCategories],
+  )
+
   const setAbEnabled = useCallback(
     (enabled: boolean) => {
       update((prev) => applyAbTest(prev, enabled, toCfg(prev).abVariants))
@@ -871,6 +941,8 @@ export function useConsentful(): ConsentfulModel {
     removeLanguage,
     localeValue,
     setLocaleValue,
+    categoryText,
+    setCategoryText,
     setAbEnabled,
     setAbVariants,
   }

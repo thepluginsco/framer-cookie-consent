@@ -37,9 +37,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * raw ceiling is now 64 KB — the wire cost is what matters, and there is headroom
  * so a careless addition still trips the gate. Free-key activation (activated
  * status, free-activation cache, no-banner-when-unactivated) pushed it just past
- * 64 KB, so the ceiling is 65 KB.
+ * 64 KB, so the ceiling was 65 KB. Translatable preference-center copy plus the
+ * built-in Swedish pack (shared/locale-packs.ts) add ~2.5 KB raw (~0.9 KB
+ * gzipped), so the ceiling is now 68 KB.
  */
-const MAX_BYTES = 65 * 1024; // 65 KB (≈18.6 KB gzipped)
+const MAX_BYTES = 68 * 1024; // 68 KB (≈21.6 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 

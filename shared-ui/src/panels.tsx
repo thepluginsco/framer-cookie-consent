@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 
-import { buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
+import { packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
 import { useSettingsContext } from "./settings-context"
 import { T, focusRing, tint } from "./tokens"
@@ -19,6 +19,7 @@ import {
   scriptHost,
   languageName,
   COMMON_LANGUAGES,
+  LOCALE_FIELD_MAP,
   type CfgVariant,
   type ConsentfulModel,
   type LocalizableFieldKey,
@@ -1115,15 +1116,37 @@ function CustomCssCard({ m }: { m: ConsentfulModel }) {
 /* Text                                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Localizable copy fields, in display order (privacy URL is handled separately). */
-const TEXT_FIELDS: Array<{ key: LocalizableFieldKey; label: string; multiline?: boolean }> = [
-  { key: "heading", label: "Banner heading" },
-  { key: "body", label: "Banner body", multiline: true },
-  { key: "acceptLabel", label: "“Accept all” button" },
-  { key: "rejectLabel", label: "“Reject all” button" },
-  { key: "manageLabel", label: "“Manage preferences” link" },
-  { key: "saveLabel", label: "“Save choices” button" },
+/** Localizable copy fields, grouped and in display order (privacy URL is handled separately). */
+const TEXT_GROUPS: Array<{ title: string; fields: Array<{ key: LocalizableFieldKey; label: string; multiline?: boolean }> }> = [
+  {
+    title: "Banner",
+    fields: [
+      { key: "heading", label: "Banner heading" },
+      { key: "body", label: "Banner body", multiline: true },
+      { key: "acceptLabel", label: "“Accept all” button" },
+      { key: "rejectLabel", label: "“Reject all” button" },
+      { key: "manageLabel", label: "“Manage preferences” link" },
+      { key: "privacyLabel", label: "Privacy policy link" },
+    ],
+  },
+  {
+    title: "Preference center",
+    fields: [
+      { key: "prefsTitle", label: "Heading" },
+      { key: "prefsSubtitle", label: "Subheading", multiline: true },
+      { key: "saveLabel", label: "“Save choices” button" },
+      { key: "alwaysOnLabel", label: "“Always on” badge" },
+      { key: "onLabel", label: "“ON” switch text" },
+      { key: "prefsNote", label: "Footer note" },
+      { key: "vendorsHeading", label: "Services list heading" },
+      { key: "receiptLabel", label: "“Download consent receipt” link" },
+      { key: "closeLabel", label: "Close button (screen readers)" },
+    ],
+  },
 ]
+
+/** Languages the base copy can be declared in (English first). */
+const COPY_LANGUAGES: Array<[string, string]> = [["en", "English"], ...COMMON_LANGUAGES]
 
 export function TextPanel({ m }: { m: ConsentfulModel }) {
   const { cfg } = m
@@ -1132,32 +1155,84 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
   const [locale, setLocale] = useState("")
   // If the selected locale was removed, fall back to the base copy.
   const editingLocale = locale && cfg.languages.includes(locale) ? locale : ""
+  const editingBase = editingLocale === ""
+  // Untouched default copy renders in the built-in pack of the language shown.
+  const shownLang = editingBase ? cfg.copyLanguage : editingLocale
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
       <LanguageBar m={m} isPro={isPro} editing={editingLocale} onSelect={setLocale} />
 
-      {TEXT_FIELDS.map((f) => {
-        const base = cfg[f.key] as string
-        const editingBase = editingLocale === ""
-        const value = editingBase ? base : m.localeValue(editingLocale, f.key)
-        return (
-          <div key={f.key}>
-            <Label>{f.label}</Label>
-            <TextInput
-              value={value}
-              onChange={(v) =>
-                editingBase ? m.set(f.key as never, v as never) : m.setLocaleValue(editingLocale, f.key, v)
-              }
-              {...(editingBase ? {} : { placeholder: base })}
-              multiline={!!f.multiline}
-            />
+      {editingBase ? (
+        <div>
+          <Label>Default copy language</Label>
+          <select
+            value={cfg.copyLanguage}
+            onChange={(e) => m.set("copyLanguage", e.target.value)}
+            style={{ ...INPUT_BASE, cursor: "pointer" }}
+          >
+            <option value="">Auto — your site's language</option>
+            {COPY_LANGUAGES.map(([code, label]) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <div style={{ fontSize: 11, color: T.ink4, marginTop: 6, lineHeight: 1.5 }}>
+            Text you haven't changed is shown in this language when a built-in translation exists (Swedish today).
           </div>
-        )
-      })}
+        </div>
+      ) : null}
+
+      {TEXT_GROUPS.map((g) => (
+        <div key={g.title} style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+          <Eyebrow>{g.title}</Eyebrow>
+          {g.fields.map((f) => {
+            const base = packText(shownLang, LOCALE_FIELD_MAP[f.key], cfg[f.key] as string)
+            const value = editingBase ? base : m.localeValue(editingLocale, f.key)
+            return (
+              <div key={f.key}>
+                <Label>{f.label}</Label>
+                <TextInput
+                  value={value}
+                  onChange={(v) =>
+                    editingBase ? m.set(f.key as never, v as never) : m.setLocaleValue(editingLocale, f.key, v)
+                  }
+                  {...(editingBase ? {} : { placeholder: base })}
+                  multiline={!!f.multiline}
+                />
+              </div>
+            )
+          })}
+        </div>
+      ))}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+        <Eyebrow>Categories</Eyebrow>
+        {cfg.categories.map((c) => {
+          const base = packCategory(shownLang, c.id, { label: c.name, description: c.desc })
+          const field = (f: "label" | "description") => (editingBase ? base[f] : m.categoryText(editingLocale, c.id, f))
+          return (
+            <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Label>{CAT_NAME[c.id] ?? c.name}</Label>
+              <TextInput
+                value={field("label")}
+                onChange={(v) => m.setCategoryText(editingLocale, c.id, "label", v)}
+                {...(editingBase ? {} : { placeholder: base.label })}
+              />
+              <TextInput
+                value={field("description")}
+                onChange={(v) => m.setCategoryText(editingLocale, c.id, "description", v)}
+                {...(editingBase ? {} : { placeholder: base.description })}
+                multiline
+              />
+            </div>
+          )
+        })}
+      </div>
 
       {/* The privacy URL is shared across locales (a URL, not copy). */}
-      {editingLocale === "" ? (
+      {editingBase ? (
         <div>
           <Label>Privacy policy URL</Label>
           <TextInput value={cfg.privacyUrl} onChange={(v) => m.set("privacyUrl", v)} mono />
