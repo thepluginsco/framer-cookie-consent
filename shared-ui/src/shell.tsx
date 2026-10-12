@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react"
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 
 import logoUrl from "./assets/logo.png"
 import { useHost } from "./host"
@@ -266,7 +266,7 @@ export function ConsentfulShell() {
             opacity: 0.9,
           }}
         />
-        <div style={{ display: "flex", alignItems: "center", minWidth: 0, gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", minWidth: 210, gap: 12, flex: "0 1 auto" }}>
           <img
             src={logoUrl}
             alt="Consentful by The Plugins Company"
@@ -280,15 +280,22 @@ export function ConsentfulShell() {
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <SaveStatus saving={saving} errored={errored} error={m.error} readOnly={readOnly} />
-          <div style={{ width: 1, height: 20, background: T.border }} />
-          <PreviewToggle open={previewOpen} onClick={() => setPreviewOpen((v) => !v)} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flex: "1 1 auto", minWidth: 0, marginLeft: 12 }}>
           {host.publisher ? (
-            <span aria-disabled={readOnly} {...(readOnly ? LOCKED : {})} style={readOnly ? { opacity: 0.5, pointerEvents: "none" } : undefined}>
-              <HeaderPublish publisher={host.publisher} onNeedsSetup={() => setTab("preview")} />
-            </span>
-          ) : null}
+            <HeaderPublish
+              publisher={host.publisher}
+              onNeedsSetup={() => setTab("preview")}
+              readOnly={readOnly}
+              save={<SaveStatus saving={saving} errored={errored} error={m.error} readOnly={readOnly} />}
+              preview={<PreviewToggle open={previewOpen} onClick={() => setPreviewOpen((v) => !v)} />}
+            />
+          ) : (
+            <>
+              <SaveStatus saving={saving} errored={errored} error={m.error} readOnly={readOnly} />
+              <HeaderDivider />
+              <PreviewToggle open={previewOpen} onClick={() => setPreviewOpen((v) => !v)} />
+            </>
+          )}
           <HoverButton
             title="Setup guide"
             ariaLabel="Setup guide"
@@ -299,19 +306,19 @@ export function ConsentfulShell() {
             base={{
               width: T.control,
               height: T.control,
+              flex: "0 0 auto",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               borderRadius: T.rMd,
-              border: `1px solid ${T.border}`,
-              background: T.surface,
+              border: "none",
+              background: "transparent",
               cursor: "pointer",
-              color: T.ink3,
-              boxShadow: T.shSm,
+              color: T.ink4,
             }}
             hover={{ background: T.sunken, color: T.ink }}
           >
-            <Icon name="help" size={18} />
+            <Icon name="help" size={19} />
           </HoverButton>
         </div>
       </header>
@@ -537,6 +544,21 @@ function ReadOnlyNotice({ message }: { message: string }) {
   )
 }
 
+/** Quiet inline status text for the header — deliberately not shaped like a button. */
+const statusText: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  fontSize: 11.5,
+  fontWeight: 600,
+  color: T.ink3,
+  whiteSpace: "nowrap",
+}
+
+function HeaderDivider() {
+  return <div aria-hidden style={{ width: 1, height: 20, background: T.border, flex: "0 0 auto" }} />
+}
+
 function SaveStatus({
   saving,
   errored,
@@ -550,86 +572,31 @@ function SaveStatus({
 }) {
   if (readOnly) {
     return (
-      <span
-        title={error ?? undefined}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          fontSize: 11.5,
-          fontWeight: 700,
-          color: T.ink2,
-          background: T.sunken,
-          padding: "5px 10px 5px 8px",
-          borderRadius: T.rPill,
-          whiteSpace: "nowrap",
-        }}
-      >
-        <Icon name="lock" size={14} />
+      <span title={error ?? undefined} style={statusText}>
+        <Icon name="lock" size={14} color={T.ink4} />
         View only
       </span>
     )
   }
   if (errored) {
     return (
-      <span
-        title={error ?? undefined}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          fontSize: 11.5,
-          fontWeight: 700,
-          color: T.danger,
-          background: T.dangerSoft,
-          padding: "5px 10px 5px 8px",
-          borderRadius: T.rPill,
-          whiteSpace: "nowrap",
-        }}
-      >
-        <Icon name="error" size={15} />
+      <span title={error ?? undefined} style={{ ...statusText, color: T.danger }}>
+        <Icon name="error" size={14} color={T.danger} />
         Couldn’t save
       </span>
     )
   }
   if (saving) {
     return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 11.5,
-          fontWeight: 700,
-          color: T.ink2,
-          background: T.sunken,
-          padding: "5px 11px 5px 9px",
-          borderRadius: T.rPill,
-          whiteSpace: "nowrap",
-        }}
-      >
+      <span style={statusText}>
         <Spinner size={11} />
         Saving…
       </span>
     )
   }
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        fontSize: 11.5,
-        fontWeight: 700,
-        color: T.successText,
-        background: T.successSoft,
-        padding: "5px 10px 5px 8px",
-        borderRadius: T.rPill,
-        whiteSpace: "nowrap",
-        animation: "cfPop .28s cubic-bezier(.22,1,.36,1)",
-      }}
-    >
-      <Icon name="check_circle" size={15} color={T.success} />
+    <span style={{ ...statusText, animation: "cfPop .28s cubic-bezier(.22,1,.36,1)" }}>
+      <Icon name="check" size={14} color={T.ink4} />
       Saved
     </span>
   )
@@ -656,7 +623,7 @@ function SitePill({ name, liveUrl }: { name: string; liveUrl: string | null }) {
           fontWeight: 700,
           color: T.ink,
           letterSpacing: "-.01em",
-          maxWidth: 168,
+          maxWidth: 220,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -675,10 +642,9 @@ function SitePill({ name, liveUrl }: { name: string; liveUrl: string | null }) {
     alignItems: "center",
     gap: 7,
     height: 30,
-    padding: "0 11px",
-    borderRadius: T.rPill,
-    border: `1px solid ${over && live ? T.accentBorder : T.border}`,
-    background: over && live ? T.accentSoft : T.sunken,
+    padding: "0 8px",
+    borderRadius: T.rMd,
+    background: over && live ? T.sunken : "transparent",
     textDecoration: "none",
     cursor: live ? "pointer" : "default",
     transition: "background .15s, border-color .15s",
@@ -712,7 +678,21 @@ function SitePill({ name, liveUrl }: { name: string; liveUrl: string | null }) {
  * "Live") and a one-click Publish. When the host can't publish in one click
  * (site not connected yet), it opens the Publish tab instead.
  */
-function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; onNeedsSetup: () => void }) {
+function HeaderPublish({
+  publisher,
+  onNeedsSetup,
+  readOnly,
+  save,
+  preview,
+}: {
+  publisher: HostPublisher
+  onNeedsSetup: () => void
+  readOnly: boolean
+  /** The save status, shown first in the quiet status line. */
+  save: ReactNode
+  /** The Preview toggle, placed between the status line and Publish. */
+  preview: ReactNode
+}) {
   const { config } = useSettingsContext()
   const state = usePublishState(config)
   const [busy, setBusy] = useState(false)
@@ -738,8 +718,9 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
     try {
       const r = await publisher.publish(config)
       if (r.ok) markPublished(config)
+      // Opening the Publish tab is the feedback; no header message to squeeze the bar.
       if (r.needsSetup) onNeedsSetup()
-      setFlash({ ok: r.ok, ...(r.warning ? { warning: true } : {}), text: r.message })
+      else setFlash({ ok: r.ok, ...(r.warning ? { warning: true } : {}), text: r.message })
     } catch (err) {
       setFlash({ ok: false, text: err instanceof Error ? err.message : String(err) })
     } finally {
@@ -747,64 +728,64 @@ function HeaderPublish({ publisher, onNeedsSetup }: { publisher: HostPublisher; 
     }
   }
 
-  const pill: { text: string; color: string; bg: string; icon: string; action?: boolean } | null = flash
+  const pill: { text: string; color: string; dot: string; action?: boolean } | null = flash
     ? flash.warning
-      ? { text: flash.text, color: T.warn, bg: T.warnSoft, icon: "warning", action: true }
-      : { text: flash.text, color: flash.ok ? T.successText : T.danger, bg: flash.ok ? T.successSoft : T.dangerSoft, icon: flash.ok ? "check_circle" : "error" }
+      ? { text: flash.text, color: T.warn, dot: T.warn, action: true }
+      : { text: flash.text, color: flash.ok ? T.successText : T.danger, dot: flash.ok ? T.success : T.danger }
     : !state.known
       ? null
       : state.dirty
         ? {
             text: state.diff === "never" ? "Not published" : state.diff === "outdated" ? "Runtime update available" : "Unpublished changes",
             color: T.warn,
-            bg: T.warnSoft,
-            icon: state.diff === "outdated" ? "system_update_alt" : "pending",
+            dot: T.warn,
           }
         : blocker
-          ? { text: blocker, color: T.warn, bg: T.warnSoft, icon: "visibility_off", action: true }
-          : { text: "Live", color: T.successText, bg: T.successSoft, icon: "check_circle" }
+          ? { text: blocker, color: T.warn, dot: T.warn, action: true }
+          : { text: "Live", color: T.successText, dot: T.success }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      {pill ? (
-        <span
-          title={pill.action ? `${pill.text} — open the Publish tab to fix` : pill.text}
-          role={pill.action ? "button" : undefined}
-          tabIndex={pill.action ? 0 : undefined}
-          onClick={pill.action ? onNeedsSetup : undefined}
-          onKeyDown={pill.action ? (e) => { if (e.key === "Enter" || e.key === " ") onNeedsSetup() } : undefined}
-          style={{
-            cursor: pill.action ? "pointer" : undefined,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            maxWidth: 220,
-            height: 26,
-            padding: "0 10px",
-            borderRadius: T.rPill,
-            background: pill.bg,
-            color: pill.color,
-            fontSize: 11.5,
-            fontWeight: 700,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "0 1 auto", overflow: "hidden" }}>
+        {save}
+        {pill ? (
+          <>
+            <span aria-hidden style={{ color: T.ink4, fontSize: 11.5 }}>·</span>
+            <span
+              title={pill.action ? `${pill.text} — open the Publish tab to fix` : pill.text}
+              role={pill.action ? "button" : undefined}
+              tabIndex={pill.action ? 0 : undefined}
+              onClick={pill.action ? onNeedsSetup : undefined}
+              onKeyDown={pill.action ? (e) => { if (e.key === "Enter" || e.key === " ") onNeedsSetup() } : undefined}
+              style={{
+                ...statusText,
+                cursor: pill.action ? "pointer" : undefined,
+                textDecoration: pill.action ? "underline" : undefined,
+                textUnderlineOffset: 3,
+                minWidth: 0,
+                color: pill.color === T.successText || pill.color === T.danger ? pill.color : T.ink3,
+              }}
+            >
+              <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: pill.dot, flex: "0 0 auto" }} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{pill.text}</span>
+            </span>
+          </>
+        ) : null}
+      </div>
+      <HeaderDivider />
+      {preview}
+      <span aria-disabled={readOnly} {...(readOnly ? LOCKED : {})} style={readOnly ? { flex: "0 0 auto", opacity: 0.5, pointerEvents: "none" } : { flex: "0 0 auto" }}>
+        <Button
+          variant="primary"
+          icon="rocket_launch"
+          title="Publish your banner to the live site"
+          loading={busy}
+          onClick={() => void publish()}
         >
-          <Icon name={pill.icon} size={15} color={pill.color} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{pill.text}</span>
-        </span>
-      ) : null}
-      <Button
-        variant="primary"
-        icon="rocket_launch"
-        title="Publish your banner to the live site"
-        loading={busy}
-        onClick={() => void publish()}
-      >
-        Publish
-      </Button>
-    </div>
+          Publish
+        </Button>
+      </span>
+    </>
   )
 }
 
@@ -815,6 +796,7 @@ function PreviewToggle({ open, onClick }: { open: boolean; onClick: () => void }
       onClick={onClick}
       base={{
         display: "inline-flex",
+        flex: "0 0 auto",
         alignItems: "center",
         gap: 6,
         height: T.control,
@@ -1005,42 +987,18 @@ function ProBadge() {
   return (
     <div
       style={{
-        position: "relative",
-        overflow: "hidden",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        background: T.surface,
-        border: `1px solid ${T.accentBorder}`,
-        borderRadius: T.rXl,
-        padding: "11px 13px",
-        boxShadow: T.shSm,
+        gap: 9,
+        padding: "10px 10px",
+        borderTop: `1px solid ${T.border}`,
       }}
     >
-      <div
-        aria-hidden
-        style={{ position: "absolute", inset: 0, background: T.irisSoft, opacity: 0.5 }}
-      />
-      <div
-        style={{
-          position: "relative",
-          width: 30,
-          height: 30,
-          flex: "0 0 auto",
-          borderRadius: 9,
-          background: T.iris,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "inset 0 0 0 1px rgba(0,0,0,.05)",
-        }}
-      >
-        <Icon name="workspace_premium" size={17} color={T.indigo} />
-      </div>
-      <div style={{ position: "relative", minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: T.indigo, letterSpacing: "-.01em" }}>Pro active</div>
-        <div style={{ fontSize: 10.5, color: T.accentText, fontWeight: 600 }}>All features unlocked</div>
+      <Icon name="workspace_premium" size={18} color={T.accent} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>Pro</div>
+        <div style={{ fontSize: 10.5, color: T.ink3, fontWeight: 500 }}>All features unlocked</div>
       </div>
     </div>
   )

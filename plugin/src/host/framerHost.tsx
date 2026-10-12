@@ -69,7 +69,7 @@ const framerPublisher: HostPublisher = {
     if (!canWriteSite()) return { ok: false, message: NO_ACCESS }
     try {
       if ((await readInstalledLoader()) === null) {
-        return { ok: false, needsSetup: true, message: "Review and install on the Publish tab" }
+        return { ok: false, needsSetup: true, message: "Install it from the Publish tab" }
       }
       await installBanner(config)
       return { ok: true, message: "Updated ✓ Publish your site in Framer to go live." }

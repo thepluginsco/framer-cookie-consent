@@ -10,7 +10,7 @@ import type { CSSProperties } from "react"
 import { WORDPRESS_PRO_URL, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
 import { useSettingsContext } from "./settings-context"
-import { T, focusRing, tint } from "./tokens"
+import { T, focusRing } from "./tokens"
 import { Button, Card, Eyebrow, Icon, Segmented, Stepper, Toggle, HoverButton, Spinner } from "./ui"
 import {
   catColor,
@@ -217,7 +217,8 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
                   height: 36,
                   flex: "0 0 auto",
                   borderRadius: T.rMd,
-                  background: tint(col, "18"),
+                  background: T.sunken,
+                  border: `1px solid ${T.hairline}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -229,19 +230,7 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>{c.name}</span>
                   {c.locked ? (
-                    <span
-                      style={{
-                        fontSize: 9.5,
-                        fontWeight: 800,
-                        letterSpacing: ".05em",
-                        color: T.ink3,
-                        background: T.sunken,
-                        padding: "2px 7px",
-                        borderRadius: T.rPill,
-                      }}
-                    >
-                      ALWAYS ON
-                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: T.ink4 }}>Always on</span>
                   ) : null}
                 </div>
                 <div style={{ fontSize: 12, color: T.ink3, marginTop: 3, lineHeight: 1.45 }}>{c.desc}</div>
@@ -252,8 +241,8 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
                       style={{
                         fontFamily: T.mono,
                         fontSize: 10,
-                        color: col,
-                        background: tint(col, "16"),
+                        color: T.ink3,
+                        background: T.sunken,
                         padding: "3px 7px",
                         borderRadius: T.rChip,
                         fontWeight: 500,
@@ -819,20 +808,17 @@ export function ConsentPanel({ m }: { m: ConsentfulModel }) {
                   <span style={{ flex: 1, fontFamily: T.mono, fontSize: 11.5, color: T.ink2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {sig}
                   </span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: col, background: tint(col, "16"), padding: "3px 8px", borderRadius: T.rChip, flex: "0 0 auto" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, color: T.ink3, flex: "0 0 auto" }}>
+                    <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: col }} />
                     {CAT_NAME[catId]}
                   </span>
                   <span
                     style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: ".02em",
-                      color: granted ? T.success : T.ink3,
-                      background: granted ? T.successSoft : T.sunken,
-                      padding: "3px 8px",
-                      borderRadius: T.rChip,
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      color: granted ? T.successText : T.ink4,
                       width: 58,
-                      textAlign: "center",
+                      textAlign: "right",
                       flex: "0 0 auto",
                     }}
                   >
@@ -944,7 +930,8 @@ export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; o
                 {detail}
               </div>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, color: col, background: tint(col, "16"), padding: "4px 9px", borderRadius: T.rPill, flex: "0 0 auto" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, color: T.ink3, flex: "0 0 auto" }}>
+              <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: col }} />
               {catLabel}
             </span>
             <HoverButton
@@ -1723,7 +1710,7 @@ function BreakdownCard({
               <span style={{ fontSize: 12.5, fontWeight: 600, color: T.ink, display: "flex", alignItems: "center", gap: 6 }}>
                 {labelFor(id)}
                 {id === winnerId ? (
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: T.success, background: tint(T.success, "1f"), borderRadius: T.rSm, padding: "1px 6px", letterSpacing: ".04em", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: T.successText }}>
                     Leading
                   </span>
                 ) : null}

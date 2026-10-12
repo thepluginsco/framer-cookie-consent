@@ -104,7 +104,8 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
       <Card style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>License key</div>
-          <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".02em", padding: "4px 10px", borderRadius: T.rPill, color: pill.color, background: pill.bg }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, color: pill.color }}>
+            <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "currentColor" }} />
             {statusPillText(lic.status, lic.tier)}
           </span>
         </div>

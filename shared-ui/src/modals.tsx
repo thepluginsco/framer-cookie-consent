@@ -466,7 +466,7 @@ function CustomScriptModal({ m, onClose }: { m: ConsentfulModel; onClose: () => 
           {type === "src" ? (
             <div>
               <ModalLabel>Script URL</ModalLabel>
-              <FocusInput value={url} onChange={setUrl} placeholder="https://snap.licdn.com/li.lms-analytics/insight.min.js" mono onEnter={submit} />
+              <FocusInput value={url} onChange={setUrl} placeholder="https://cdn.example.com/tag.js" mono onEnter={submit} />
               <div style={{ fontSize: 11, color: T.ink4, marginTop: 6, lineHeight: 1.5 }}>
                 The full URL of the tag's script. It stays blocked until the visitor consents to the category below.
               </div>
