@@ -885,100 +885,28 @@ function NavItem({ icon, label, active, onClick }: { icon: string; label: string
 
 /** `addOn`: the free WordPress core, whose upgrade is the separate Pro add-on. */
 function UpgradeCard({ onClick, addOn = false }: { onClick: () => void; addOn?: boolean }) {
+  // Compact on purpose: a tall card here made the nav list above scroll and hid
+  // its last items (Publish) in the 640px-tall editor window.
   return (
     <div
       style={{
-        position: "relative",
-        overflow: "hidden",
-        // Never squeezed by a short window — the nav list above scrolls instead,
-        // otherwise overflow:hidden clips the button and the rounded corners.
         flexShrink: 0,
-        background: T.indigoSurface,
-        borderRadius: T.rXl,
-        padding: 14,
-        boxShadow: `${T.shMd}, inset 0 0 0 1px rgba(255,255,255,.06)`,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        padding: "11px 10px 4px",
+        borderTop: `1px solid ${T.border}`,
       }}
     >
-      {/* Iridescent glow — the logo's cookie, blooming from the corner. */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: -46,
-          right: -34,
-          width: 118,
-          height: 118,
-          borderRadius: "50%",
-          background: T.iris,
-          filter: "blur(14px)",
-          opacity: 0.55,
-        }}
-      />
-      {/* A single sheen sweeps across once when the card first appears. */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          width: 46,
-          background: "linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)",
-          animation: "cfSheen 1.15s cubic-bezier(.22,1,.36,1) .45s both",
-          pointerEvents: "none",
-        }}
-      />
-      <div style={{ position: "relative" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "3px 8px",
-            borderRadius: T.rPill,
-            background: "rgba(255,255,255,.1)",
-            marginBottom: 9,
-          }}
-        >
-          <Icon name="bolt" size={13} color="#fdf3cf" />
-          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".08em", color: "#efeafe" }}>FREE PLAN</span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>Free plan</div>
+        <div style={{ fontSize: 10.5, color: T.ink3, lineHeight: 1.45, marginTop: 2 }}>
+          {addOn ? "Every design, geo-targeting and A/B testing with the Pro add-on." : "Every design, geo-targeting and A/B testing."}
         </div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-.01em", marginBottom: 5 }}>
-          Unlock everything
-        </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginBottom: 12 }}>
-          {addOn
-            ? "Every banner design, geo-targeting, A/B testing and more with the Consentful Pro add-on."
-            : "Every banner design, geo-targeting, A/B testing and more."}
-        </div>
-        <HoverButton
-          onClick={onClick}
-          base={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            width: "100%",
-            height: T.control,
-            borderRadius: T.rMd,
-            border: "none",
-            background: T.iris,
-            backgroundSize: "220% 220%",
-            backgroundPosition: "0% 50%",
-            color: T.indigo,
-            fontSize: 12.5,
-            fontWeight: 800,
-            letterSpacing: "-.01em",
-            cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0,0,0,.25)",
-            transition: "background-position .6s ease, filter .15s",
-          }}
-          hover={{ backgroundPosition: "100% 50%", filter: "brightness(1.04)" }}
-        >
-          <Icon name="workspace_premium" size={16} color={T.indigo} />
-          {addOn ? "Get Consentful Pro" : "Upgrade to Pro"}
-        </HoverButton>
       </div>
+      <Button variant="primary" icon="workspace_premium" onClick={onClick} full>
+        {addOn ? "Get Consentful Pro" : "Upgrade to Pro"}
+      </Button>
     </div>
   )
 }

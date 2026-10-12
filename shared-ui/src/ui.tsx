@@ -105,6 +105,8 @@ export function Toggle({
 export interface SegOption<T extends string> {
   value: T
   label: string
+  /** Shown but not selectable (a paid-plan option on the free plan): renders a lock. */
+  locked?: boolean
 }
 
 /** Sliding segmented control (theme / layout / show-when / preview mode). */
@@ -125,14 +127,19 @@ export function Segmented<V extends string>({
     <div style={{ display: "flex", gap: 3, background: track, padding: 3, borderRadius: T.rMd }}>
       {options.map((opt) => {
         const active = value === opt.value
+        const locked = !!opt.locked && !active
         return (
           <div
             key={opt.value}
             role="button"
-            tabIndex={0}
-            onClick={() => onChange(opt.value)}
+            tabIndex={locked ? -1 : 0}
+            aria-disabled={locked || undefined}
+            title={locked ? `${opt.label} — available on paid plans` : undefined}
+            onClick={() => {
+              if (!locked) onChange(opt.value)
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
+              if (!locked && (e.key === "Enter" || e.key === " ")) {
                 e.preventDefault()
                 onChange(opt.value)
               }
@@ -143,18 +150,20 @@ export function Segmented<V extends string>({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              gap: 5,
               padding: "0 8px",
               fontSize,
               fontWeight: active ? 700 : 600,
               borderRadius: T.rChip,
-              cursor: "pointer",
-              color: active ? T.ink : T.ink3,
+              cursor: locked ? "not-allowed" : "pointer",
+              color: active ? T.ink : locked ? T.ink4 : T.ink3,
               background: active ? T.surface : "transparent",
               boxShadow: active ? "0 1px 2px rgba(16,24,40,.1), 0 0 0 1px rgba(16,24,40,.04)" : "none",
               transition: "color .15s, background .15s",
               userSelect: "none",
             }}
           >
+            {locked ? <Icon name="lock" size={13} color={T.ink4} /> : null}
             {opt.label}
           </div>
         )

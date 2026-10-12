@@ -53,6 +53,27 @@ const INPUT_BASE: CSSProperties = {
 
 const MONO: CSSProperties = { fontFamily: T.mono, fontSize: 12 }
 
+/**
+ * Dropdowns: a fixed height with no vertical padding and a drawn chevron, so the
+ * selected text is never clipped (WebKit ignores padding/line-height on a native
+ * <select>, which cut the text off inside the Framer editor).
+ */
+const SELECT_BASE: CSSProperties = {
+  ...INPUT_BASE,
+  height: 38,
+  padding: "0 34px 0 12px",
+  lineHeight: "normal",
+  appearance: "none",
+  WebkitAppearance: "none",
+  cursor: "pointer",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 12px center",
+}
+
 function TextInput({
   value,
   onChange,
@@ -452,7 +473,7 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
             { value: "all", label: "Everywhere" },
             { value: "eea", label: "EU / EEA" },
             // Choosing your own regions is geo-targeting — paid plans only.
-            ...(isPro || cfg.showWhen === "geo" ? [{ value: "geo" as const, label: "By region" }] : []),
+            { value: "geo" as const, label: "By region", locked: !isPro },
           ]}
         />
         <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{SHOW_WHEN_HINT[cfg.showWhen]}</div>
@@ -468,7 +489,7 @@ export function BehaviorPanel({ m }: { m: ConsentfulModel }) {
             { value: "opt-in", label: "Opt-in" },
             { value: "opt-out", label: "Opt-out" },
             // Auto switches the model by visitor region — paid plans only.
-            ...(isPro || cfg.consentModel === "auto" ? [{ value: "auto" as const, label: "Auto" }] : []),
+            { value: "auto" as const, label: "Auto", locked: !isPro },
           ]}
         />
         <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 11, lineHeight: 1.5 }}>{CONSENT_MODEL_HINT[cfg.consentModel]}</div>
@@ -1172,7 +1193,7 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
           <select
             value={cfg.copyLanguage}
             onChange={(e) => m.set("copyLanguage", e.target.value)}
-            style={{ ...INPUT_BASE, cursor: "pointer" }}
+            style={SELECT_BASE}
           >
             <option value="">Auto — your site's language</option>
             {COPY_LANGUAGES.map(([code, label]) => (
