@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.1
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,25 +22,24 @@ You design the banner in wp-admin. When you publish, the plugin loads the banner
 * **Tracker detection.** The plugin reads your list of active plugins to suggest which trackers to manage.
 * **Private.** Visitors' choices stay in their own browser. They are never sent to Consentful's servers.
 
-= Free and fully functional =
+= Free and paid plans =
 
-Everything in this plugin works without an account, a license key or a time limit. There is no activation step, and the plugin never contacts a Consentful server.
+Activate the plugin with a license key from [consentful.theplugins.co](https://consentful.theplugins.co). A free key is available, with no card needed.
 
-* GDPR and CCPA consent, with opt-in and opt-out models.
-* Google Consent Mode v2.
-* Script blocking by category, with tracker suggestions from your active plugins.
-* Bottom-bar banner in the default theme, in English.
-* A "Powered by Consentful" credit only if you turn it on.
-
-= Consentful Pro (optional add-on) =
-
-Consentful Pro is a separate add-on plugin, sold and downloaded from [consentful.theplugins.co](https://consentful.theplugins.co/docs/platforms/wordpress#pro). It is not part of this plugin and is not needed to use it. It adds every layout and theme, geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator and a WCAG 2.1 AA accessibility check.
+* **Free:** GDPR and CCPA consent, Google Consent Mode v2, script blocking by category, and the bottom-bar banner in the default theme.
+* **Paid plans:** every layout and theme, custom CSS, geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator, a WCAG 2.1 AA accessibility check, and removal of the "Powered by Consentful" credit.
 
 Consentful is an independent product of The Plugins Company. It is not affiliated with, endorsed by or sponsored by Google, Meta or Hotjar.
 
 == External services ==
 
-This plugin does not connect to any Consentful service. The banner script, its images and its language files are included in the plugin and served from your own site. Nothing is loaded from a CDN.
+= Consentful licensing service =
+
+The plugin uses Consentful's licensing service at consentful.theplugins.co, operated by The Plugins Company.
+
+* **From wp-admin:** when you activate a key, and again when the settings screen opens to re-check it, the plugin sends your license key and your site's domain. No site content is sent.
+* **From your site:** the banner sends your site's domain to check which plan is active, and loads its language packs and images from cdn.jsdelivr.net. Visitors' consent choices are never sent.
+* [Terms of Service](https://consentful.theplugins.co/terms), [Privacy Policy](https://consentful.theplugins.co/privacy).
 
 = Google tag (gtag.js), only if you enable it =
 
@@ -63,7 +62,7 @@ Consentful blocks and unblocks the third-party scripts **you** list in the plugi
 
 = Is it free? =
 
-Yes. The plugin is free and fully functional, with no account, license key or time limit. The optional Consentful Pro add-on is sold separately on consentful.theplugins.co.
+There is a free plan: get a free key on consentful.theplugins.co and activate it in the plugin. Paid plans unlock the extra layouts, themes and features.
 
 = Do I need to set anything up in Google Tag Manager? =
 
@@ -71,7 +70,7 @@ No. Consent Mode v2 defaults and updates are sent by the banner itself.
 
 = Does the banner show a "Powered by Consentful" credit? =
 
-Only if you turn it on. The credit is off by default, and every feature works whether it is on or off. You can switch it on or off at any time on the Publish tab.
+Yes on the free plan. Paid plans can remove it.
 
 = Where are visitors' choices stored? =
 
@@ -88,6 +87,12 @@ The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/r
 Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1), Material Symbols (Apache License 2.0).
 
 == Changelog ==
+
+= 0.4.0 =
+* License activation, the License tab and paid features are back in the plugin.
+* Custom CSS and custom managed scripts are back. Every value is validated before it is published.
+* The "Embed on another site" snippet is back on the Publish tab.
+* Licensing now goes through consentful.theplugins.co.
 
 = 0.3.1 =
 * No custom CSS or custom JavaScript: managed scripts are chosen from a list of known vendors, and you enter only the tag ID — the plugin builds the tag.

@@ -36,6 +36,7 @@ import { injectLoader, readInstalledLoader, removeLoader } from "../lib/customCo
 import { canWriteSite, getLiveSiteUrl, getProjectInfo, getPluginData, setPluginData, canSetPluginData } from "../lib/framer"
 import { RUNTIME_VERSION } from "../lib/runtimeCdn"
 import { useCustomCodeDisabled } from "../hooks/useCustomCodeStatus"
+import { scanSiteForTrackers } from "../lib/scanSite"
 import { useReadOnlyNotice } from "../hooks/useWriteAccess"
 import type { CookieConsentConfig } from "../types"
 
@@ -199,6 +200,7 @@ export const framerHost: HostServices = {
   runtimeVersion: RUNTIME_VERSION,
   getLiveSiteUrl: () => getLiveSiteUrl().catch(() => null),
   getSiteName: () => getProjectInfo().then((info) => info.name || null).catch(() => null),
+  scanSite: scanSiteForTrackers,
   data: {
     get: (key) => getPluginData(key),
     set: (key, value) => setPluginData(key, value).then(() => undefined),

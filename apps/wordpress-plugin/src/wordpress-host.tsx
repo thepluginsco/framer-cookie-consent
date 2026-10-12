@@ -51,6 +51,11 @@ const STORAGE_KEY = "consentful.wordpress.config"
  * a Pro install left in the saved config: it always publishes the free plan.
  */
 declare const __CC_FREE_CORE__: boolean | undefined
+/** `true` only in the Pro add-on's admin build (see vite.config.ts). */
+declare const __CC_WP_PRO__: boolean | undefined
+
+const FREE_CORE = typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__
+const WP_PRO = typeof __CC_WP_PRO__ !== "undefined" && __CC_WP_PRO__
 
 function freeCore(config: CookieConsentConfig): CookieConsentConfig {
   return (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__)
@@ -252,7 +257,7 @@ function WordPressPublishAction({ m }: { m: ConsentfulModel }) {
       <div style={{ fontSize: 11.5, color: errored ? T.danger : T.ink3, lineHeight: 1.5, fontWeight: errored ? 600 : 400 }}>
         {note}
       </div>
-      {wpStore ? <CreditOptIn /> : null}
+      {wpStore && FREE_CORE ? <CreditOptIn /> : null}
     </Card>
   )
 }
@@ -286,12 +291,15 @@ const wordpressHost: HostServices = {
   },
   publishSubtitle: "Publish puts the banner on your site. Update or remove it any time from here.",
   showLicenseTab: true,
-  // Pro add-on build: the free core it extends keeps working without a key, so
-  // only the Pro controls lock (the free build has no license code at all).
-  requireActivation: false,
+  // The full plugin is gated behind activation like every other platform. The
+  // Pro add-on extends a core that already works without a key, so there only
+  // the Pro controls lock (the WordPress.org build has no license code at all).
+  requireActivation: !WP_PRO && !FREE_CORE,
   PublishAction: WordPressPublishAction,
   publisher: wordpressPublisher,
-  useCreditVisible,
+  // The credit opt-in exists only in the WordPress.org build; elsewhere the
+  // credit follows the license, as on every other platform.
+  ...(FREE_CORE ? { useCreditVisible } : {}),
 }
 
 function WordPressSettingsProvider({ children }: { children: ReactNode }) {

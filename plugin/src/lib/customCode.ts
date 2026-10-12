@@ -24,7 +24,6 @@ import {
   type PlatformAdapter,
 } from "@framer-cookie-consent/shared"
 import { getCustomCode, setCustomCode } from "./framer"
-import { withoutCustomEndpoints } from "./fixedEndpoints"
 
 /* -------------------------------------------------------------------------- */
 /* Re-exports: the platform-neutral loader now lives in core                  */
@@ -95,7 +94,7 @@ export const framerAdapter: PlatformAdapter = {
  * @param config - The configuration to embed and publish.
  */
 export async function injectLoader(config: CookieConsentConfig): Promise<void> {
-  await installLoaderCore(framerAdapter, withoutCustomEndpoints(config))
+  await installLoaderCore(framerAdapter, config)
 }
 
 /**

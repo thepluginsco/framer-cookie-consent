@@ -85,7 +85,7 @@ export function ActivationGate({ lic }: { lic: LicenseApi }) {
           </p>
           <p style={{ fontSize: 11, color: T.ink4, textAlign: "center", lineHeight: 1.5, margin: "-12px 0 18px" }}>
             Activating sends only your key and this site's domain to Consentful's licensing service (
-            {new URL(PORTAL_API_BASE).host}), only when you click Activate. No site content leaves the editor.
+            {new URL(PORTAL_API_BASE).host}) when you click Activate, and again to re-check it when the editor opens. No site content leaves the editor.
           </p>
 
           <label style={{ display: "block" }}>

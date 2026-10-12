@@ -208,7 +208,7 @@ export function LicensePanel({ m }: { m: ConsentfulModel }) {
       </a>
       <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5, textAlign: "center" }}>
         Activation sends only your license key and this site's domain to Consentful's licensing service (
-        {new URL(PORTAL_API_BASE).host}), only when you click Activate. No site content leaves the editor.
+        {new URL(PORTAL_API_BASE).host}) when you click Activate, and again to re-check it when the editor opens. No site content leaves the editor.
       </div>
     </div>
   )
