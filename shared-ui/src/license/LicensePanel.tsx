@@ -36,9 +36,10 @@ const TIER_LABEL: Record<LicenseTier, string> = {
 
 /** Every paid plan unlocks all of these (flat gating); plans differ only by site count. */
 const PRO_FEATURES = [
-  { label: "Every layout, theme & custom CSS", description: "Cards, modals, your colours — not just the basic bar." },
+  { label: "Every layout, theme & custom CSS", description: "Cards, modals, your colours — not the Consentful-branded bar." },
+  { label: "Your own wording, in any language", description: "Write the banner text yourself, in 29 built-in languages or your own translations." },
+  { label: "Custom categories", description: "Add your own consent categories beyond the standard four." },
   { label: "Geo-targeting", description: "Auto opt-in / opt-out by visitor region." },
-  { label: "Multi-language banners", description: "Serve the banner in the visitor's language." },
   { label: "Preference center & A/B testing", description: "Per-vendor toggles and consent-rate experiments." },
   { label: "Consent analytics", description: "See accept / reject rates over time." },
 ] as const

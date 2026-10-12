@@ -125,7 +125,7 @@ test('buildWebflowRegistrations: honours a runtimeUrl override', () => {
 
 test('buildWebflowRegistrations: throws when the config inline body exceeds Webflow’s limit', () => {
   const huge = 'x'.repeat(WEBFLOW_INLINE_MAX_CHARS + 1000);
-  const config = mergeConfig({ strings: { title: huge } });
+  const config = mergeConfig({ strings: { title: huge }, license: { tier: 'pro' } });
   expect(configScriptBody(config).length).toBeGreaterThan(WEBFLOW_INLINE_MAX_CHARS);
   expect(() => buildWebflowRegistrations(config, FAKE_SRI)).toThrow(RangeError);
 });
@@ -191,7 +191,7 @@ test('installWebflowLoader: a config edit registers a new version and swaps the 
   )!.id;
 
   // Change the config → new content-addressed config version.
-  const res = await installWebflowLoader(site.client, mergeConfig({ strings: { title: 'Changed heading' } }));
+  const res = await installWebflowLoader(site.client, mergeConfig({ strings: { title: 'Changed heading' }, license: { tier: 'pro' } }));
   expect(res.changed).toBe(true);
 
   const configApplied = site.applied.filter(

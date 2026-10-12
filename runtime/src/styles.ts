@@ -309,7 +309,7 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
     `${r} .cc-banner--bar .cc-banner__mark{width:50px;height:50px}`,
     `${r} .cc-banner--bar .cc-banner__title{font-size:17px}`,
     `${r} .cc-banner--bar .cc-banner__actions{flex-direction:row;min-width:0;align-self:center}`,
-    `${r} .cc-banner--bar .cc-powered{flex-basis:auto;position:absolute;top:9px;right:16px;margin:0}`,
+    `${r} .cc-banner--bar .cc-powered{flex-basis:auto;position:absolute;top:9px;right:48px;margin:0}`,
 
     // Modal layout: centred dialog.
     `${r} .cc-banner--modal{top:50%;left:50%;transform:translate(-50%,-50%);max-width:640px}`,

@@ -18,7 +18,7 @@
  * @see ../../ARCHITECTURE.md § "Licensing model"
  */
 
-import type { CookieConsentConfig } from '@framer-cookie-consent/shared';
+import { freePlanBanner, type CookieConsentConfig } from '@framer-cookie-consent/shared';
 import type { FeatureSet, VerifiedEntitlement } from './license-token.ts';
 
 /**
@@ -50,19 +50,6 @@ function flagEnabled(features: FeatureSet, id: string): boolean {
   const f = features[id];
   return !!f && f.kind === 'flag' && f.value === true;
 }
-
-/**
- * Neutral theme the basic fallback banner uses (mirrors the shared schema's
- * default theme). Inlined rather than imported so this module stays a pure
- * TYPE-only consumer of the shared package — keeping the runtime bundle and the
- * test runner free of any value dependency on it.
- */
-const NEUTRAL_THEME: CookieConsentConfig['theme'] = {
-  accent: '#2F6FED',
-  mode: 'light',
-  borderRadius: 16,
-  fontFamily: 'inherit',
-};
 
 /* -------------------------------------------------------------------------- */
 /* Verdict                                                                    */
@@ -101,17 +88,18 @@ export function hasWhiteLabel(entitlement: VerifiedEntitlement | null): boolean 
 /* -------------------------------------------------------------------------- */
 
 /**
- * Downgrade a config to a **basic, branded** fallback banner used when a site is
- * unlicensed. The philosophy (see ARCHITECTURE.md) is: degrade to a plain
- * compliant bar rather than showing nothing, so an unpaid site's visitors stay
- * protected — while the missing premium styling + forced credit nudge the owner
- * to license.
+ * Downgrade a config to the free plan's **Consentful-branded** bottom bar, used
+ * when a site is unlicensed. The philosophy (see ARCHITECTURE.md) is: degrade to
+ * a compliant bar rather than showing nothing, so an unpaid site's visitors stay
+ * protected — while the Consentful branding + forced credit nudge the owner to
+ * license.
  *
- * Compliance-relevant content (categories, copy, Consent Mode wiring, behaviour,
- * and the gated `scripts`) is preserved untouched. Only *premium presentation*
- * is stripped:
- * - layout forced to an unobtrusive bottom `bar` with no blocking overlay;
- * - theme reset to the neutral default (no custom accent / radius / font);
+ * Compliance machinery (Consent Mode wiring, behaviour and the gated `scripts`)
+ * runs on the original config regardless. The banner itself becomes the shared
+ * {@link freePlanBanner}:
+ * - a bottom `bar` with no blocking overlay, in Consentful's brand colours;
+ * - Consentful's standard English wording and the standard categories (the
+ *   site's own privacy-policy link is kept);
  * - author custom CSS and the persistent floating button removed;
  * - white-label forced OFF and the "powered by" credit forced ON.
  *
@@ -119,12 +107,10 @@ export function hasWhiteLabel(entitlement: VerifiedEntitlement | null): boolean 
  * @returns A fresh config shaped for the basic branded fallback banner.
  */
 export function basicBannerConfig(config: CookieConsentConfig): CookieConsentConfig {
+  const free = freePlanBanner(config);
   return {
-    ...config,
-    banner: { ...config.banner, layout: 'bar', overlay: false },
-    theme: { ...NEUTRAL_THEME },
-    advanced: { ...config.advanced, customCss: '', floatingButton: false },
-    strings: { ...config.strings, poweredByHidden: creditHidden(config) },
+    ...free,
+    strings: { ...free.strings, poweredByHidden: creditHidden(config) },
     license: { ...config.license, whiteLabel: false },
   };
 }

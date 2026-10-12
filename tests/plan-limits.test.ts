@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CONFIG,
+  FREE_BRAND_THEME,
   applyPlanLimits,
   mergeConfig,
   stripLicense,
@@ -35,7 +36,9 @@ describe("applyPlanLimits", () => {
     const out = applyPlanLimits(loaded("trial"));
     expect(out.banner.layout).toBe("bar");
     expect(out.banner.overlay).toBe(false);
-    expect(out.theme).toEqual(DEFAULT_CONFIG.theme);
+    expect(out.theme).toEqual(FREE_BRAND_THEME);
+    expect(out.strings.title).toBe(DEFAULT_CONFIG.strings.title);
+    expect(out.strings.language).toBe("en");
     expect(out.advanced.customCss).toBe("");
     expect(out.advanced.floatingButton).toBe(false);
     expect(out.preferenceCenter).toEqual({ showVendors: false, perVendorToggles: false });

@@ -111,7 +111,7 @@ describe("Worker config store", () => {
   it("/api/config stores config (license stripped) that the public endpoint serves", async () => {
     const env = makeEnv();
     const save = await worker.fetch(
-      post("/api/config", { instance: INSTANCE, config: { strings: { title: "Hi there" }, license: { key: "SECRET-KEY" } } }),
+      post("/api/config", { instance: INSTANCE, config: { strings: { title: "Hi there" }, license: { key: "SECRET-KEY", tier: "pro" } } }),
       env,
     );
     expect(await save.json()).toEqual({ stored: true });

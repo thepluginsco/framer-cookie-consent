@@ -1284,11 +1284,50 @@ export function isPaidTier(tier: LicenseTier): boolean {
  * @param config - The editor config (its `license.tier` decides the plan).
  * @returns The config limited to its plan.
  */
+/** Category ids the free plan may use; adding your own categories is paid. */
+export const STANDARD_CATEGORY_IDS: readonly string[] = DEFAULT_CATEGORIES.map((c) => c.id);
+
+/** Consentful's own brand colours: the free plan's branded bottom bar. */
+export const FREE_BRAND_THEME: ThemeConfig = {
+  accent: '#4b23d3',
+  mode: 'light',
+  borderRadius: 12,
+  fontFamily: 'inherit',
+};
+
+/**
+ * The free plan's banner: Consentful's branded bottom bar, in English, with the
+ * standard wording and the standard categories (any the site switched off stay
+ * off). Only the privacy policy link is the site's own. Everything compliance
+ * needs is untouched: Reject all, category choices, Consent Mode, script blocking.
+ * Used when a free site publishes ({@link applyPlanLimits}) and again by the
+ * runtime on a live domain without a paid licence, so a hand-edited published
+ * config can't unlock paid presentation.
+ */
+export function freePlanBanner(config: CookieConsentConfig): CookieConsentConfig {
+  const base = DEFAULT_CONFIG.strings;
+  return {
+    ...config,
+    categories: config.categories.filter((c) => STANDARD_CATEGORY_IDS.includes(c.id)),
+    banner: { ...config.banner, layout: 'bar', overlay: false },
+    theme: { ...FREE_BRAND_THEME },
+    strings: {
+      ...base,
+      categories: { ...base.categories },
+      privacyPolicyUrl: config.strings.privacyPolicyUrl,
+      poweredByHidden: false,
+      translations: {},
+      language: 'en',
+    },
+    advanced: { ...config.advanced, customCss: '', floatingButton: false },
+  };
+}
+
 export function applyPlanLimits(config: CookieConsentConfig): CookieConsentConfig {
   if (isPaidTier(config.license.tier)) return config;
   const { behavior } = config;
   return {
-    ...config,
+    ...freePlanBanner(config),
     behavior: {
       ...behavior,
       consentModel: behavior.consentModel === 'auto' ? 'opt-in' : behavior.consentModel,
@@ -1298,10 +1337,6 @@ export function applyPlanLimits(config: CookieConsentConfig): CookieConsentConfi
     analytics: { ...config.analytics, endpoint: '' },
     preferenceCenter: { ...DEFAULT_CONFIG.preferenceCenter },
     abTest: { enabled: false, variants: [] },
-    banner: { ...config.banner, layout: 'bar', overlay: false },
-    theme: { ...DEFAULT_CONFIG.theme },
-    strings: { ...config.strings, poweredByHidden: false, translations: {} },
-    advanced: { ...config.advanced, customCss: '', floatingButton: false },
   };
 }
 

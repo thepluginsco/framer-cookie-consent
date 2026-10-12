@@ -247,7 +247,8 @@ export function PreviewPane({
 
               {/* Powered-by credit */}
               {!showCredit ? null : isBar ? (
-                <div style={{ position: "absolute", top: 8, right: 12 }}>{poweredBy}</div>
+                // The preview pane is phone-width: the runtime centres the credit under the bar there.
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 11 }}>{poweredBy}</div>
               ) : (
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 11 }}>{poweredBy}</div>
               )}

@@ -459,7 +459,7 @@ export function ConsentfulShell() {
                   <Icon name="close" size={19} />
                 </HoverButton>
               </div>
-              <PreviewPane cfg={m.cfg} mode={previewMode} onMode={setPreviewMode} onToggleCat={m.toggleCat} />
+              <PreviewPane cfg={m.previewCfg} mode={previewMode} onMode={setPreviewMode} onToggleCat={m.toggleCat} />
             </aside>
           </>
         )}
@@ -890,7 +890,7 @@ function UpgradeCard({ onClick, addOn = false }: { onClick: () => void; addOn?: 
           Free plan
         </div>
         <div style={{ fontSize: 10.5, color: T.ink3, lineHeight: 1.45, marginTop: 2 }}>
-          {addOn ? "Every design, geo-targeting and A/B testing with the Pro add-on." : "Every design, geo-targeting and A/B testing."}
+          {addOn ? "Your own design, wording, languages and categories with the Pro add-on." : "Your own design, wording, languages and categories."}
         </div>
       </div>
       <Button variant="primary" icon="workspace_premium" onClick={onClick} full>

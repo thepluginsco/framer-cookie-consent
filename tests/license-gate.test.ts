@@ -20,7 +20,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
-import { mergeConfig } from '@framer-cookie-consent/shared';
+import { DEFAULT_CONFIG, FREE_BRAND_THEME, mergeConfig } from '@framer-cookie-consent/shared';
 import {
   isLicensed,
   hasWhiteLabel,
@@ -156,17 +156,31 @@ test('resolveBannerConfig: unlicensed (null) degrades to the basic branded bar',
   assert.equal(basic.advanced.floatingButton, false, 'floating button stripped');
 });
 
-test('basicBannerConfig: preserves all compliance-relevant content', () => {
+test('basicBannerConfig: keeps compliance content, shows the standard branded English bar', () => {
   const source = mergeConfig({
     scripts: [{ id: 'ga', name: 'GA4', category: 'analytics', type: 'src', value: 'https://x/a.js' }],
-    strings: { title: 'Custom title', message: 'Custom message' },
+    strings: { title: 'Custom title', message: 'Custom message', privacyPolicyUrl: 'https://site.test/privacy', language: 'fr' },
   });
   const basic = basicBannerConfig(source);
-  assert.deepEqual(basic.categories, source.categories, 'categories untouched');
+  assert.deepEqual(basic.categories, source.categories, 'standard categories untouched');
   assert.deepEqual(basic.scripts, source.scripts, 'gated scripts untouched');
   assert.deepEqual(basic.consentMode, source.consentMode, 'Consent Mode wiring untouched');
-  assert.equal(basic.strings.title, 'Custom title', 'copy preserved');
-  assert.equal(basic.strings.message, 'Custom message');
+  assert.equal(basic.strings.title, DEFAULT_CONFIG.strings.title, 'standard wording on the free plan');
+  assert.equal(basic.strings.message, DEFAULT_CONFIG.strings.message);
+  assert.equal(basic.strings.language, 'en', 'English only on the free plan');
+  assert.equal(basic.strings.privacyPolicyUrl, 'https://site.test/privacy', "the site's own privacy link is kept");
+  assert.deepEqual(basic.theme, FREE_BRAND_THEME, 'Consentful brand colours');
+});
+
+test('basicBannerConfig: drops custom categories (paid only), keeps the standard ones', () => {
+  const source = mergeConfig({
+    categories: [
+      ...DEFAULT_CONFIG.categories,
+      { id: 'social', label: 'Social', description: 'Social embeds', required: false, defaultEnabled: false, signals: [] },
+    ],
+  });
+  const ids = basicBannerConfig(source).categories.map((c) => c.id);
+  assert.deepEqual(ids, DEFAULT_CONFIG.categories.map((c) => c.id));
 });
 
 /* -------------------------------------------------------------------------- */

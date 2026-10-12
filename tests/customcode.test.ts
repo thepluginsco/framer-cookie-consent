@@ -51,7 +51,7 @@ test('buildLoaderHtml: omits the inline Consent Mode default when disabled', () 
 
 test('buildLoaderHtml: escapes < > & in the embedded config so it cannot break out of <script>', () => {
   const html = buildLoaderHtml(
-    mergeConfig({ strings: { title: 'Hi </script><script>alert(1)</script> & more' } }),
+    mergeConfig({ strings: { title: 'Hi </script><script>alert(1)</script> & more' }, license: { tier: 'pro' } }),
     { runtimeUrl: RUNTIME_URL },
   );
   // Isolate the config literal (between the assignment and its closing tag).

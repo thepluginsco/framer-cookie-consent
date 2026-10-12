@@ -339,16 +339,20 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
               </HoverButton>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={onAddCategory}
-            style={{ marginTop: 15, border: "none", background: "transparent", color: T.accentText, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-          >
-            or create a custom category
-          </button>
+          {cfg.plan === "pro" ? (
+            <button
+              type="button"
+              onClick={onAddCategory}
+              style={{ marginTop: 15, border: "none", background: "transparent", color: T.accentText, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+            >
+              or create a custom category
+            </button>
+          ) : null}
         </EmptyState>
       ) : (
-        <DashedAdd label="Add category" onClick={onAddCategory} />
+        <ProLock locked={cfg.plan !== "pro"} note="Adding your own categories is part of paid plans. The free plan uses the standard categories.">
+          <DashedAdd label="Add category" onClick={onAddCategory} />
+        </ProLock>
       )}
     </div>
   )
@@ -1173,8 +1177,9 @@ const TEXT_GROUPS: Array<{ title: string; fields: Array<{ key: LocalizableFieldK
 const COPY_LANGUAGES: Array<[string, string]> = [["en", "English"], ...COMMON_LANGUAGES]
 
 export function TextPanel({ m }: { m: ConsentfulModel }) {
-  const { cfg } = m
-  const isPro = cfg.plan === "pro"
+  const isPro = m.cfg.plan === "pro"
+  // Free sites publish Consentful's standard English wording: show exactly that.
+  const cfg = isPro ? m.cfg : m.previewCfg
   // "" = the default/base copy; a locale code = editing that translation.
   const [locale, setLocale] = useState("")
   // If the selected locale was removed, fall back to the base copy.
@@ -1187,6 +1192,8 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
       <LanguageBar m={m} isPro={isPro} editing={editingLocale} onSelect={setLocale} />
 
+      <ProLock locked={!isPro} note="Your own banner text and its language are part of paid plans. The free plan shows Consentful's standard wording in English.">
+      <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
       {editingBase ? (
         <div>
           <Label>Default copy language</Label>
@@ -1255,11 +1262,14 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
         })}
       </div>
 
+      </div>
+      </ProLock>
+
       {/* The privacy URL is shared across locales (a URL, not copy). */}
       {editingBase ? (
         <div>
           <Label>Privacy policy URL</Label>
-          <TextInput value={cfg.privacyUrl} onChange={(v) => m.set("privacyUrl", v)} mono />
+          <TextInput value={m.cfg.privacyUrl} onChange={(v) => m.set("privacyUrl", v)} mono />
         </div>
       ) : (
         <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5 }}>

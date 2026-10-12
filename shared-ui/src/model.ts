@@ -13,6 +13,7 @@ import { useCallback, useMemo } from "react"
 
 import { useSettingsContext } from "./settings-context"
 import {
+  applyPlanLimits,
   TRACKER_CATEGORY_LABEL,
   TRACKER_CATEGORY_SIGNALS,
   type AbVariant,
@@ -576,6 +577,12 @@ export const PRESETS: Record<string, CfgCategory> = {
 /** Everything the Consentful UI needs to read and mutate the configuration. */
 export interface ConsentfulModel {
   cfg: Cfg
+  /**
+   * What the site will actually show: `cfg` on paid plans; on the free plan the
+   * Consentful-branded English bottom bar with the standard wording that free
+   * sites publish. The preview and the locked free-plan fields render this.
+   */
+  previewCfg: Cfg
   /** Save/sync status from the settings engine. */
   status: string
   error: string | null
@@ -726,6 +733,7 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
 export function useConsentful(): ConsentfulModel {
   const { config, status, error, update } = useSettingsContext()
   const cfg = useMemo(() => toCfg(config), [config])
+  const previewCfg = useMemo(() => (cfg.plan === "free" ? toCfg(applyPlanLimits(config)) : cfg), [cfg, config])
 
   const set = useCallback<ConsentfulModel["set"]>(
     (key, value) => {
@@ -943,6 +951,7 @@ export function useConsentful(): ConsentfulModel {
 
   return {
     cfg,
+    previewCfg,
     status,
     error,
     set,
