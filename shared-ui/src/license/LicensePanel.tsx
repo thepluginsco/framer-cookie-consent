@@ -17,7 +17,7 @@ import { useHost } from "../host"
 import type { ConsentfulModel } from "../model"
 import { T } from "../tokens"
 import { Button, Card, Eyebrow, Icon } from "../ui"
-import { useLicense, type LicenseStatus } from "./use-license"
+import { useLicense, type LicenseApi, type LicenseStatus } from "./use-license"
 
 const STATUS_PILL: Record<LicenseStatus, { color: string; bg: string }> = {
   trial: { color: T.ink3, bg: T.sunken },
@@ -73,9 +73,22 @@ const inputStyle = (busy: boolean, mono: boolean) => ({
   outline: "none",
 })
 
-export function LicensePanel({ m }: { m: ConsentfulModel }) {
+/**
+ * The License tab. Pass the shell's `lic` so the tab shows the activation the
+ * user just made on the activation screen (one license state, not two), and so
+ * removing the key here sends the editor straight back to that screen.
+ */
+export function LicensePanel({ m, lic }: { m: ConsentfulModel; lic?: LicenseApi }) {
+  return lic ? <LicenseBody lic={lic} /> : <OwnLicensePanel m={m} />
+}
+
+/** Fallback for hosts that render the panel outside the shell's license state. */
+function OwnLicensePanel({ m }: { m: ConsentfulModel }) {
   void m
-  const lic = useLicense()
+  return <LicenseBody lic={useLicense()} />
+}
+
+function LicenseBody({ lic }: { lic: LicenseApi }) {
   const licensed = lic.status === "active"
   /** Activated on a paid plan (Free keys activate too, but unlock nothing). */
   const paid = licensed && lic.tier !== "trial"

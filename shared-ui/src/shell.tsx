@@ -394,7 +394,7 @@ export function ConsentfulShell() {
               </div>
             )}
             {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) || (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : tab === "insights" && <InsightsPanel m={m} />}
-            {(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} />)}
+            {(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : tab === "license" && (host.LicensePanel ? <host.LicensePanel m={m} /> : <LicensePanel m={m} {...(lic ? { lic } : {})} />)}
             {tab === "preview" && <PublishPanel m={m} />}
             </div>
           </div>
@@ -832,7 +832,8 @@ function NavItem({ icon, label, active, onClick }: { icon: string; label: string
       onClick={onClick}
       onMouseEnter={() => setOver(true)}
       onMouseLeave={() => setOver(false)}
-      onFocus={() => setFocus(true)}
+      // Ring only for keyboard focus; a mouse click shouldn't leave one behind.
+      onFocus={(e) => setFocus(e.currentTarget.matches(":focus-visible"))}
       onBlur={() => setFocus(false)}
       style={{
         position: "relative",
@@ -848,26 +849,9 @@ function NavItem({ icon, label, active, onClick }: { icon: string; label: string
         width: "100%",
         textAlign: "left",
         transition: "background .13s",
-        boxShadow: focus ? focusRing : active ? `inset 0 0 0 1px ${T.accentBorder}` : "none",
+        boxShadow: focus ? focusRing : "none",
       }}
     >
-      {active && (
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: 3,
-            top: "50%",
-            width: 3,
-            height: 16,
-            marginTop: -8,
-            borderRadius: T.rPill,
-            background: T.accent,
-            transformOrigin: "center",
-            animation: "cfBarIn .2s cubic-bezier(.22,1,.36,1)",
-          }}
-        />
-      )}
       <Icon name={icon} size={19} color={active ? T.accent : T.ink3} />
       <span
         style={{
@@ -893,13 +877,18 @@ function UpgradeCard({ onClick, addOn = false }: { onClick: () => void; addOn?: 
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        gap: 8,
-        padding: "11px 10px 4px",
-        borderTop: `1px solid ${T.border}`,
+        gap: 9,
+        padding: 12,
+        borderRadius: T.rLg,
+        background: T.accentSoft,
+        border: `1px solid ${T.accentBorder}`,
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>Free plan</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: T.accentText, letterSpacing: "-.01em" }}>
+          <Icon name="bolt" size={15} color={T.accent} />
+          Free plan
+        </div>
         <div style={{ fontSize: 10.5, color: T.ink3, lineHeight: 1.45, marginTop: 2 }}>
           {addOn ? "Every design, geo-targeting and A/B testing with the Pro add-on." : "Every design, geo-targeting and A/B testing."}
         </div>

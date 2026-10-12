@@ -134,8 +134,15 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
   const key = config.license.key ?? ""
   const tier = config.license.tier
 
-  const [status, setStatus] = useState<LicenseStatus>(key && tier !== "trial" ? "active" : "trial")
+  // A stored key means this site was activated (Free keys included).
+  const [status, setStatus] = useState<LicenseStatus>(key ? "active" : "trial")
   const [message, setMessage] = useState<string | null>(null)
+
+  // Saved settings load after mount, so follow the stored key: a key that
+  // appears is an activated site; a key that is removed relocks the editor.
+  useEffect(() => {
+    setStatus((s) => (key ? (s === "trial" ? "active" : s) : s === "active" || s === "offline" ? "trial" : s))
+  }, [key])
   const [hostDomain, setHostDomain] = useState<string | null>(null)
   const [typedDomain, setTypedDomain] = useState<string | null>(() => readSavedDomain())
   const [maxSites, setMaxSites] = useState<number | null>(null)
