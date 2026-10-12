@@ -13,6 +13,8 @@
 
 import type { CookieConsentConfig, ThemeConfig } from '@framer-cookie-consent/shared';
 
+declare const __CC_SELF_HOSTED__: boolean | undefined;
+
 /** Root scope class applied to the mounted container. Every selector is nested under it. */
 export const ROOT_CLASS = 'cc-root';
 
@@ -485,6 +487,9 @@ export function buildStyleSheet(config: CookieConsentConfig): string {
   }
 
   // Author overrides are appended LAST so they can win over anything above.
+  // The self-hosted (WordPress) bundle never applies stored CSS: WordPress.org
+  // does not allow plugins to save arbitrary CSS, so the field is not offered.
+  if (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) return rules.join('\n');
   return `${rules.join('\n')}\n${config.advanced.customCss}`;
 }
 

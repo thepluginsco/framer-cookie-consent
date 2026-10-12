@@ -33,3 +33,11 @@ declare module "*.css" {
  * analytics endpoints, the Insights stats fetch, the portal URL override) is
  * dropped from that bundle entirely. Undefined everywhere else.
  */
+
+/*
+ * Build flag `__CC_NO_CUSTOM_CODE__`: `true` in the WordPress builds (free and
+ * Pro). WordPress.org does not allow plugins to save arbitrary CSS, JavaScript or
+ * script URLs, so the Custom CSS card is dropped and "Add managed script" offers
+ * only known vendors plus their id (see shared/src/vendor-templates.ts). Read the
+ * same inline way as above. Undefined everywhere else.
+ */

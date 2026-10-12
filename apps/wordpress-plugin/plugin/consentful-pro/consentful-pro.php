@@ -21,7 +21,7 @@
  * serving the banner exactly as before.
  *
  * License activation sends the license key and the site's domain to the
- * Consentful licensing API (consentful-api.onrender.com), and only when the
+ * Consentful licensing API (consentful.theplugins.co), and only when the
  * site owner activates or re-checks a key in wp-admin. Visitors' browsers never
  * contact Consentful.
  */

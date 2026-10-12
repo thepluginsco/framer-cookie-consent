@@ -10,8 +10,9 @@
  *   2. prints the settings and the Google Consent Mode v2 default just before
  *      it, as an inline script built here in PHP from the decoded JSON.
  *
- * No stored HTML or JavaScript is ever echoed: the only stored value is JSON,
- * and it is re-encoded with `wp_json_encode` on the way out.
+ * No stored HTML, CSS or JavaScript is ever echoed: the only stored value is
+ * JSON, stripped of custom CSS and non-vendor scripts by
+ * {@see consentful_strip_custom_code} and re-encoded with `wp_json_encode`.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -56,7 +57,7 @@ class Consentful_Head {
 		}
 		// Decoded as objects (not arrays) so empty `{}` maps survive the round trip.
 		$config = json_decode( $json );
-		return is_object( $config ) ? $config : null;
+		return is_object( $config ) ? consentful_strip_custom_code( $config ) : null;
 	}
 
 	/** Enqueue the bundled runtime with its settings inline before it. */

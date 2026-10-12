@@ -27,6 +27,12 @@
 import type { CookieConsentConfig, ManagedScript } from '@framer-cookie-consent/shared';
 import { onConsentChange, readConsent, DEFAULT_COOKIE_NAME, type ConsentState } from './consent-state.ts';
 
+declare const __CC_SELF_HOSTED__: boolean | undefined;
+
+// The self-hosted (WordPress) bundle runs no stored code: WordPress.org does not
+// allow plugins to save arbitrary JavaScript, so there a managed script is only
+// ever a vendor `src` URL built from a tag id, and `inline` entries are skipped.
+
 /* -------------------------------------------------------------------------- */
 /* Contract constants                                                         */
 /* -------------------------------------------------------------------------- */
@@ -155,7 +161,7 @@ function buildConfigScript(doc: Document, script: ManagedScript): HTMLScriptElem
   if (script.type === 'src') {
     el.src = script.value;
     el.async = script.async;
-  } else {
+  } else if (!(typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__)) {
     el.text = script.value;
   }
   el.setAttribute(CATEGORY_ATTR, script.category);
@@ -254,6 +260,7 @@ export function createScriptBlocker(config: CookieConsentConfig): ScriptBlocker 
     let count = 0;
     for (const script of config.scripts) {
       if (injected.has(script.id) || !accept(script.category)) continue;
+      if (script.type === 'inline' && typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) continue;
       // A vendor the visitor toggled off is held back even when its category is
       // granted. Not marked injected, so re-enabling it later still activates it.
       if (deniedVendors.has(script.id)) continue;

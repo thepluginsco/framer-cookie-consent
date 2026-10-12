@@ -13,6 +13,8 @@
  *   return fresh objects, so they are trivially unit-testable.
  */
 
+import { sanitizeForPublish } from './publish-sanitize.js';
+
 /* -------------------------------------------------------------------------- */
 /* Meta                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -1250,7 +1252,7 @@ export function serialize(config: CookieConsentConfig): string {
  * @returns A copy safe to embed in public HTML / serve to visitors.
  */
 export function toPublishedConfig(config: CookieConsentConfig): CookieConsentConfig {
-  return stripLicense(applyPlanLimits(config));
+  return sanitizeForPublish(stripLicense(applyPlanLimits(config)));
 }
 
 /**

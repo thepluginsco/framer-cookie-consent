@@ -13,8 +13,8 @@ listing copy for each marketplace. Keep the copy in sync with
 | 5b | Make one real purchase and confirm a license is issued and billing shows the right plan | You | Open |
 | 5c | Google + GitHub sign-in: env vars on Render + Vercel; both start with the right callback URLs | You + Claude | Done 2026-10-01 |
 | 5d | Complete one real Google and one GitHub login. Google needs `https://consentful.theplugins.co/api/auth/callback/google` on the shared OAuth client; GitHub needs Consentful's own OAuth app (callback `…/api/auth/callback/github`) | You | Open |
-| 6 | Add `https://consentful-api.onrender.com/health` to `PING_URLS` (render-keepalive Netlify site) | You | Open |
-| 6a | Set the Pre-Deploy Command on the Render service so migrations run on deploy (until then, run `pnpm --filter @repo/db db:migrate` by hand after each one) | You | Open |
+| 6 | API moved from Render to Cloudflare Workers (2026-10-12). Workers never sleep: no keep-alive pinger. Clients call `consentful.theplugins.co`, which proxies to the Worker | Claude | Done |
+| 6a | Migrations don't run on Worker deploys: run `pnpm --filter @repo/db db:migrate` by hand after each schema change | You | Ongoing |
 | 6b | Store graphics: 17 real UI captures + 7 image prompts in `marketing/` | Claude | Captured 2026-10-01; final store images still to generate |
 | 6c | Add `plugin/public/logo-light.png` (dark-theme banner credit shows a broken image without it) | You (asset) | Open |
 | 7 | Framer Marketplace — published 2026-10-01 under The Plugins Company. Upload the zip as `Consentful.zip`: Framer takes the listing name from the file name. New versions: plugin page → ⋯ → New Version | Claude + You | **Live.** Passed three Framer reviews (custom-code permission check, integrity-pinned runtime, custom code written only on Install / Update banner) |

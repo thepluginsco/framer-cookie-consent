@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,7 +34,7 @@ Everything in this plugin works without an account, a license key or a time limi
 
 = Consentful Pro (optional add-on) =
 
-Consentful Pro is a separate add-on plugin, sold and downloaded from [consentful.theplugins.co](https://consentful.theplugins.co/docs/platforms/wordpress#pro). It is not part of this plugin and is not needed to use it. It adds every layout and theme, custom CSS, geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator and a WCAG 2.1 AA accessibility check.
+Consentful Pro is a separate add-on plugin, sold and downloaded from [consentful.theplugins.co](https://consentful.theplugins.co/docs/platforms/wordpress#pro). It is not part of this plugin and is not needed to use it. It adds every layout and theme, geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator and a WCAG 2.1 AA accessibility check.
 
 Consentful is an independent product of The Plugins Company. It is not affiliated with, endorsed by or sponsored by Google, Meta or Hotjar.
 
@@ -88,6 +88,10 @@ The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/r
 Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1), Material Symbols (Apache License 2.0).
 
 == Changelog ==
+
+= 0.3.1 =
+* No custom CSS or custom JavaScript: managed scripts are chosen from a list of known vendors, and you enter only the tag ID — the plugin builds the tag.
+* Custom CSS removed (use Appearance → Customize → Additional CSS instead).
 
 = 0.3.0 =
 * No license key or activation: the plugin is free and fully functional, and never contacts a Consentful server.

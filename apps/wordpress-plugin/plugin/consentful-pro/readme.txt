@@ -13,7 +13,7 @@ The Pro add-on for the free Consentful cookie consent plugin.
 
 Consentful Pro extends the free "Consentful — Cookie Consent" plugin from WordPress.org. It adds a License tab to Settings → Consentful. Activate a paid Consentful key there to unlock:
 
-* every banner layout and theme, colours, corner styles and custom CSS,
+* every banner layout and theme, colours and corner styles,
 * geo-targeting (Auto consent model and per-region rules),
 * a preference center with per-service toggles,
 * banner copy in more languages,
@@ -30,7 +30,7 @@ The free plugin keeps serving the banner from your own site. Pro only changes th
 
 == External services ==
 
-License activation contacts the Consentful licensing service (consentful.theplugins.co, API host consentful-api.onrender.com), operated by The Plugins Company.
+License activation contacts the Consentful licensing service (consentful.theplugins.co), operated by The Plugins Company.
 
 * Sent: your license key and your site's domain name.
 * When: only when you activate or re-check a key in wp-admin (the License tab also re-checks a saved key when you open the settings screen).

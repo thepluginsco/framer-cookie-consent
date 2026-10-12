@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest"
 const PLUGIN = resolve(__dirname, "../apps/wordpress-plugin/plugin")
 const read = (path: string) => readFileSync(resolve(PLUGIN, path), "utf8")
 
-const LICENSING = ["onrender.com", "site-activate", "site-entitlement", "jwks", "cnsnt_pk_"]
+const LICENSING = ["site-activate", "site-entitlement", "jwks", "cnsnt_pk_"]
 
 describe("WordPress free core", () => {
   it("admin bundle carries no licensing code and no outbound fetch", () => {

@@ -19,12 +19,18 @@
  * `PLUGIN_PUBLIC_API_KEY` env var (DEPLOY.md §1).
  */
 
+/** Customer-facing portal/dashboard origin (where users buy + manage licenses). */
+export const PORTAL_DASHBOARD_URL = 'https://consentful.theplugins.co';
+
 /**
- * Production licensing-API origin (no trailing slash). Deployed on Render.
- * A site config MAY override this per-site (see `config.license.portalApiBaseUrl`)
- * to point at staging; this is the production default.
+ * Production licensing-API origin (no trailing slash). This is deliberately the
+ * portal's own domain, NOT the API host: the portal proxies the licensing paths
+ * to wherever its `API_URL` env var points (Cloudflare Workers today). Shipped
+ * runtimes and plugins therefore never need a re-release when the API moves —
+ * only that one portal env var changes. A site config MAY override this per-site
+ * (see `config.license.portalApiBaseUrl`) to point at staging.
  */
-export const PORTAL_API_BASE = 'https://consentful-api.onrender.com';
+export const PORTAL_API_BASE = PORTAL_DASHBOARD_URL;
 
 /**
  * Publishable (non-secret) API key sent as `x-api-key` to the public portal
@@ -32,9 +38,6 @@ export const PORTAL_API_BASE = 'https://consentful-api.onrender.com';
  * `PLUGIN_PUBLIC_API_KEY`. Not a secret — it only scopes requests to Consentful.
  */
 export const PORTAL_PUBLISHABLE_KEY = 'cnsnt_pk_-u8h4YMytVe1RLH5MEqWyTFI';
-
-/** Customer-facing portal/dashboard origin (where users buy + manage licenses). */
-export const PORTAL_DASHBOARD_URL = 'https://consentful.theplugins.co';
 
 /** Read-only entitlement endpoint (POST, `x-api-key`, `{ domain }` → token). */
 /**

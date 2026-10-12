@@ -8,11 +8,14 @@ import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
 
 import logoMark from "./assets/logo-mark.png"
-import type { ScriptType } from "@framer-cookie-consent/shared"
+import { VENDOR_TEMPLATES, vendorScriptUrl, type ScriptType } from "@framer-cookie-consent/shared"
 import { useHost, type ScanResult } from "./host"
 import { T, focusRing } from "./tokens"
 import { Icon, Segmented, Toggle, HoverButton, Button, Spinner } from "./ui"
 import { catColor, trackerAlreadyManaged, CAT_NAME, type Cfg, type ConsentfulModel } from "./model"
+
+/** `true` in the WordPress builds, which must not save pasted code (see env.d.ts). */
+declare const __CC_NO_CUSTOM_CODE__: boolean | undefined
 
 const SWATCHES = ["#2F6FED", "#6366F1", "#16A34A", "#0EA5E9", "#F97316", "#111827"]
 
@@ -280,7 +283,146 @@ export function AddCategoryModal({ m, onClose }: { m: ConsentfulModel; onClose: 
 /* Add managed script                                                         */
 /* -------------------------------------------------------------------------- */
 
+/** The "Blocked until consent to" category chips shared by both add-script forms. */
+function CategoryPicker({ choices, cat, setCat }: { choices: Cfg["categories"]; cat: string; setCat: (id: string) => void }) {
+  return (
+    <div>
+      <ModalLabel>Blocked until consent to</ModalLabel>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {choices.map((c) => {
+          const col = catColor(c.id)
+          const active = cat === c.id
+          return (
+            <div
+              key={c.id}
+              role="button"
+              onClick={() => setCat(c.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11.5,
+                fontWeight: 700,
+                padding: "7px 12px",
+                borderRadius: T.rPill,
+                cursor: "pointer",
+                border: active ? `1.5px solid ${col}` : `1px solid ${T.border}`,
+                color: active ? col : T.ink3,
+                background: active ? `${col}12` : T.surface,
+                transition: "all .12s",
+              }}
+            >
+              {c.name}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Add a managed script. WordPress builds (`__CC_NO_CUSTOM_CODE__`) offer only the
+ * vendor form — a known tag plus its id, with the loader URL generated — because
+ * WordPress.org does not allow plugins to save pasted JavaScript or script URLs.
+ */
 export function AddScriptModal({ m, onClose }: { m: ConsentfulModel; onClose: () => void }) {
+  return typeof __CC_NO_CUSTOM_CODE__ !== "undefined" && __CC_NO_CUSTOM_CODE__ ? (
+    <VendorScriptModal m={m} onClose={onClose} />
+  ) : (
+    <CustomScriptModal m={m} onClose={onClose} />
+  )
+}
+
+/** Choose a known vendor and type its id; the loader URL is built from the template. */
+function VendorScriptModal({ m, onClose }: { m: ConsentfulModel; onClose: () => void }) {
+  const choices = (() => {
+    const optional = m.cfg.categories.filter((c) => !c.locked)
+    return optional.length ? optional : m.cfg.categories
+  })()
+  const [vendorId, setVendorId] = useState(VENDOR_TEMPLATES[0]?.id ?? "")
+  const vendor = VENDOR_TEMPLATES.find((v) => v.id === vendorId) ?? VENDOR_TEMPLATES[0]
+  const [tagId, setTagId] = useState("")
+  const [purpose, setPurpose] = useState("")
+  const pickCat = (id: string) => (choices.some((c) => c.id === id) ? id : (choices[0]?.id ?? "analytics"))
+  const [cat, setCat] = useState(pickCat(vendor?.category ?? "analytics"))
+  const url = vendor ? vendorScriptUrl(vendor, tagId) : null
+  const idInvalid = Boolean(vendor?.idPattern) && tagId.trim().length > 0 && url === null
+
+  const chooseVendor = (id: string) => {
+    setVendorId(id)
+    setTagId("")
+    const next = VENDOR_TEMPLATES.find((v) => v.id === id)
+    if (next) setCat(pickCat(next.category))
+  }
+
+  const submit = () => {
+    if (!vendor || !url) return
+    m.createScript({ name: vendor.name, type: "src", value: url, id: tagId.trim(), cat, purpose })
+    onClose()
+  }
+
+  return (
+    <Backdrop onClose={onClose}>
+      <Dialog>
+        <ModalHeader title="Add managed script" onClose={onClose} />
+        <div style={{ padding: 18, overflowY: "auto", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 15 }}>
+          <div>
+            <ModalLabel>Vendor</ModalLabel>
+            <select
+              value={vendorId}
+              onChange={(e) => chooseVendor(e.target.value)}
+              style={{
+                width: "100%",
+                height: T.control,
+                padding: `0 ${T.controlPadX}px`,
+                border: `1px solid ${T.border}`,
+                borderRadius: T.rMd,
+                fontSize: 13,
+                fontFamily: T.sans,
+                color: T.ink,
+                background: T.surface,
+              }}
+            >
+              {VENDOR_TEMPLATES.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {vendor?.idPattern ? (
+            <div>
+              <ModalLabel>{vendor.name} ID</ModalLabel>
+              <FocusInput value={tagId} onChange={setTagId} placeholder={vendor.idExample} mono autoFocus onEnter={submit} />
+              <div style={{ fontSize: 11, color: idInvalid ? T.danger : T.ink4, marginTop: 6, lineHeight: 1.5 }}>
+                {idInvalid ? `That doesn't look like a ${vendor.name} ID — it should look like ${vendor.idExample}.` : "Only the ID — Consentful builds the tag and keeps it blocked until consent."}
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5 }}>
+              Consentful loads {vendor?.name}'s library from {vendor?.provider} once the visitor consents to the category below.
+            </div>
+          )}
+          <div>
+            <ModalLabel>
+              Purpose <span style={{ color: T.ink4, fontWeight: 600 }}>(optional)</span>
+            </ModalLabel>
+            <FocusInput value={purpose} onChange={setPurpose} placeholder="e.g. Measures ad campaign conversions" onEnter={submit} />
+            <div style={{ fontSize: 11, color: T.ink4, marginTop: 6, lineHeight: 1.5 }}>
+              Shown to visitors in the preference center when per-vendor listing is on.
+            </div>
+          </div>
+          <CategoryPicker choices={choices} cat={cat} setCat={setCat} />
+        </div>
+        <ModalFooter onCancel={onClose} submitLabel="Add script" canSubmit={url !== null} onSubmit={submit} />
+      </Dialog>
+    </Backdrop>
+  )
+}
+
+/** Free-form add-script form: an external URL or inline code (non-WordPress builds). */
+function CustomScriptModal({ m, onClose }: { m: ConsentfulModel; onClose: () => void }) {
   const choices = (() => {
     const optional = m.cfg.categories.filter((c) => !c.locked)
     return optional.length ? optional : m.cfg.categories
@@ -354,38 +496,7 @@ export function AddScriptModal({ m, onClose }: { m: ConsentfulModel; onClose: ()
               Shown to visitors in the preference center when per-vendor listing is on.
             </div>
           </div>
-          <div>
-            <ModalLabel>Blocked until consent to</ModalLabel>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {choices.map((c) => {
-                const col = catColor(c.id)
-                const active = cat === c.id
-                return (
-                  <div
-                    key={c.id}
-                    role="button"
-                    onClick={() => setCat(c.id)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      padding: "7px 12px",
-                      borderRadius: T.rPill,
-                      cursor: "pointer",
-                      border: active ? `1.5px solid ${col}` : `1px solid ${T.border}`,
-                      color: active ? col : T.ink3,
-                      background: active ? `${col}12` : T.surface,
-                      transition: "all .12s",
-                    }}
-                  >
-                    {c.name}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <CategoryPicker choices={choices} cat={cat} setCat={setCat} />
         </div>
         <ModalFooter onCancel={onClose} submitLabel="Add script" canSubmit={canSubmit} onSubmit={submit} />
       </Dialog>

@@ -60,7 +60,9 @@ function bundleRuntime(): Plugin {
     plugins: pro ? [react()] : [react(), bundleRuntime()],
     // The plugin bundles its own runtime, so drop the "Embed on another site"
     // card: its snippet points at the CDN runtime.
-    define: { __CC_EMBED_SNIPPET__: "false", __CC_FREE_CORE__: pro ? "false" : "true" },
+    // WordPress.org allows no saved CSS / JavaScript / script URLs (see
+    // shared-ui/src/env.d.ts), in either build.
+    define: { __CC_EMBED_SNIPPET__: "false", __CC_FREE_CORE__: pro ? "false" : "true", __CC_NO_CUSTOM_CODE__: "true" },
     build: {
       target: "es2022",
       // One stylesheet file PHP can enqueue (an IIFE build would otherwise inject

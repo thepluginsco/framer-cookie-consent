@@ -53,8 +53,8 @@ basic bar; subscription lapse → free, editor relocks on open with an upgrade m
 Lifetime → cap 3 (4th site refused, `.co.uk` normalized), counter 250→249→250.
 
 **Performance note:** a cold lookup (Neon wake-up) took ~2 s locally, warm ≈150 ms.
-Keep the API on an always-on Render plan in the DB's region (render.yaml now:
-`consentful-api`, `starter`, `singapore`).
+The API now runs on Cloudflare Workers (always on, no cold start of its own); a
+first request after Neon idles still pays the DB wake-up.
 
 ## 1. Production deploy — needs your accounts  **[you]**
 
@@ -73,17 +73,23 @@ endpoints OK):
 Steps:
 1. **GitHub:** create a PRIVATE repo, then in `../consentful-portal`:
    `git remote add origin <url> && git push -u origin main`.
-2. **Render:** New → Blueprint → that repo. Environment → "Add from .env" → paste
-   `.env.render.production`. Deploy; pre-deploy runs migrations (already applied —
-   a no-op). The service must answer at `https://consentful-api.onrender.com`
-   (else change `PORTAL_API_BASE` in `shared/src/portal.ts` before tagging).
+2. **API (Cloudflare Workers, moved off Render 2026-10-12):** in
+   `../consentful-portal/apps/api`, `npx wrangler deploy`, then
+   `npx wrangler secret bulk secrets.json` (git-ignored; secret names listed in
+   `wrangler.toml`). Live at `https://consentful-api.thepluginsco.workers.dev`.
+   Clients never call that host: `PORTAL_API_BASE` is the portal origin
+   (`https://consentful.theplugins.co`), whose Next rewrites proxy `/public/*`,
+   `/.well-known/jwks.json`, `/webhooks/*`, `/api/rpc|rest/*` and `/embed/*` to the
+   Vercel `API_URL` env var. Moving the API again = change `API_URL` and redeploy
+   Vercel; no runtime or plugin release. Run migrations by hand
+   (`pnpm --filter @repo/db db:migrate`).
 3. **Vercel:** New Project → same repo → Root Directory `apps/web` (framework
    Next.js, keep "Include files outside the root directory"). Paste
    `.env.vercel.production` into Environment Variables (Production). Deploy, then
    Domains → add `consentful.theplugins.co` and create the DNS record Vercel shows.
 4. **Dodo (test mode first):** create 7 products — Solo $12/mo & $99/yr, Studio
    $24/mo & $199/yr, Agency $49/mo & $399/yr (subscriptions), Lifetime $299
-   (one-time). Webhook → `https://consentful-api.onrender.com/webhooks/billing`.
+   (one-time). Webhook → `https://consentful.theplugins.co/webhooks/billing`.
    Put the API key, webhook secret and 7 product ids into local `.env`, re-run
    `node scripts/make-deploy-env.mjs`, re-paste both env files, redeploy, then
    `pnpm --filter @repo/db db:sync-products` (never `db:seed` on prod).

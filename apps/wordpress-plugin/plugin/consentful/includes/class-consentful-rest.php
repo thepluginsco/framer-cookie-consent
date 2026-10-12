@@ -143,7 +143,9 @@ class Consentful_Rest {
 
 	/**
 	 * Normalise a JSON string by decoding and re-encoding it, so only a
-	 * well-formed JSON document can reach the database. Returns null for
+	 * well-formed JSON document can reach the database. Custom CSS and any
+	 * managed script that is not a generated vendor tag URL are dropped on the
+	 * way (see {@see consentful_strip_custom_code}). Returns null for
 	 * anything that is not a JSON object.
 	 *
 	 * @param mixed $value The raw request value.
@@ -157,7 +159,7 @@ class Consentful_Rest {
 		if ( ! is_object( $decoded ) ) {
 			return null;
 		}
-		$encoded = wp_json_encode( $decoded );
+		$encoded = wp_json_encode( consentful_strip_custom_code( $decoded ) );
 		return is_string( $encoded ) ? $encoded : null;
 	}
 

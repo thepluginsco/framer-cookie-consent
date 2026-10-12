@@ -103,10 +103,13 @@ export function ConsentfulShell() {
   const readOnlyNotice = host.useReadOnlyNotice ? host.useReadOnlyNotice() : null
   // Re-verify a saved license once on start-up (relocks a lapsed plan). This is
   // also the instance the activation gate drives, so activating unlocks at once.
+  // The Framer build never contacts the licensing service on its own: there the
+  // key is checked only when the user clicks Activate (the published site still
+  // verifies its own signed token, so a lapsed plan is enforced either way).
   // The free WordPress core never licenses: the flag is a build constant, so
   // the hook is either always or never called.
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const lic = (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : useLicense({ autoCheck: true })
+  const lic = (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? null : useLicense({ autoCheck: !(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) })
 
   const [tab, setTab] = useState<TabId>("categories")
   const [previewMode, setPreviewMode] = useState<PreviewMode>("banner")

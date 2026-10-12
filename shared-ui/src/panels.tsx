@@ -29,6 +29,8 @@ import {
 declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
 /** `true` in the free WordPress.org build (see shell.tsx). */
 declare const __CC_FREE_CORE__: boolean | undefined
+/** `true` in the WordPress builds, which must not save pasted code (see env.d.ts). */
+declare const __CC_NO_CUSTOM_CODE__: boolean | undefined
 
 /* -------------------------------------------------------------------------- */
 /* Shared field primitives                                                    */
@@ -1094,7 +1096,7 @@ export function StylePanel({ m }: { m: ConsentfulModel }) {
       </Card>
       </ProLock>
 
-      <CustomCssCard m={m} />
+      {typeof __CC_NO_CUSTOM_CODE__ !== "undefined" && __CC_NO_CUSTOM_CODE__ ? null : <CustomCssCard m={m} />}
     </div>
   )
 }
