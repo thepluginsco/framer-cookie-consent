@@ -36,3 +36,8 @@ coverage/
 
 # Shopify CLI project cache
 .shopify/
+
+# Large marketing media: kept locally, not in the repo (jsDelivr serves tags
+# from a full repo download and refuses packages over 50 MB).
+marketing/store-assets/
+brag-output/
