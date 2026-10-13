@@ -1124,8 +1124,9 @@ function CustomCssCard({ m }: { m: ConsentfulModel }) {
         {isPro ? null : <ProChip />}
       </div>
       <div style={{ fontSize: 11.5, color: T.ink3, lineHeight: 1.5, marginBottom: isPro ? 11 : 0 }}>
-        Fine-tune the banner with your own CSS — appended last so it overrides the generated styles. Target the{" "}
-        <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>.cc-*</span> classes.
+        Fine-tune the banner with your own CSS — it applies to the banner only (every rule is scoped to{" "}
+        <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>.cc-root</span>) and can&rsquo;t load anything from other sites:
+        external <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>url()</span>, @import and @font-face are removed when you publish.
       </div>
       {isPro ? (
         <TextInput

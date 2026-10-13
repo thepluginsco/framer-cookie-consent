@@ -76,13 +76,32 @@ describe('publish sanitizer', () => {
   });
 
   it('constrains custom CSS', () => {
-    expect(cleanCustomCss('.a{color:red}')).toBe('.a{color:red}');
     expect(cleanCustomCss('</style><script>x</script>')).not.toContain('<');
     expect(cleanCustomCss('.a{width:expression(alert(1))}')).not.toMatch(/expression\s*\(/i);
     expect(cleanCustomCss('.a{background:url(javascript:alert(1))}')).not.toMatch(/javascript/i);
-    expect(cleanCustomCss('.a{background:url("http://x.com/a.png")}')).toBe('.a{background:none}');
-    expect(cleanCustomCss('.a{background:url(https://x.com/a.png)}')).toBe('.a{background:url(https://x.com/a.png)}');
-    expect(cleanCustomCss('@import url(http://x.com/a.css);.a{}')).toBe('.a{}');
+  });
+
+  it('scopes every custom CSS rule to the banner', () => {
+    expect(cleanCustomCss('.cc-btn{color:red}')).toBe('.cc-root .cc-btn{color:red}');
+    expect(cleanCustomCss('.cc-root .cc-title{font-weight:800}')).toBe('.cc-root .cc-title{font-weight:800}');
+    expect(cleanCustomCss('body{display:none}')).toBe('.cc-root{display:none}');
+    expect(cleanCustomCss('*,a:is(.x,.y){color:red}')).toBe('.cc-root *,.cc-root a:is(.x,.y){color:red}');
+    expect(cleanCustomCss('@media (max-width:600px){.cc-banner{padding:8px}}')).toBe(
+      '@media (max-width:600px){.cc-root .cc-banner{padding:8px}}',
+    );
+    expect(cleanCustomCss('@keyframes pulse{from{opacity:0}to{opacity:1}}')).toBe('@keyframes pulse{from{opacity:0}to{opacity:1}}');
+  });
+
+  it('blocks every way custom CSS could load from elsewhere', () => {
+    expect(cleanCustomCss('.a{background:url(https://x.com/a.png)}')).toBe('.cc-root .a{background:none}');
+    expect(cleanCustomCss('.a{background:url("http://x.com/a.png")}')).toBe('.cc-root .a{background:none}');
+    expect(cleanCustomCss('@import url(https://x.com/a.css);.a{color:red}')).toBe('.cc-root .a{color:red}');
+    expect(cleanCustomCss('@import "https://x.com/a.css";.a{color:red}')).toBe('.cc-root .a{color:red}');
+    expect(cleanCustomCss('@font-face{font-family:x;src:url(https://x.com/f.woff2)}.a{color:red}')).toBe('.cc-root .a{color:red}');
+    expect(cleanCustomCss('.a{background:image-set("https://x.com/a.png" 1x)}')).toBe('.cc-root .a{background:none}');
+    // A CSS escape (`u\72l` = `url`) can't smuggle a remote URL past the filter.
+    expect(cleanCustomCss('.a{background:u\\72l(https://x.com/a.png)}')).not.toMatch(/url\(https:/);
+    expect(cleanCustomCss('.a{background:url(data:image/png;base64,AAAA)}')).toBe('.cc-root .a{background:url(data:image/png;base64,AAAA)}');
   });
 
   it('is applied to every published config and loader', () => {

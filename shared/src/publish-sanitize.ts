@@ -14,8 +14,11 @@
  *     category (see the runtime's script blocker);
  *   - colours / fonts that the runtime interpolates into its stylesheet: strict
  *     grammars, so a value cannot close a rule and start another;
- *   - custom CSS: no markup, no legacy script-executing constructs, and every
- *     `url()` / `@import` restricted to `https:` (or inline images / fonts).
+ *   - custom CSS: a safe subset that can only restyle the banner. Nothing can
+ *     load from elsewhere (`@import`, `@font-face` and other at-rules are
+ *     dropped; `url()` accepts inline `data:image/` values only; `image-set()`
+ *     and CSS escapes are removed), and every selector is scoped under the
+ *     banner root `.cc-root`, so no rule can reach the rest of the page.
  *
  * Pure and dependency-free; applied by {@link toPublishedConfig} on every
  * platform.
@@ -84,28 +87,97 @@ export function cleanFontFamily(value: string): string {
   return value.replace(/[;{}<>\\@]/g, '').replace(/\/\*|\*\//g, '').trim();
 }
 
-/** Whether a `url()` / `@import` target in custom CSS is allowed. */
-function isSafeCssUrl(target: string): boolean {
-  const t = target.trim().replace(/^['"]|['"]$/g, '').trim();
-  if (t === '') return false;
-  return /^https:\/\//i.test(t) || /^data:(image|font)\//i.test(t) || /^#/.test(t);
+/** The banner's root class: every custom CSS rule is scoped under it. */
+export const CUSTOM_CSS_SCOPE = '.cc-root';
+
+/** At-rules whose blocks hold style rules (scoped recursively). */
+const CONTAINER_AT_RULES = /^@(media|supports|container)\b/i;
+/** At-rules kept as written: their blocks hold keyframes, not selectors. */
+const KEYFRAMES_AT_RULE = /^@(-webkit-|-moz-)?keyframes\s+[\w-]+\s*$/i;
+
+/** Split a selector list at top-level commas (not those inside `:is(...)` etc.). */
+function splitSelectors(prelude: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of prelude) {
+    if (ch === '(' || ch === '[') depth++;
+    else if ((ch === ')' || ch === ']') && depth > 0) depth--;
+    if (ch === ',' && depth === 0) {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+
+/** One selector scoped to the banner root (`html` / `body` / `:root` map to it). */
+function scopeSelector(sel: string): string {
+  const scope = CUSTOM_CSS_SCOPE;
+  if (sel === scope || sel.startsWith(`${scope} `) || sel.startsWith(`${scope}.`) || sel.startsWith(`${scope}:`) || sel.startsWith(`${scope}>`) || sel.startsWith(`${scope}[`)) {
+    return sel;
+  }
+  const rooted = sel.replace(/^(:root|html|body)\b\s*/i, '');
+  return rooted === '' ? scope : `${scope} ${rooted}`;
 }
 
 /**
- * Custom CSS restricted to plain style rules: markup and comment-breakers are
- * removed, legacy script-executing constructs are neutralized, and external
- * references must be `https:` (or inline images / fonts).
+ * Scope a stylesheet: style rules get every selector prefixed with the banner
+ * root; `@media` / `@supports` / `@container` are kept with their inner rules
+ * scoped; `@keyframes` are kept as written; every other at-rule (including
+ * `@import`, `@font-face`, `@namespace`, `@layer`, `@property`) is dropped, and
+ * so is any malformed rule.
+ */
+function scopeStylesheet(css: string): string {
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open === -1) break; // trailing text without a block (incl. `@import ...;`) is dropped
+    const prelude = css.slice(i, open).replace(/^[\s;]+/, '').trim();
+    // Find the matching close brace.
+    let depth = 1;
+    let j = open + 1;
+    while (j < css.length && depth > 0) {
+      if (css[j] === '{') depth++;
+      else if (css[j] === '}') depth--;
+      j++;
+    }
+    const body = css.slice(open + 1, depth === 0 ? j - 1 : j);
+    i = j;
+    if (prelude.startsWith('@')) {
+      if (CONTAINER_AT_RULES.test(prelude)) out += `${prelude}{${scopeStylesheet(body)}}`;
+      else if (KEYFRAMES_AT_RULE.test(prelude) && !/[{}]/.test(body.replace(/\{[^{}]*\}/g, ''))) out += `${prelude}{${body}}`;
+      continue;
+    }
+    if (!prelude || /[{}]/.test(body)) continue;
+    const selectors = splitSelectors(prelude);
+    if (selectors.length === 0) continue;
+    out += `${selectors.map(scopeSelector).join(',')}{${body}}`;
+  }
+  return out;
+}
+
+/**
+ * Custom CSS restricted to a safe subset that can only restyle the banner:
+ * markup, comments and CSS escapes are removed, legacy script-executing
+ * constructs are neutralized, nothing can be loaded from another origin (only
+ * inline `data:image/` URLs survive; `@import`, `@font-face`, `image-set()` are
+ * removed), and every selector is scoped under the banner root.
  */
 export function cleanCustomCss(value: string): string {
-  let css = value.slice(0, MAX_CUSTOM_CSS_LENGTH).replace(/</g, '');
+  let css = value.slice(0, MAX_CUSTOM_CSS_LENGTH);
+  css = css.replace(/</g, '').replace(/\/\*[\s\S]*?(\*\/|$)/g, '').replace(/\\/g, '');
   css = css.replace(/expression\s*\(|javascript\s*:|vbscript\s*:|-moz-binding\s*:|behavior\s*:/gi, '/*removed*/');
-  css = css.replace(/@import\s+(url\(\s*)?(['"]?)([^'")\s;]*)\2\s*\)?([^;]*);?/gi, (rule, _u, _q, target: string) =>
-    isSafeCssUrl(target) ? rule : '',
-  );
+  css = css.replace(/(-webkit-)?image-set\s*\([^;}]*\)/gi, 'none');
   css = css.replace(/url\(\s*(['"]?)([^'")]*)\1\s*\)/gi, (match, _q, target: string) =>
-    isSafeCssUrl(target) ? match : 'none',
+    /^data:image\/(png|gif|jpe?g|webp|svg\+xml)[;,]/i.test(target.trim()) ? match : 'none',
   );
-  return css;
+  // Statement at-rules (`@import "…";`, `@charset`, `@namespace`, `@layer x;`)
+  // go first, so a bare quoted URL can never be imported.
+  css = css.replace(/\/\*removed\*\//g, '').replace(/@[a-z-]+[^{};]*;/gi, '');
+  return scopeStylesheet(css);
 }
 
 /**

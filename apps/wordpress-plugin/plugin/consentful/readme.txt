@@ -26,8 +26,8 @@ You design the banner in wp-admin. When you publish, the plugin loads the banner
 
 Activate the plugin with a license key from [consentful.theplugins.co](https://consentful.theplugins.co). A free key is available, with no card needed.
 
-* **Free:** GDPR and CCPA consent, Google Consent Mode v2, script blocking by category, and the bottom-bar banner in the default theme.
-* **Paid plans:** every layout and theme, custom CSS, geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator, a WCAG 2.1 AA accessibility check, and removal of the "Powered by Consentful" credit.
+* **Free:** GDPR and CCPA consent, Google Consent Mode v2, script blocking by category, and a Consentful-branded bottom bar with the standard English wording and the four standard categories.
+* **Paid plans:** every layout and theme, your own wording in 29 languages, custom categories, custom CSS (scoped to the banner; it can't load anything from other sites), geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator, a WCAG 2.1 AA accessibility check, plus extra sites on any paid plan ($5/month or $49/year each). Every plan shows a small "Powered by Consentful" credit.
 
 Consentful is an independent product of The Plugins Company. It is not affiliated with, endorsed by or sponsored by Google, Meta or Hotjar.
 
@@ -70,7 +70,7 @@ No. Consent Mode v2 defaults and updates are sent by the banner itself.
 
 = Does the banner show a "Powered by Consentful" credit? =
 
-Yes on the free plan. Paid plans can remove it.
+Yes, a small credit on every plan, free and paid.
 
 = Where are visitors' choices stored? =
 
@@ -90,7 +90,8 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 
 = 0.4.0 =
 * License activation, the License tab and paid features are back in the plugin.
-* Custom CSS and custom managed scripts are back. Every value is validated before it is published.
+* Custom CSS and custom managed scripts are back. Every value is validated before it is published, and custom CSS is scoped to the banner with no external resources.
+* Free plan: a Consentful-branded bottom bar in English. Paid plans unlock your own design, wording, languages and categories.
 * The "Embed on another site" snippet is back on the Publish tab.
 * Licensing now goes through consentful.theplugins.co.
 
