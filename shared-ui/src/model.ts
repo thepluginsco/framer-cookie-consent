@@ -137,6 +137,10 @@ export interface Cfg {
   closeLabel: string
   vendorsHeading: string
   receiptLabel: string
+  /** Placeholder text on a blocked embed (`{service}` = provider name). */
+  embedText: string
+  /** Button on a blocked embed's placeholder. */
+  embedButton: string
   /** Language the base copy is written in (`""` = the page's `<html lang>`). */
   copyLanguage: string
   privacyUrl: string
@@ -189,6 +193,10 @@ export interface Cfg {
   showVendors: boolean
   /** Preference center: give each listed vendor its own on/off switch. */
   perVendorToggles: boolean
+  /** Hold YouTube, Maps and other third-party embeds until consent. */
+  blockEmbeds: boolean
+  /** Category that unblocks detected embeds. */
+  embedCategory: string
 }
 
 /** Design text-field keys that map to a translatable {@link LocaleStrings} field. */
@@ -208,6 +216,8 @@ export type LocalizableFieldKey =
   | "closeLabel"
   | "vendorsHeading"
   | "receiptLabel"
+  | "embedText"
+  | "embedButton"
 
 /** Map a design text-field key to its (string-valued) {@link LocaleStrings} field. */
 export const LOCALE_FIELD_MAP: Record<LocalizableFieldKey, Exclude<keyof LocaleStrings, "categories">> = {
@@ -226,6 +236,8 @@ export const LOCALE_FIELD_MAP: Record<LocalizableFieldKey, Exclude<keyof LocaleS
   closeLabel: "closeLabel",
   vendorsHeading: "vendorsHeading",
   receiptLabel: "downloadReceipt",
+  embedText: "embedBlocked",
+  embedButton: "embedLoad",
 }
 
 /** Languages offered in the pickers (code → English name) — every one has a built-in pack. */
@@ -327,6 +339,8 @@ export function toCfg(c: CookieConsentConfig): Cfg {
     closeLabel: c.strings.closeLabel,
     vendorsHeading: c.strings.vendorsHeading,
     receiptLabel: c.strings.downloadReceipt,
+    embedText: c.strings.embedBlocked,
+    embedButton: c.strings.embedLoad,
     copyLanguage: c.strings.language,
     privacyUrl: c.strings.privacyPolicyUrl,
     showWhen: MODE_TO_SHOW_WHEN[c.behavior.showMode],
@@ -374,6 +388,8 @@ export function toCfg(c: CookieConsentConfig): Cfg {
     })),
     showVendors: c.preferenceCenter.showVendors,
     perVendorToggles: c.preferenceCenter.perVendorToggles,
+    blockEmbeds: c.behavior.blockEmbeds,
+    embedCategory: c.behavior.embedCategory,
   }
 }
 
@@ -679,6 +695,12 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
       break
     case "gpcBadge":
       next.behavior = { ...prev.behavior, gpcShowBadge: value as boolean }
+      break
+    case "blockEmbeds":
+      next.behavior = { ...prev.behavior, blockEmbeds: value as boolean }
+      break
+    case "embedCategory":
+      next.behavior = { ...prev.behavior, embedCategory: value as string }
       break
     case "hideAfter":
       next.behavior = { ...prev.behavior, hideAfterChoice: value as boolean }

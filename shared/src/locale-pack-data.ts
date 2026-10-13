@@ -47,6 +47,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Sie können Ihre Einstellungen jederzeit ändern.',
     closeLabel: 'Schließen',
     privacyPolicyLabel: 'Datenschutzerklärung',
+    embedBlocked: 'Dieser Inhalt wird von {service} bereitgestellt, das möglicherweise Cookies setzt.',
+    embedLoad: 'Inhalt laden',
     categories: cats(
       ['Unbedingt erforderlich', 'Für die Funktion der Website erforderlich. Kann nicht deaktiviert werden.'],
       ['Analyse', 'Hilft uns zu verstehen, wie Besucher die Website nutzen.'],
@@ -72,6 +74,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Vous pouvez modifier vos préférences à tout moment.',
     closeLabel: 'Fermer',
     privacyPolicyLabel: 'Politique de confidentialité',
+    embedBlocked: 'Ce contenu est hébergé par {service}, qui peut déposer des cookies.',
+    embedLoad: 'Charger le contenu',
     categories: cats(
       ['Strictement nécessaires', 'Indispensables au fonctionnement du site. Ne peuvent pas être désactivés.'],
       ['Statistiques', 'Nous aident à comprendre comment les visiteurs utilisent le site.'],
@@ -97,6 +101,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Puedes cambiar tus preferencias en cualquier momento.',
     closeLabel: 'Cerrar',
     privacyPolicyLabel: 'Política de privacidad',
+    embedBlocked: 'Este contenido está alojado en {service}, que puede usar cookies.',
+    embedLoad: 'Cargar contenido',
     categories: cats(
       ['Estrictamente necesarias', 'Necesarias para que el sitio funcione. No se pueden desactivar.'],
       ['Analíticas', 'Nos ayudan a entender cómo usan el sitio los visitantes.'],
@@ -122,6 +128,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Puoi modificare le tue preferenze in qualsiasi momento.',
     closeLabel: 'Chiudi',
     privacyPolicyLabel: 'Informativa sulla privacy',
+    embedBlocked: 'Questo contenuto è ospitato da {service}, che potrebbe impostare cookie.',
+    embedLoad: 'Carica contenuto',
     categories: cats(
       ['Strettamente necessari', 'Indispensabili per il funzionamento del sito. Non possono essere disattivati.'],
       ['Statistiche', 'Ci aiutano a capire come i visitatori utilizzano il sito.'],
@@ -147,6 +155,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Pode alterar as suas preferências a qualquer momento.',
     closeLabel: 'Fechar',
     privacyPolicyLabel: 'Política de privacidade',
+    embedBlocked: 'Este conteúdo está alojado em {service}, que pode definir cookies.',
+    embedLoad: 'Carregar conteúdo',
     categories: cats(
       ['Estritamente necessários', 'Necessários para o funcionamento do site. Não podem ser desativados.'],
       ['Análise', 'Ajudam-nos a perceber como os visitantes usam o site.'],
@@ -172,6 +182,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Você pode alterar suas preferências a qualquer momento.',
     closeLabel: 'Fechar',
     privacyPolicyLabel: 'Política de Privacidade',
+    embedBlocked: 'Este conteúdo está hospedado em {service}, que pode definir cookies.',
+    embedLoad: 'Carregar conteúdo',
     categories: cats(
       ['Estritamente necessários', 'Necessários para o funcionamento do site. Não podem ser desativados.'],
       ['Análise', 'Ajudam a entender como os visitantes usam o site.'],
@@ -196,6 +208,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Je kunt je voorkeuren altijd aanpassen.',
     closeLabel: 'Sluiten',
     privacyPolicyLabel: 'Privacybeleid',
+    embedBlocked: 'Deze inhoud wordt gehost door {service}, dat mogelijk cookies plaatst.',
+    embedLoad: 'Inhoud laden',
     categories: cats(
       ['Strikt noodzakelijk', 'Nodig om de website te laten werken. Kan niet worden uitgeschakeld.'],
       ['Analyse', 'Helpt ons te begrijpen hoe bezoekers de website gebruiken.'],
@@ -220,6 +234,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Możesz w każdej chwili zmienić swoje ustawienia.',
     closeLabel: 'Zamknij',
     privacyPolicyLabel: 'Polityka prywatności',
+    embedBlocked: 'Ta treść pochodzi z serwisu {service}, który może zapisywać pliki cookie.',
+    embedLoad: 'Wczytaj treść',
     categories: cats(
       ['Niezbędne', 'Wymagane do działania strony. Nie można ich wyłączyć.'],
       ['Analityczne', 'Pomagają nam zrozumieć, jak odwiedzający korzystają ze strony.'],
@@ -244,6 +260,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Du kan ändra dina inställningar när som helst.',
     closeLabel: 'Stäng',
     privacyPolicyLabel: 'Integritetspolicy',
+    embedBlocked: 'Det här innehållet kommer från {service}, som kan sätta cookies.',
+    embedLoad: 'Ladda innehåll',
     categories: cats(
       ['Nödvändiga', 'Krävs för att webbplatsen ska fungera. Kan inte stängas av.'],
       ['Analys', 'Hjälper oss att förstå hur besökare använder webbplatsen.'],
@@ -268,6 +286,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Du kan til enhver tid ændre dine indstillinger.',
     closeLabel: 'Luk',
     privacyPolicyLabel: 'Privatlivspolitik',
+    embedBlocked: 'Dette indhold hostes af {service}, som kan sætte cookies.',
+    embedLoad: 'Indlæs indhold',
     categories: cats(
       ['Nødvendige', 'Påkrævet for at hjemmesiden fungerer. Kan ikke slås fra.'],
       ['Statistik', 'Hjælper os med at forstå, hvordan besøgende bruger hjemmesiden.'],
@@ -292,6 +312,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Voit muuttaa asetuksiasi milloin tahansa.',
     closeLabel: 'Sulje',
     privacyPolicyLabel: 'Tietosuojaseloste',
+    embedBlocked: 'Tämä sisältö tulee palvelusta {service}, joka voi asettaa evästeitä.',
+    embedLoad: 'Lataa sisältö',
     categories: cats(
       ['Välttämättömät', 'Tarvitaan sivuston toimintaan. Ei voi poistaa käytöstä.'],
       ['Analytiikka', 'Auttaa meitä ymmärtämään, miten kävijät käyttävät sivustoa.'],
@@ -317,6 +339,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Du kan når som helst endre innstillingene dine.',
     closeLabel: 'Lukk',
     privacyPolicyLabel: 'Personvernerklæring',
+    embedBlocked: 'Dette innholdet leveres av {service}, som kan sette informasjonskapsler.',
+    embedLoad: 'Last inn innhold',
     categories: cats(
       ['Nødvendige', 'Kreves for at nettstedet skal fungere. Kan ikke slås av.'],
       ['Analyse', 'Hjelper oss å forstå hvordan besøkende bruker nettstedet.'],
@@ -341,6 +365,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Své předvolby můžete kdykoli změnit.',
     closeLabel: 'Zavřít',
     privacyPolicyLabel: 'Zásady ochrany osobních údajů',
+    embedBlocked: 'Tento obsah poskytuje {service}, který může ukládat cookies.',
+    embedLoad: 'Načíst obsah',
     categories: cats(
       ['Nezbytné', 'Nutné pro fungování webu. Nelze je vypnout.'],
       ['Analytické', 'Pomáhají nám pochopit, jak návštěvníci web používají.'],
@@ -365,6 +391,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Svoje predvoľby môžete kedykoľvek zmeniť.',
     closeLabel: 'Zavrieť',
     privacyPolicyLabel: 'Zásady ochrany osobných údajov',
+    embedBlocked: 'Tento obsah poskytuje {service}, ktorý môže ukladať súbory cookie.',
+    embedLoad: 'Načítať obsah',
     categories: cats(
       ['Nevyhnutné', 'Potrebné na fungovanie webu. Nedajú sa vypnúť.'],
       ['Analytické', 'Pomáhajú nám pochopiť, ako návštevníci používajú web.'],
@@ -389,6 +417,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'A beállításait bármikor módosíthatja.',
     closeLabel: 'Bezárás',
     privacyPolicyLabel: 'Adatvédelmi irányelvek',
+    embedBlocked: 'Ezt a tartalmat a(z) {service} szolgáltatja, amely sütiket helyezhet el.',
+    embedLoad: 'Tartalom betöltése',
     categories: cats(
       ['Feltétlenül szükséges', 'A webhely működéséhez szükséges. Nem kapcsolható ki.'],
       ['Statisztika', 'Segít megérteni, hogyan használják a látogatók a webhelyet.'],
@@ -413,6 +443,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Îți poți schimba preferințele oricând.',
     closeLabel: 'Închide',
     privacyPolicyLabel: 'Politica de confidențialitate',
+    embedBlocked: 'Acest conținut este găzduit de {service}, care poate seta cookie-uri.',
+    embedLoad: 'Încarcă conținutul',
     categories: cats(
       ['Strict necesare', 'Necesare pentru funcționarea site-ului. Nu pot fi dezactivate.'],
       ['Analiză', 'Ne ajută să înțelegem cum folosesc vizitatorii site-ul.'],
@@ -438,6 +470,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Μπορείτε να αλλάξετε τις προτιμήσεις σας ανά πάσα στιγμή.',
     closeLabel: 'Κλείσιμο',
     privacyPolicyLabel: 'Πολιτική απορρήτου',
+    embedBlocked: 'Αυτό το περιεχόμενο φιλοξενείται από το {service}, το οποίο μπορεί να ορίσει cookies.',
+    embedLoad: 'Φόρτωση περιεχομένου',
     categories: cats(
       ['Απολύτως απαραίτητα', 'Απαιτούνται για τη λειτουργία του ιστότοπου. Δεν μπορούν να απενεργοποιηθούν.'],
       ['Στατιστικά', 'Μας βοηθούν να κατανοήσουμε πώς οι επισκέπτες χρησιμοποιούν τον ιστότοπο.'],
@@ -462,6 +496,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Можете да промените предпочитанията си по всяко време.',
     closeLabel: 'Затваряне',
     privacyPolicyLabel: 'Политика за поверителност',
+    embedBlocked: 'Това съдържание се предоставя от {service}, което може да задава бисквитки.',
+    embedLoad: 'Зареди съдържанието',
     categories: cats(
       ['Задължителни', 'Необходими за работата на сайта. Не могат да бъдат изключени.'],
       ['Аналитични', 'Помагат ни да разберем как посетителите използват сайта.'],
@@ -486,6 +522,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Postavke možete promijeniti u bilo kojem trenutku.',
     closeLabel: 'Zatvori',
     privacyPolicyLabel: 'Pravila privatnosti',
+    embedBlocked: 'Ovaj sadržaj pruža {service}, koji može postavljati kolačiće.',
+    embedLoad: 'Učitaj sadržaj',
     categories: cats(
       ['Nužni', 'Potrebni za rad web-mjesta. Ne mogu se isključiti.'],
       ['Analitički', 'Pomažu nam razumjeti kako posjetitelji koriste web-mjesto.'],
@@ -510,6 +548,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Nastavitve lahko kadar koli spremenite.',
     closeLabel: 'Zapri',
     privacyPolicyLabel: 'Politika zasebnosti',
+    embedBlocked: 'To vsebino gosti {service}, ki lahko nastavi piškotke.',
+    embedLoad: 'Naloži vsebino',
     categories: cats(
       ['Nujno potrebni', 'Potrebni za delovanje spletnega mesta. Ni jih mogoče izklopiti.'],
       ['Analitični', 'Pomagajo nam razumeti, kako obiskovalci uporabljajo spletno mesto.'],
@@ -534,6 +574,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Saate oma eelistusi igal ajal muuta.',
     closeLabel: 'Sulge',
     privacyPolicyLabel: 'Privaatsuspoliitika',
+    embedBlocked: 'Seda sisu pakub {service}, mis võib salvestada küpsiseid.',
+    embedLoad: 'Laadi sisu',
     categories: cats(
       ['Hädavajalikud', 'Vajalikud veebisaidi toimimiseks. Neid ei saa välja lülitada.'],
       ['Analüütika', 'Aitavad meil mõista, kuidas külastajad veebisaiti kasutavad.'],
@@ -558,6 +600,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Iestatījumus varat mainīt jebkurā laikā.',
     closeLabel: 'Aizvērt',
     privacyPolicyLabel: 'Privātuma politika',
+    embedBlocked: 'Šo saturu nodrošina {service}, kas var iestatīt sīkdatnes.',
+    embedLoad: 'Ielādēt saturu',
     categories: cats(
       ['Obligātās', 'Nepieciešamas vietnes darbībai. Tās nevar izslēgt.'],
       ['Analītika', 'Palīdz mums saprast, kā apmeklētāji izmanto vietni.'],
@@ -582,6 +626,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Nuostatas galite pakeisti bet kada.',
     closeLabel: 'Uždaryti',
     privacyPolicyLabel: 'Privatumo politika',
+    embedBlocked: 'Šį turinį teikia {service}, kuri gali naudoti slapukus.',
+    embedLoad: 'Įkelti turinį',
     categories: cats(
       ['Būtinieji', 'Reikalingi svetainės veikimui. Jų negalima išjungti.'],
       ['Analitiniai', 'Padeda mums suprasti, kaip lankytojai naudojasi svetaine.'],
@@ -606,6 +652,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Tercihlerinizi istediğiniz zaman değiştirebilirsiniz.',
     closeLabel: 'Kapat',
     privacyPolicyLabel: 'Gizlilik Politikası',
+    embedBlocked: 'Bu içerik {service} tarafından sağlanır ve çerez kullanabilir.',
+    embedLoad: 'İçeriği yükle',
     categories: cats(
       ['Zorunlu', 'Sitenin çalışması için gereklidir. Kapatılamaz.'],
       ['Analitik', 'Ziyaretçilerin siteyi nasıl kullandığını anlamamıza yardımcı olur.'],
@@ -630,6 +678,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: 'Ви можете будь-коли змінити свої налаштування.',
     closeLabel: 'Закрити',
     privacyPolicyLabel: 'Політика конфіденційності',
+    embedBlocked: 'Цей вміст надає {service}, який може встановлювати файли cookie.',
+    embedLoad: 'Завантажити вміст',
     categories: cats(
       ['Необхідні', 'Потрібні для роботи сайту. Їх не можна вимкнути.'],
       ['Аналітичні', 'Допомагають нам зрозуміти, як відвідувачі користуються сайтом.'],
@@ -654,6 +704,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: '設定はいつでも変更できます。',
     closeLabel: '閉じる',
     privacyPolicyLabel: 'プライバシーポリシー',
+    embedBlocked: 'このコンテンツは {service} から提供されており、Cookie が設定される場合があります。',
+    embedLoad: 'コンテンツを読み込む',
     categories: cats(
       ['必須', 'サイトの動作に必要です。無効にすることはできません。'],
       ['分析', '訪問者によるサイトの利用状況を把握するのに役立ちます。'],
@@ -678,6 +730,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: '언제든지 설정을 변경할 수 있습니다.',
     closeLabel: '닫기',
     privacyPolicyLabel: '개인정보 처리방침',
+    embedBlocked: '이 콘텐츠는 {service}에서 제공되며 쿠키를 설정할 수 있습니다.',
+    embedLoad: '콘텐츠 불러오기',
     categories: cats(
       ['필수', '사이트 작동에 필요합니다. 끌 수 없습니다.'],
       ['분석', '방문자가 사이트를 어떻게 이용하는지 이해하는 데 도움이 됩니다.'],
@@ -701,6 +755,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: '您可以随时更改偏好设置。',
     closeLabel: '关闭',
     privacyPolicyLabel: '隐私政策',
+    embedBlocked: '此内容由 {service} 提供，可能会设置 Cookie。',
+    embedLoad: '加载内容',
     categories: cats(
       ['必要', '网站正常运行所必需，无法关闭。'],
       ['分析', '帮助我们了解访问者如何使用本网站。'],
@@ -724,6 +780,8 @@ export const LOCALE_PACKS: Record<string, LocalePack> = {
     preferencesNote: '您可以隨時變更偏好設定。',
     closeLabel: '關閉',
     privacyPolicyLabel: '隱私權政策',
+    embedBlocked: '此內容由 {service} 提供，可能會設定 Cookie。',
+    embedLoad: '載入內容',
     categories: cats(
       ['必要', '網站正常運作所必需，無法關閉。'],
       ['分析', '協助我們了解訪客如何使用本網站。'],

@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,7 @@ You design the banner in wp-admin. When you publish, the plugin loads the banner
 
 * **Compliant by default.** Opt-in consent for GDPR, opt-out for CCPA, or Auto to switch by visitor region. Reject all sits next to Accept all, nothing is pre-ticked, and Global Privacy Control and Do Not Track are respected.
 * **Real script blocking.** Trackers such as Google Analytics, Meta Pixel and Hotjar stay off until their category is allowed, then start with no page reload.
+* **Embeds held until consent.** Turn on embed blocking and YouTube, Vimeo, TikTok, Instagram, X, Facebook, Spotify, Google Maps and other embeds show a "Load content" placeholder until the visitor allows their category.
 * **Google Consent Mode v2, built in.** Ad and analytics signals are set to denied before Google tags load and updated when a visitor chooses.
 * **Tracker detection.** The plugin reads your list of active plugins to suggest which trackers to manage.
 * **Private.** Visitors' choices stay in their own browser. They are never sent to Consentful's servers.
@@ -26,7 +27,7 @@ You design the banner in wp-admin. When you publish, the plugin loads the banner
 
 Activate the plugin with a license key from [consentful.theplugins.co](https://consentful.theplugins.co). A free key is available, with no card needed.
 
-* **Free:** GDPR and CCPA consent, Google Consent Mode v2, script blocking by category, and a Consentful-branded bottom bar with the standard English wording and the four standard categories.
+* **Free:** GDPR and CCPA consent, Google Consent Mode v2, script and embed blocking by category, and a Consentful-branded bottom bar with the standard English wording and the four standard categories.
 * **Paid plans:** every layout and theme, your own wording in 29 languages, custom categories, custom CSS (scoped to the banner; it can't load anything from other sites), geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator, a WCAG 2.1 AA accessibility check, plus extra sites on any paid plan ($5/month or $49/year each). Every plan shows a small "Powered by Consentful" credit.
 
 Consentful is an independent product of The Plugins Company. It is not affiliated with, endorsed by or sponsored by Google, Meta or Hotjar.
@@ -87,6 +88,9 @@ The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/r
 Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1), Material Symbols (Apache License 2.0).
 
 == Changelog ==
+
+= 0.4.1 =
+* New: embed blocking. YouTube, Vimeo, TikTok, Instagram, X, Facebook, Spotify, Google Maps and other embeds can be held behind a "Load content" placeholder until the visitor allows their category (Scripts tab). Included on every plan.
 
 = 0.4.0 =
 * License activation, the License tab and paid features are back in the plugin.

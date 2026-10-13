@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { loadConfigString, saveConfigString } from "../lib/configStore"
+import { loadConfigString, migrateLegacyData, saveConfigString } from "../lib/configStore"
 import { useWriteAccess, WRITE_ACCESS_MESSAGE } from "./useWriteAccess"
 import { DEFAULT_CONFIG, parse, serialize } from "../types"
 import type { CookieConsentConfig } from "../types"
@@ -120,6 +120,24 @@ export function useSettings(): SettingsApi {
       cancelled = true
     }
   }, [])
+
+  /* ---- One-time cleanup of the pre-0.1.18 storage layout ------------------
+   * Older versions stored the config uncompressed plus a full copy of the
+   * installed config, which pushed projects past Framer's 4KB plugin-data
+   * limit ("couldn't complete setPluginData"). Once the user may write, move
+   * to the compact layout. Deleting is allowed even over the limit, so a
+   * project that is stuck recovers just by reopening the plugin. */
+  const migratedRef = useRef(false)
+  useEffect(() => {
+    if (!canWrite || status === "loading" || migratedRef.current) return
+    migratedRef.current = true
+    void loadConfigString()
+      .then((saved) => migrateLegacyData(saved))
+      .catch(() => {
+        /* best effort: the next save will retry */
+        migratedRef.current = false
+      })
+  }, [canWrite, status])
 
   /* ---- Debounced persist + re-inject on change --------------------------- */
   useEffect(() => {

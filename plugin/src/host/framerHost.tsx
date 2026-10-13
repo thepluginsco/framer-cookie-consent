@@ -22,15 +22,17 @@ import {
   markUnpublished,
   useSettingsContext,
   type ConsentfulModel,
+  publishFingerprint,
   type HostPublisher,
   type HostServices,
 } from "@framer-cookie-consent/shared-ui"
-import { RUNTIME_INTEGRITY, parse, serialize } from "@framer-cookie-consent/shared"
+import { RUNTIME_INTEGRITY, parse } from "@framer-cookie-consent/shared"
 
 import {
   loadConfigString,
-  loadInstalledConfigString,
-  saveInstalledConfigString,
+  loadInstalledFingerprint,
+  loadLegacyInstalledConfigString,
+  saveInstalledFingerprint,
 } from "../lib/configStore"
 import { injectLoader, readInstalledLoader, removeLoader } from "../lib/customCode"
 import { canWriteSite, getLiveSiteUrl, getProjectInfo, getPluginData, setPluginData, canSetPluginData } from "../lib/framer"
@@ -50,13 +52,13 @@ const NO_ACCESS = "You don't have permission to edit this site's custom code. As
 /** Write the loader for `config` into the site's custom code and record it. */
 async function installBanner(config: CookieConsentConfig): Promise<void> {
   await injectLoader(config)
-  await saveInstalledConfigString(serialize(config))
+  await saveInstalledFingerprint(publishFingerprint(config))
 }
 
 /** Take the loader out of the site's custom code and forget the record. */
 async function uninstallBanner(): Promise<void> {
   await removeLoader()
-  await saveInstalledConfigString(null)
+  await saveInstalledFingerprint(null)
 }
 
 /**
@@ -80,13 +82,15 @@ const framerPublisher: HostPublisher = {
   async loadPublished() {
     const block = await readInstalledLoader()
     if (block === null) return { config: null }
-    // Sites installed before installs were recorded kept the custom code in
-    // step with the saved config, so that is what's live for them.
-    const stored = (await loadInstalledConfigString()) ?? (await loadConfigString())
-    if (!stored) return { config: null }
     // The block pins a runtime version + integrity hash at install time; an
     // older pin means the site misses runtime fixes until it's updated.
     const current = block.includes(`@${RUNTIME_VERSION}/`) && block.includes(RUNTIME_INTEGRITY)
+    const fingerprint = await loadInstalledFingerprint()
+    if (fingerprint) return { config: null, fingerprint, outdated: !current }
+    // Older versions kept a full copy (or, before that, nothing: the custom
+    // code then matched the saved config).
+    const stored = (await loadLegacyInstalledConfigString()) ?? (await loadConfigString())
+    if (!stored) return { config: null }
     return { config: parse(stored), outdated: !current }
   },
 }

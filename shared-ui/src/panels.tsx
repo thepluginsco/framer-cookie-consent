@@ -912,6 +912,35 @@ export function ScriptsPanel({ m, onAddScript, onScan }: { m: ConsentfulModel; o
         </Button>
       ) : null}
 
+      <Card style={{ padding: "6px 16px 14px" }}>
+        <Eyebrow style={{ margin: "13px 0 2px" }}>Embedded content</Eyebrow>
+        <Row
+          title="Block embeds until consent"
+          desc="YouTube, Vimeo, TikTok, Instagram, X, Facebook, Spotify, Google Maps and other embeds show a “Load content” placeholder until visitors accept their category."
+          border={cfg.blockEmbeds}
+        >
+          <Toggle on={cfg.blockEmbeds} onClick={() => m.toggle("blockEmbeds")} />
+        </Row>
+        {cfg.blockEmbeds ? (
+          <Row title="Unblocked by" desc="The consent category that loads embeds automatically." border={false}>
+            <select
+              aria-label="Category that unblocks embeds"
+              value={cfg.embedCategory}
+              onChange={(e) => m.set("embedCategory", e.target.value)}
+              style={{ ...SELECT_BASE, width: 150 }}
+            >
+              {cfg.categories
+                .filter((c) => !c.locked)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </Row>
+        ) : null}
+      </Card>
+
       <ProLock locked={cfg.plan !== "pro"} note="Listing services and per-service switches in the preference center is part of paid plans.">
       <Card style={{ padding: "6px 16px 14px" }}>
         <Eyebrow style={{ margin: "13px 0 2px" }}>Preference center</Eyebrow>
@@ -1170,6 +1199,13 @@ const TEXT_GROUPS: Array<{ title: string; fields: Array<{ key: LocalizableFieldK
       { key: "vendorsHeading", label: "Services list heading" },
       { key: "receiptLabel", label: "“Download consent receipt” link" },
       { key: "closeLabel", label: "Close button (screen readers)" },
+    ],
+  },
+  {
+    title: "Blocked embeds",
+    fields: [
+      { key: "embedText", label: "Placeholder text ({service} = YouTube, Maps…)", multiline: true },
+      { key: "embedButton", label: "“Load content” button" },
     ],
   },
 ]

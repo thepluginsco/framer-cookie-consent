@@ -41,9 +41,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * built-in Swedish pack (shared/locale-packs.ts) add ~2.5 KB raw (~0.9 KB
  * gzipped), so the ceiling became 68 KB. Built-in packs for every language are
  * fetched on demand (one JSON per visitor) rather than bundled; the loader plus
- * the language resolver add ~0.6 KB, so the ceiling is now 69 KB.
+ * the language resolver add ~0.6 KB, so the ceiling became 69 KB. Embed blocking
+ * (provider detection + click-to-load placeholder, ~1.5 KB gzipped) brings it
+ * to 73 KB.
  */
-const MAX_BYTES = 69 * 1024; // 69 KB (≈21.8 KB gzipped)
+const MAX_BYTES = 73 * 1024; // 73 KB (≈23 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 

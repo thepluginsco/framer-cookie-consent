@@ -174,6 +174,15 @@ export interface BehaviorConfig {
   reconsentVersion: string;
   /** Days a stored decision remains valid before re-prompting. */
   consentExpiryDays: number;
+  /**
+   * Hold third-party embeds (YouTube, Vimeo, TikTok, Instagram, X, Facebook,
+   * Spotify, Google Maps, ...) behind a click-to-load placeholder until the
+   * visitor consents to {@link BehaviorConfig.embedCategory}. Iframes marked up
+   * with `data-cc-src` + `data-cc-category` are gated either way.
+   */
+  blockEmbeds: boolean;
+  /** Consent category that unblocks detected embeds (default `marketing`). */
+  embedCategory: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -423,6 +432,10 @@ export interface LocaleStrings {
   closeLabel: string;
   /** Privacy policy link label (the URL stays shared across locales). */
   privacyPolicyLabel: string;
+  /** Text on a blocked embed's placeholder; `{service}` becomes the provider (YouTube, ...). */
+  embedBlocked: string;
+  /** Button on a blocked embed's placeholder that loads it. */
+  embedLoad: string;
   /** Per-category copy overrides, keyed by category id. */
   categories: Record<string, CategoryStrings>;
 }
@@ -463,6 +476,10 @@ export interface StringsConfig {
   closeLabel: string;
   /** Privacy policy link label. */
   privacyPolicyLabel: string;
+  /** Text on a blocked embed's placeholder; `{service}` becomes the provider (YouTube, ...). */
+  embedBlocked: string;
+  /** Button on a blocked embed's placeholder that loads it. */
+  embedLoad: string;
   /** Privacy policy URL. */
   privacyPolicyUrl: string;
   /** Per-category copy overrides, keyed by category id. */
@@ -712,6 +729,8 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     reloadOnChange: false,
     reconsentVersion: '1',
     consentExpiryDays: 180,
+    blockEmbeds: false,
+    embedCategory: 'marketing',
   },
   geo: {
     endpoint: '',
@@ -761,6 +780,8 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     preferencesNote: 'You can change your preferences at any time.',
     closeLabel: 'Close',
     privacyPolicyLabel: 'Privacy Policy',
+    embedBlocked: 'This content is hosted by {service}, which may set cookies.',
+    embedLoad: 'Load content',
     privacyPolicyUrl: 'https://yoursite.com/privacy',
     categories: defaultCategoryStrings(),
     poweredByHidden: false,
@@ -926,6 +947,10 @@ function mergeBehavior(d: BehaviorConfig, p: DeepPartial<BehaviorConfig> | undef
     reloadOnChange: boolOr(p?.reloadOnChange, d.reloadOnChange),
     reconsentVersion: strOr(p?.reconsentVersion, d.reconsentVersion),
     consentExpiryDays: numOr(p?.consentExpiryDays, d.consentExpiryDays, 0, 3650),
+    blockEmbeds: boolOr(p?.blockEmbeds, d.blockEmbeds),
+    embedCategory: /^[a-z0-9_-]{1,64}$/i.test(String(p?.embedCategory ?? ''))
+      ? String(p?.embedCategory)
+      : d.embedCategory,
   };
 }
 
@@ -1071,6 +1096,8 @@ const LOCALE_STRING_KEYS: readonly Exclude<keyof LocaleStrings, 'categories'>[] 
   'preferencesNote',
   'closeLabel',
   'privacyPolicyLabel',
+  'embedBlocked',
+  'embedLoad',
 ];
 
 /**
@@ -1129,6 +1156,8 @@ function mergeStrings(d: StringsConfig, p: DeepPartial<StringsConfig> | undefine
     preferencesNote: strOr(p?.preferencesNote, d.preferencesNote),
     closeLabel: strOr(p?.closeLabel, d.closeLabel),
     privacyPolicyLabel: strOr(p?.privacyPolicyLabel, d.privacyPolicyLabel),
+    embedBlocked: strOr(p?.embedBlocked, d.embedBlocked),
+    embedLoad: strOr(p?.embedLoad, d.embedLoad),
     privacyPolicyUrl: strOr(p?.privacyPolicyUrl, d.privacyPolicyUrl),
     categories: mergeCategoryStrings(d.categories, p?.categories),
     poweredByHidden: boolOr(p?.poweredByHidden, d.poweredByHidden),

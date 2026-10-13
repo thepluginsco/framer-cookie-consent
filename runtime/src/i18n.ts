@@ -104,6 +104,8 @@ export function localizeStrings(
       preferencesNote: t.preferencesNote || strings.preferencesNote,
       closeLabel: t.closeLabel || strings.closeLabel,
       privacyPolicyLabel: t.privacyPolicyLabel || strings.privacyPolicyLabel,
+      embedBlocked: t.embedBlocked || strings.embedBlocked,
+      embedLoad: t.embedLoad || strings.embedLoad,
       categories: localizeCategories(strings.categories, t.categories),
     },
     pack,

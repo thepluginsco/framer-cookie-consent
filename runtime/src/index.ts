@@ -15,6 +15,7 @@ import { parse, mergeConfig, isPreviewHost, packLanguage, type CookieConsentConf
 import { installConsentApi, readConsent, onConsentChange, type CookieConsentApi } from './consent-state.ts';
 import { bootstrapConsentDefaults, updateConsent } from './consent-mode.ts';
 import { installScriptBlocker } from './script-blocker.ts';
+import { installEmbedBlocker } from './embed-blocker.ts';
 import {
   shouldShowBanner,
   isDoNotTrackEnabled,
@@ -28,7 +29,7 @@ import {
   regionBucket,
 } from './geo.ts';
 import { mountBanner } from './banner.ts';
-import { detectLanguages, detectPageLanguage, shownLanguage } from './i18n.ts';
+import { detectLanguages, detectPageLanguage, localizeStrings, shownLanguage } from './i18n.ts';
 import { loadLocalePack } from './locale-loader.ts';
 import { resolveBannerConfig } from './license-gate.ts';
 
@@ -225,6 +226,9 @@ export async function boot(): Promise<void> {
     //     also wires up the MutationObserver + consent-change subscription.
     //     Always runs — unlicensed sites still block trackers until consent.
     installScriptBlocker(config);
+    // Third-party embeds (YouTube, Maps, ...) get the same gate, with a
+    // click-to-load placeholder; localized once the language pack is in (f).
+    const embeds = installEmbedBlocker(config);
 
     // (d.5) Honour Do Not Track as an expressed preference. When the author opts
     //     to respect it and no decision is on record yet, persist a
@@ -306,6 +310,7 @@ export async function boot(): Promise<void> {
     // then fetch a different pack.
     const finalPackCode = packCode(bannerConfig.strings);
     const localePack = await (finalPackCode === earlyPackCode ? earlyPack : loadLocalePack(finalPackCode));
+    embeds.setStrings(localizeStrings(bannerConfig.strings, detectLanguages(), localePack));
     whenDomReady(() => {
       try {
         const state = readConsent(config);

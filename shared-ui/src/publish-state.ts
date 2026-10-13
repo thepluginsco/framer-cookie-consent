@@ -52,11 +52,34 @@ export interface HostPublisher {
 /** The live side of the comparison. */
 export interface PublishedSnapshot {
   config: CookieConsentConfig | null
+  /**
+   * The live config's {@link publishFingerprint}, when the host only keeps that
+   * (Framer stores a short hash instead of a second copy of the config, because
+   * plugin data is capped at 4KB per project). Takes precedence over `config`.
+   */
+  fingerprint?: string | null
   /** The live site pins an older runtime than this editor — republish to update. */
   outdated?: boolean
 }
 
-/** Stable, key-sorted JSON of the site-relevant config (license excluded). */
+/** cyrb53: a fast 53-bit string hash (hex), plenty to tell two configs apart. */
+function hash53(str: string): string {
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16)
+}
+
+/**
+ * Short, stable hash of the site-relevant config (license excluded, keys
+ * sorted), so it can be stored cheaply and compared across sessions.
+ */
 export function publishFingerprint(config: CookieConsentConfig): string {
   const { license: _license, ...rest } = config
   void _license
@@ -70,7 +93,7 @@ export function publishFingerprint(config: CookieConsentConfig): string {
               .map((k) => [k, sort((v as Record<string, unknown>)[k])]),
           )
         : v
-  return JSON.stringify(sort(rest))
+  return hash53(JSON.stringify(sort(rest)))
 }
 
 /**
@@ -95,8 +118,9 @@ function subscribe(listener: () => void): () => void {
 
 /** Record what's live after loading it from the host. */
 export function setPublishedSnapshot(live: PublishedSnapshot): void {
-  published = live.config ? publishFingerprint(live.config) : null
-  outdated = !!live.config && !!live.outdated
+  published =
+    live.fingerprint !== undefined ? live.fingerprint : live.config ? publishFingerprint(live.config) : null
+  outdated = published !== null && !!live.outdated
   emit()
 }
 
