@@ -58,8 +58,8 @@ export async function currentSiteUrl(): Promise<string | null> {
   try {
     const { domains = [], shortName } = await window.webflow!.getSiteInfo();
     const urls = domains.map((d) => d.url).filter((u): u is string => !!u);
-    // Prefer a custom (production) domain; the *.webflow.io staging host is a
-    // free preview domain that never needs a site slot.
+    // Prefer a custom (production) domain; the *.webflow.io address is used
+    // when the site has none (it counts as a site like any other domain).
     const custom = urls.find((u) => !/\.webflow\.io\b/i.test(u));
     return custom ?? urls[0] ?? (shortName ? `${shortName}.webflow.io` : null);
   } catch {

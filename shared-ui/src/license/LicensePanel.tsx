@@ -178,11 +178,11 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
           <div style={{ fontSize: 11, color: T.ink4, marginTop: 9, lineHeight: 1.5 }}>
             {licensed
               ? lic.isDev
-                ? `Preview domain ${lic.domain ?? ""} — runs the full banner free. Add your real domain on the dashboard (or activate again after publishing to it).`
+                ? `Local address ${lic.domain ?? ""}: runs the full banner free while you build. Activate again after publishing so your live site gets its banner.`
                 : paid
                   ? `Activated for ${lic.domain ?? "this site"} and all its subdomains. Your live site unlocks automatically — the key is never shown on the page.`
                   : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner${creditOptIn ? "" : " with the Consentful credit"}. Upgrade to unlock the full design.`
-              : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here. Preview domains (*.framer.website, *.webflow.io, localhost…) always show the banner.`}
+              : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here. Platform addresses like *.framer.app or *.webflow.io count as a site too.`}
           </div>
         )}
 

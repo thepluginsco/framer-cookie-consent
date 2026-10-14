@@ -60,31 +60,20 @@ export const JWKS_PATH = '/.well-known/jwks.json';
 export const ACTIVATE_PATH = '/public/site-activate';
 
 /**
- * Free preview / staging / local hosts. They run the FULL banner without a
- * license token and never use a site slot — so customers can build before their
- * real domain is live. Mirrors the portal's `normalizeDomain` dev list
- * (`consentful-portal/packages/utils/src/domain.ts`); keep the two in sync.
+ * Local development hosts. They run the FULL banner without a license token and
+ * never use a site slot, so customers can build on their own machine.
+ *
+ * Platform addresses (`*.framer.app`, `*.webflow.io`, `*.myshopify.com`, ...) are
+ * NOT here: they are real, public sites, so they activate and use a site slot
+ * like any other domain (the free plan covers one site in total). Mirrors the
+ * portal's `normalizeDomain` (`consentful-portal/packages/utils/src/domain.ts`);
+ * keep the two in sync.
  */
-const PREVIEW_SUFFIXES = [
-  '.framer.app',
-  '.framer.website',
-  '.framer.media',
-  '.webflow.io',
-  '.wixsite.com',
-  '.editorx.io',
-  '.wixstudio.io',
-  '.squarespace.com',
-  '.myshopify.com',
-  '.wpengine.com',
-  '.wpenginepowered.com',
-  '.local',
-  '.test',
-  '.localhost',
-];
+const PREVIEW_SUFFIXES = ['.local', '.test', '.localhost'];
 const PREVIEW_EXACT = ['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'];
 
 /**
- * Whether `host` is a free preview/staging/local host (see {@link PREVIEW_SUFFIXES}).
+ * Whether `host` is a local development host (see {@link PREVIEW_SUFFIXES}).
  * Bare IPv4 addresses count too (self-hosted staging boxes).
  *
  * @param host - A hostname as reported by `location.hostname` (any case).

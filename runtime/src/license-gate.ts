@@ -122,9 +122,8 @@ export function basicBannerConfig(config: CookieConsentConfig): CookieConsentCon
  * - **Licensed** (`entitlement != null`) → the full banner, with
  *   `license.whiteLabel` re-derived from {@link hasWhiteLabel} (the verified
  *   token, not the injected flag, is authoritative).
- * - **Preview host** (`opts.preview`, e.g. `*.framer.website`, `localhost`) →
- *   the full banner WITHOUT a token, so customers can build before their real
- *   domain is live; the credit stays on (white-label needs a real seat).
+ * - **Local development host** (`opts.preview`, e.g. `localhost`, `*.test`) →
+ *   the full banner WITHOUT a token, so customers can build on their machine; the credit stays on (white-label needs a real seat).
  * - **Unlicensed** → the {@link basicBannerConfig} fallback.
  *
  * NOTE: this only shapes the *banner UI*. The compliance machinery (Consent Mode
