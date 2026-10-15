@@ -11,7 +11,7 @@
  * loader the Framer plugin injects.
  */
 
-import { parse, mergeConfig, isPreviewHost, packLanguage, type CookieConsentConfig, type DeepPartial, type LocalePack } from '@framer-cookie-consent/shared';
+import { parse, mergeConfig, isLocalHost, isPreviewHost, packLanguage, type CookieConsentConfig, type DeepPartial, type LocalePack } from '@framer-cookie-consent/shared';
 import { installConsentApi, readConsent, onConsentChange, type CookieConsentApi } from './consent-state.ts';
 import { bootstrapConsentDefaults, updateConsent } from './consent-mode.ts';
 import { installScriptBlocker } from './script-blocker.ts';
@@ -187,8 +187,10 @@ export async function boot(): Promise<void> {
     //     only affects the *banner presentation*; the compliance machinery below
     //     runs regardless of the verdict, so an unlicensed site is never *less*
     //     safe. Fails closed (→ free banner) on any error/timeout.
-    //     Free preview/staging hosts (*.framer.website, localhost, …) skip the
-    //     network entirely: they run the full design without a seat.
+    //     Platform addresses (*.framer.app, *.webflow.io, …) run the full design
+    //     without using a site slot, but still need the address activated on a
+    //     key (free or paid) like any site. Only local development hosts
+    //     (localhost, *.local, *.test, IPs) skip the network entirely.
     //     The self-hosted (WordPress) build makes NO licensing call at all: the
     //     plugin is fully functional on its own, so it renders the published
     //     config as-is, exactly like a preview host (the admin screen already
@@ -196,7 +198,7 @@ export async function boot(): Promise<void> {
     const host = typeof location !== 'undefined' ? location.hostname : '';
     const preview = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || isPreviewHost(host);
     const apiBaseOverride = config.license.portalApiBaseUrl;
-    const statusPromise: Promise<SiteStatus> = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || preview
+    const statusPromise: Promise<SiteStatus> = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || isLocalHost(host)
       ? Promise.resolve({ entitlement: null, activated: true })
       : resolveSiteStatus(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
 
@@ -303,7 +305,7 @@ export async function boot(): Promise<void> {
     //     paid key) gets no banner at all; compliance above keeps running, so
     //     trackers stay blocked. An unknown verdict (offline) still mounts.
     const { entitlement, activated } = await statusPromise;
-    if (!entitlement && !preview) warnUnlicensed(activated);
+    if (!entitlement && (!preview || activated === false)) warnUnlicensed(activated);
     if (activated === false) return;
     const bannerConfig = resolveBannerConfig(config, entitlement, { preview });
     // The licence gate can drop translations, changing the shown language; only

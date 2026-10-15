@@ -83,6 +83,28 @@ const PREVIEW_SUFFIXES = [
 ];
 const PREVIEW_EXACT = ['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'];
 
+/** Local development suffixes (a subset of {@link PREVIEW_SUFFIXES}). */
+const LOCAL_SUFFIXES = ['.local', '.test', '.localhost'];
+
+/**
+ * Whether `host` is a local development host (localhost, `*.local`, `*.test`,
+ * IPs). These never ask the licensing API: nobody visits them but the builder.
+ * Platform addresses (`*.framer.app`, ...) are NOT local: they need an activated
+ * key like any site, they just never use a site slot.
+ *
+ * @param host - A hostname as reported by `location.hostname` (any case).
+ */
+export function isLocalHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/\.$/, '');
+  if (!h) return false;
+  if (PREVIEW_EXACT.indexOf(h) !== -1) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return true;
+  for (const s of LOCAL_SUFFIXES) {
+    if (h === s.slice(1) || h.endsWith(s)) return true;
+  }
+  return false;
+}
+
 /**
  * Whether `host` is a free preview/staging/local host (see {@link PREVIEW_SUFFIXES}).
  * Bare IPv4 addresses count too (self-hosted staging boxes).

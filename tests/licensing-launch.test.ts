@@ -16,6 +16,7 @@ import {
   buildEmbedSnippet,
   buildLoaderHtml,
   isPreviewHost,
+  isLocalHost,
   mergeConfig,
   toPublishedConfig,
 } from '@framer-cookie-consent/shared';
@@ -66,6 +67,11 @@ test('isPreviewHost: platform staging + local hosts, not production', () => {
   for (const h of ['acme.com', 'www.acme.co.uk', 'shop.acme.com', 'framer.com', 'webflow.com', '']) {
     assert.equal(isPreviewHost(h), false, h);
   }
+});
+
+test('isLocalHost: only local development hosts skip the licence check', () => {
+  for (const h of ['localhost', '127.0.0.1', 'wp.local', 'site.test', '192.168.1.20']) assert.equal(isLocalHost(h), true, h);
+  for (const h of ['x.framer.app', 'demo.webflow.io', 'store.myshopify.com', 'acme.com', '']) assert.equal(isLocalHost(h), false, h);
 });
 
 test('preview host → full design (layout/theme kept) but the credit stays on', () => {
