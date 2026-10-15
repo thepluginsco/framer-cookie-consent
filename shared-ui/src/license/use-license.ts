@@ -96,7 +96,7 @@ function rejectionMessage(reason: string | null): string {
 }
 
 /**
- * A local host the portal validates WITHOUT binding a site slot — used to
+ * A free preview host the portal validates WITHOUT binding a site slot — used to
  * verify a key when the editor can't tell which domain it's for.
  */
 const KEY_CHECK_HOST = "localhost"
@@ -202,7 +202,7 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
 
   /**
    * Activate `k` against the current domain. When the host can't tell us its
-   * domain (and none was typed), the key is verified against a local host —
+   * domain (and none was typed), the key is verified against a preview host —
    * which checks it without using a site slot — and the user is asked to add
    * their domain afterwards (License tab or dashboard).
    */

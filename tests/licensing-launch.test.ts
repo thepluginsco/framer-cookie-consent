@@ -47,8 +47,13 @@ test('toPublishedConfig strips key/tier/white-label, keeps the API override', ()
   assert.equal(withOverride.license.key, KEY);
 });
 
-test('isPreviewHost: local development hosts only, not platform or production sites', () => {
+test('isPreviewHost: platform staging + local hosts, not production', () => {
   for (const h of [
+    'my-site.framer.website',
+    'x.framer.app',
+    'demo.webflow.io',
+    'store.myshopify.com',
+    'me.wixsite.com',
     'localhost',
     'LOCALHOST',
     '127.0.0.1',
@@ -58,19 +63,7 @@ test('isPreviewHost: local development hosts only, not platform or production si
   ]) {
     assert.equal(isPreviewHost(h), true, h);
   }
-  for (const h of [
-    'acme.com',
-    'www.acme.co.uk',
-    'shop.acme.com',
-    'framer.com',
-    'webflow.com',
-    'my-site.framer.website',
-    'x.framer.app',
-    'demo.webflow.io',
-    'store.myshopify.com',
-    'me.wixsite.com',
-    '',
-  ]) {
+  for (const h of ['acme.com', 'www.acme.co.uk', 'shop.acme.com', 'framer.com', 'webflow.com', '']) {
     assert.equal(isPreviewHost(h), false, h);
   }
 });

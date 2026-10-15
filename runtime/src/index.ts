@@ -187,10 +187,8 @@ export async function boot(): Promise<void> {
     //     only affects the *banner presentation*; the compliance machinery below
     //     runs regardless of the verdict, so an unlicensed site is never *less*
     //     safe. Fails closed (→ free banner) on any error/timeout.
-    //     Local development hosts (localhost, *.local, *.test, IPs) skip the
-    //     network entirely: they run the full design without a seat. Platform
-    //     addresses (*.framer.app, *.webflow.io, ...) are real sites and are
-    //     checked like any domain.
+    //     Free preview/staging hosts (*.framer.website, localhost, …) skip the
+    //     network entirely: they run the full design without a seat.
     //     The self-hosted (WordPress) build makes NO licensing call at all: the
     //     plugin is fully functional on its own, so it renders the published
     //     config as-is, exactly like a preview host (the admin screen already
