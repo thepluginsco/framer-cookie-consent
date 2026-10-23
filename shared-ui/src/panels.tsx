@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 
-import { WORDPRESS_PRO_URL, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
+import { WORDPRESS_PRO_URL, isPlaceholderLink, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
 import { useSettingsContext } from "./settings-context"
 import { T, focusRing } from "./tokens"
@@ -1306,7 +1306,12 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
       {editingBase ? (
         <div>
           <Label>Privacy policy URL</Label>
-          <TextInput value={m.cfg.privacyUrl} onChange={(v) => m.set("privacyUrl", v)} mono />
+          <TextInput value={m.cfg.privacyUrl} onChange={(v) => m.set("privacyUrl", v)} placeholder="https://" mono />
+          <div style={{ fontSize: 11, color: isPlaceholderLink(m.cfg.privacyUrl) ? T.warn : T.ink4, lineHeight: 1.5, marginTop: 6 }}>
+            {isPlaceholderLink(m.cfg.privacyUrl)
+              ? "This is a sample address. Replace it with your own privacy page, or clear it: sample links are left out when you publish."
+              : "Link to your own privacy page. Leave it empty to hide the link."}
+          </div>
         </div>
       ) : (
         <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5 }}>

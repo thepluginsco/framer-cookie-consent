@@ -782,7 +782,9 @@ export const DEFAULT_CONFIG: CookieConsentConfig = {
     privacyPolicyLabel: 'Privacy Policy',
     embedBlocked: 'This content is hosted by {service}, which may set cookies.',
     embedLoad: 'Load content',
-    privacyPolicyUrl: 'https://yoursite.com/privacy',
+    // Empty until the site owner adds theirs: the banner leaves the link out
+    // rather than pointing visitors at a placeholder.
+    privacyPolicyUrl: '',
     categories: defaultCategoryStrings(),
     poweredByHidden: false,
     translations: {},

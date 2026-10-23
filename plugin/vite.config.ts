@@ -8,5 +8,10 @@ export default defineConfig({
   plugins: [react(), mkcert(), framer()],
   // Framer Marketplace: no user-configurable endpoints. Folds the shared UI's
   // guards to constants so that code is left out of the bundle.
-  define: { __CF_NO_CUSTOM_ENDPOINTS__: "false" },
+  // The WordPress-only flags fold to false so that code is dropped here too.
+  define: {
+    __CF_NO_CUSTOM_ENDPOINTS__: "false",
+    __CC_FREE_CORE__: "false",
+    __CC_NO_CUSTOM_CODE__: "false",
+  },
 })

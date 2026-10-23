@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,6 +88,10 @@ The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/r
 Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1), Material Symbols (Apache License 2.0).
 
 == Changelog ==
+
+= 0.4.2 =
+* Fix: with the modal layout, the dimmed page overlay now closes together with the banner.
+* The privacy policy link starts empty and is left out of the banner until you add your own page. Sample addresses such as yoursite.com are never published.
 
 = 0.4.1 =
 * New: embed blocking. YouTube, Vimeo, TikTok, Instagram, X, Facebook, Spotify, Google Maps and other embeds can be held behind a "Load content" placeholder until the visitor allows their category (Scripts tab). Included on every plan.

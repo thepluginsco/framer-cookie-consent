@@ -39,7 +39,7 @@ import {
   type SettingsApi,
 } from "@framer-cookie-consent/shared-ui"
 
-import { WebflowDataClient } from "./data-client"
+import { CONNECT_ERROR, WebflowDataClient } from "./data-client"
 import { currentIdToken, currentSiteId, currentSiteUrl, inDesigner } from "./webflow-host"
 
 const STORAGE_KEY = "consentful.webflow.config"
@@ -77,10 +77,11 @@ const webflowPublisher: HostPublisher = {
     const siteId = await currentSiteId()
     if (!siteId) return { ok: false, needsSetup: true, message: "Open this inside the Webflow Designer to publish." }
     try {
-      if (!(await client.isConnected(siteId))) {
+      const idToken = await currentIdToken()
+      if (!(await client.isConnected(siteId, idToken))) {
         return { ok: false, needsSetup: true, message: "Connect your Webflow site on the Publish tab first." }
       }
-      await client.install(siteId, config, await currentIdToken())
+      await client.install(siteId, config, idToken)
       return { ok: true, message: "Published ✓ Your banner is live." }
     } catch (err) {
       return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -89,7 +90,7 @@ const webflowPublisher: HostPublisher = {
   async loadPublished() {
     const siteId = await currentSiteId()
     if (!siteId) throw new Error("No site")
-    return { config: await client.loadConfig(siteId) }
+    return { config: await client.loadConfig(siteId, await currentIdToken()) }
   },
 }
 
@@ -98,7 +99,6 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
   const { config } = useSettingsContext()
 
   const [siteId, setSiteId] = useState("")
-  const [siteFromHost, setSiteFromHost] = useState(false)
   const [connected, setConnected] = useState<boolean | null>(null)
   const [busy, setBusy] = useState<null | "install" | "remove">(null)
   const [note, setNote] = useState("")
@@ -109,10 +109,10 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
       return
     }
     try {
-      setConnected(await client.isConnected(id))
+      setConnected(await client.isConnected(id, await currentIdToken()))
     } catch {
       setConnected(null)
-      setNote("Worker unreachable — check VITE_WORKER_BASE.")
+      setNote(CONNECT_ERROR)
     }
   }, [])
 
@@ -123,7 +123,6 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
       const hostSite = await currentSiteId()
       if (active && hostSite) {
         setSiteId(hostSite)
-        setSiteFromHost(true)
         await checkConnection(hostSite)
       }
     })()
@@ -132,21 +131,12 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
     }
   }, [checkConnection])
 
-  const onSiteInput = useCallback(
-    (v: string) => {
-      setSiteId(v)
-      void checkConnection(v.trim())
-    },
-    [checkConnection],
-  )
-
   const connect = useCallback(() => {
-    const id = siteId.trim()
-    if (!id) {
-      setNote("Enter a site id first.")
+    if (!siteId) {
+      setNote("Open Consentful inside the Webflow Designer to connect your site.")
       return
     }
-    client.connect(id)
+    client.connect(siteId)
     setNote("Complete the Webflow authorization in the popup, then click Re-check.")
   }, [siteId])
 
@@ -154,17 +144,16 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
   // yet, then polls the Worker. Lets the user confirm the connection right after
   // authorizing, without waiting for a full panel reload.
   const recheck = useCallback(async () => {
-    let id = siteId.trim()
+    let id = siteId
     if (!id) {
       const hostSite = await currentSiteId()
       if (hostSite) {
         setSiteId(hostSite)
-        setSiteFromHost(true)
         id = hostSite
       }
     }
     if (!id) {
-      setNote("No site id yet — open this inside the Webflow Designer.")
+      setNote("Open Consentful inside the Webflow Designer to connect your site.")
       return
     }
     setNote("Checking connection…")
@@ -184,7 +173,7 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
 
   const install = useCallback(() => {
     void run("install", async () => {
-      const r = await client.install(siteId.trim(), config, await currentIdToken())
+      const r = await client.install(siteId, config, await currentIdToken())
       markPublished(config)
       return r.changed ? `Published${r.published ? " + site published" : ""}.` : "No change — the banner was already up to date."
     })
@@ -192,13 +181,13 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
 
   const remove = useCallback(() => {
     void run("remove", async () => {
-      const r = await client.remove(siteId.trim(), await currentIdToken())
+      const r = await client.remove(siteId, await currentIdToken())
       markUnpublished()
       return r.changed ? "Banner removed." : "Nothing to remove."
     })
   }, [siteId, run])
 
-  const canWrite = connected === true && !!siteId.trim() && busy === null
+  const canWrite = connected === true && !!siteId && busy === null
 
   return (
     <Card style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -212,20 +201,10 @@ function WebflowPublishAction({ m }: { m: ConsentfulModel }) {
         <ConnectionPill connected={connected} />
       </div>
 
-      {!siteFromHost ? (
-        <input
-          type="text"
-          value={siteId}
-          placeholder="Webflow site id"
-          onChange={(e) => onSiteInput(e.target.value)}
-          style={{ height: T.control, boxSizing: "border-box", padding: `0 ${T.controlPadX}px`, border: `1px solid ${T.border}`, borderRadius: T.rMd, background: T.surface, fontFamily: T.mono, fontSize: 12, color: T.ink, outline: "none" }}
-        />
-      ) : null}
-
       <div style={{ fontSize: 11.5, color: T.ink3, lineHeight: 1.5 }}>
         {inDesigner()
           ? "Author your consent banner and publish it to this Webflow site."
-          : "Preview mode — open inside the Webflow Designer, or enter a site id, to publish."}
+          : "Preview mode: open Consentful inside the Webflow Designer to publish."}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -275,6 +254,7 @@ async function scanUnsupported(): Promise<ScanResult> {
 
 const webflowHost: HostServices = {
   platformLabel: "Webflow",
+  platformAddress: "*.webflow.io",
   runtimeVersion: RUNTIME_VERSION,
   scanSite: scanUnsupported,
   getLiveSiteUrl: currentSiteUrl,
@@ -303,7 +283,7 @@ function WebflowSettingsProvider({ children }: { children: ReactNode }) {
         const site = await currentSiteId()
         if (!site) return
         setStatus("loading")
-        const remote = await client.loadConfig(site)
+        const remote = await client.loadConfig(site, await currentIdToken())
         if (active && remote) {
           // The stored copy is public (license stripped) — keep this browser's
           // activated license rather than wiping it on every load.

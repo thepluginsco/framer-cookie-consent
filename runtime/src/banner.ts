@@ -771,8 +771,10 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
   /** Active focus-trap cleanup for whichever modal is open. */
   let releaseTrap: (() => void) | null = null;
 
+  // A modal banner always dims the page while it shows; once it's dismissed
+  // the overlay must go with it (only the open preferences modal keeps it).
   const overlayNeeded = (): boolean =>
-    isModalBanner || (config.banner.overlay && !banner.hidden) || !prefsModal.hidden;
+    ((isModalBanner || config.banner.overlay) && !banner.hidden) || !prefsModal.hidden;
 
   const syncOverlay = (): void => {
     overlay.hidden = !overlayNeeded();

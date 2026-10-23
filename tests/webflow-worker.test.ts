@@ -10,7 +10,8 @@
 
 import { describe, expect, it } from "vitest";
 import { signState, verifyState } from "../apps/webflow-app/src/oauth.js";
-import worker, { type Env, type KVNamespace } from "../apps/webflow-app/src/worker.js";
+import { mergeConfig, parse, serialize } from "@framer-cookie-consent/shared";
+import worker, { storableConfig, type Env, type KVNamespace } from "../apps/webflow-app/src/worker.js";
 
 /** In-memory KV standing in for the Cloudflare binding. */
 function memoryKV(seed: Record<string, string> = {}): KVNamespace {
@@ -106,13 +107,48 @@ describe("Worker routing", () => {
     });
   });
 
-  it("/api/status reports whether a token is stored", async () => {
-    const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }) });
-    const connected = await worker.fetch(new Request("https://worker.example/api/status?site=site_9"), env);
-    expect(await connected.json()).toEqual({ connected: true });
+  /** Fake Webflow ID-token resolver: `jwt-<site>` resolves to that site, anything else is rejected. */
+  const resolver = (async (input: string, init?: RequestInit) => {
+    if (String(input).endsWith("/token/resolve")) {
+      const { idToken } = JSON.parse(String(init?.body)) as { idToken: string };
+      return idToken.startsWith("jwt-")
+        ? new Response(JSON.stringify({ id: "u1", siteId: idToken.slice(4) }))
+        : new Response("invalid", { status: 401 });
+    }
+    return new Response("unexpected", { status: 500 });
+  }) as unknown as typeof fetch;
 
-    const missing = await worker.fetch(new Request("https://worker.example/api/status?site=other"), env);
-    expect(await missing.json()).toEqual({ connected: false });
+  const authed = (url: string, idToken?: string) =>
+    new Request(url, idToken ? { headers: { Authorization: `Bearer ${idToken}` } } : {});
+
+  describe("/api/status", () => {
+    const env = () => makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: resolver });
+
+    it("reports connected for a designer of the site", async () => {
+      const res = await worker.fetch(authed("https://worker.example/api/status?site=site_9", "jwt-site_9"), env());
+      expect(await res.json()).toEqual({ connected: true });
+    });
+
+    it("rejects a request without an ID token (401)", async () => {
+      const res = await worker.fetch(authed("https://worker.example/api/status?site=site_9"), env());
+      expect(res.status).toBe(401);
+      expect(await res.json()).toMatchObject({ error: "missing_id_token" });
+    });
+
+    it("rejects an ID token for another site (403)", async () => {
+      const res = await worker.fetch(authed("https://worker.example/api/status?site=site_9", "jwt-attacker"), env());
+      expect(res.status).toBe(403);
+    });
+
+    it("rejects an ID token Webflow cannot resolve (403)", async () => {
+      const res = await worker.fetch(authed("https://worker.example/api/status?site=site_9", "forged"), env());
+      expect(res.status).toBe(403);
+    });
+
+    it("answers not connected for a site without a stored token", async () => {
+      const res = await worker.fetch(authed("https://worker.example/api/status?site=other", "jwt-other"), env());
+      expect(await res.json()).toEqual({ connected: false });
+    });
   });
 
   it("/api/install rejects a missing site with 400", async () => {
@@ -138,7 +174,7 @@ describe("Worker routing", () => {
       makeEnv(),
     );
     expect(res.status).toBe(401);
-    expect(await res.json()).toMatchObject({ error: "not_connected" });
+    expect(await res.json()).toMatchObject({ error: "missing_id_token" });
   });
 
   it("answers OPTIONS preflight with CORS headers", async () => {
@@ -173,13 +209,20 @@ describe("Worker routing", () => {
       return { impl, calls };
     }
 
-    function removeReq(body: unknown): Request {
+    function removeReq(body: unknown, idToken?: string): Request {
       return new Request("https://worker.example/api/remove", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
         body: JSON.stringify(body),
       });
     }
+
+    it("ignores an ID token sent in the body instead of the Authorization header", async () => {
+      const wf = fakeWebflow("site_9");
+      const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
+      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "jwt" }), env);
+      expect(res.status).toBe(401);
+    });
 
     it("rejects a write with no ID token (401), even for a connected site", async () => {
       const wf = fakeWebflow("site_9");
@@ -193,7 +236,7 @@ describe("Worker routing", () => {
     it("rejects an ID token issued for a different site (403) without touching the site", async () => {
       const wf = fakeWebflow("attacker_site");
       const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
-      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "jwt" }), env);
+      const res = await worker.fetch(removeReq({ siteId: "site_9" }, "jwt"), env);
       expect(res.status).toBe(403);
       expect(await res.json()).toMatchObject({ error: "invalid_id_token" });
       expect(wf.calls.map((c) => c.url)).toEqual(["https://api.webflow.com/beta/token/resolve"]);
@@ -202,14 +245,14 @@ describe("Worker routing", () => {
     it("rejects an ID token Webflow won't resolve (expired/forged) with 403", async () => {
       const wf = fakeWebflow(null);
       const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
-      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "bad" }), env);
+      const res = await worker.fetch(removeReq({ siteId: "site_9" }, "bad"), env);
       expect(res.status).toBe(403);
     });
 
     it("allows the write when the ID token resolves to the same site", async () => {
       const wf = fakeWebflow("site_9");
       const env = makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: wf.impl });
-      const res = await worker.fetch(removeReq({ siteId: "site_9", idToken: "jwt" }), env);
+      const res = await worker.fetch(removeReq({ siteId: "site_9" }, "jwt"), env);
       expect(res.status).toBe(200);
       expect(wf.calls[0]).toMatchObject({
         url: "https://api.webflow.com/beta/token/resolve",
@@ -219,22 +262,58 @@ describe("Worker routing", () => {
     });
   });
 
-  it("/api/config serves a stored config, or 404 when none/no store", async () => {
-    const stored = '{"meta":{"schemaVersion":2}}';
-    const env = makeEnv({ CONFIGS: memoryKV({ "config:site_9": stored }) });
+  describe("/api/config", () => {
+    // A config stored by an older build, still carrying a license key.
+    const keyed = serialize(mergeConfig({ license: { key: "CF-SECRET-KEY", tier: "pro" } }));
+    const env = (configs?: KVNamespace) =>
+      makeEnv({ TOKENS: memoryKV({ "token:site_9": "tok" }), fetchImpl: resolver, ...(configs ? { CONFIGS: configs } : {}) });
 
-    const hit = await worker.fetch(new Request("https://worker.example/api/config?site=site_9"), env);
-    expect(hit.status).toBe(200);
-    expect(await hit.text()).toBe(stored);
+    it("serves the stored config to a designer of the site, never with a license key", async () => {
+      const res = await worker.fetch(
+        authed("https://worker.example/api/config?site=site_9", "jwt-site_9"),
+        env(memoryKV({ "config:site_9": keyed })),
+      );
+      expect(res.status).toBe(200);
+      const body = await res.text();
+      expect(body).not.toContain("CF-SECRET-KEY");
+      expect(parse(body).license).toMatchObject({ key: null, tier: "pro" });
+    });
 
-    const miss = await worker.fetch(new Request("https://worker.example/api/config?site=other"), env);
-    expect(miss.status).toBe(404);
+    it("rejects unauthenticated (401) and cross-site (403) reads", async () => {
+      const configs = memoryKV({ "config:site_9": keyed });
+      const anon = await worker.fetch(authed("https://worker.example/api/config?site=site_9"), env(configs));
+      expect(anon.status).toBe(401);
+      const other = await worker.fetch(authed("https://worker.example/api/config?site=site_9", "jwt-attacker"), env(configs));
+      expect(other.status).toBe(403);
+      expect(await other.text()).not.toContain("CF-SECRET-KEY");
+    });
 
-    // No CONFIGS binding at all → 404 (the store is optional).
-    const noStore = await worker.fetch(new Request("https://worker.example/api/config?site=site_9"), makeEnv());
-    expect(noStore.status).toBe(404);
+    it("404s when nothing is stored or there is no store; 400 without a site", async () => {
+      const miss = await worker.fetch(authed("https://worker.example/api/config?site=site_9", "jwt-site_9"), env(memoryKV()));
+      expect(miss.status).toBe(404);
+      const noStore = await worker.fetch(authed("https://worker.example/api/config?site=site_9", "jwt-site_9"), env());
+      expect(noStore.status).toBe(404);
+      const missingSite = await worker.fetch(authed("https://worker.example/api/config", "jwt-site_9"), env());
+      expect(missingSite.status).toBe(400);
+    });
+  });
 
-    const missingSite = await worker.fetch(new Request("https://worker.example/api/config"), env);
-    expect(missingSite.status).toBe(400);
+  it("storableConfig drops the license key but keeps the plan", () => {
+    const stored = storableConfig(mergeConfig({ license: { key: "CF-SECRET-KEY", tier: "pro" } }));
+    expect(stored.license).toMatchObject({ key: null, tier: "pro" });
+  });
+
+  it("allows the Authorization header in CORS preflight", async () => {
+    const res = await worker.fetch(new Request("https://worker.example/api/status", { method: "OPTIONS" }), makeEnv());
+    expect(res.headers.get("Access-Control-Allow-Headers")).toContain("Authorization");
+  });
+
+  it("does not echo internal error details", async () => {
+    const env = makeEnv({
+      TOKENS: { get: async () => { throw new Error("kv secret detail"); }, put: async () => {}, delete: async () => {} },
+    });
+    const res = await worker.fetch(authed("https://worker.example/api/status?site=site_9", "jwt-site_9"), env);
+    expect(res.status).toBe(500);
+    expect(await res.text()).not.toContain("secret detail");
   });
 });

@@ -9,25 +9,29 @@
  *   GET  /authorize[?site=<id>] → redirect the user to Webflow's consent screen
  *   GET  /callback?code&state   → exchange the code, store the token for each
  *                                 site Webflow says it covers, close popup
- *   POST /api/install           → {siteId, idToken, config} → installWebflowLoader(...)
- *   POST /api/remove            → {siteId, idToken}         → removeWebflowLoader(...)
+ *   POST /api/install           → {siteId, config} → installWebflowLoader(...)
+ *   POST /api/remove            → {siteId}         → removeWebflowLoader(...)
  *   GET  /api/status?site=<id>  → whether we hold a token for the site
+ *   GET  /api/config?site=<id>  → the site's last-published config
  *
  * The install/remove routes build a {@link WebflowApiClient} from the stored
  * token and hand it to the SAME `installWebflowLoader`/`removeWebflowLoader` the
  * core exposes — so the loader written to a Webflow site is byte-identical to
  * every other platform's.
  *
- * Security: install/remove require the Designer Extension's short-lived ID token
- * (`webflow.getIdToken()`), resolved with Webflow ({@link resolveIdTokenSite});
- * it must name the same site as `siteId`, so only an authorized designer of
- * that site can write to it — knowing a site id is not enough.
+ * Security: every `/api/*` route requires the Designer Extension's short-lived
+ * ID token (`webflow.getIdToken()`) as `Authorization: Bearer <token>`. The
+ * Worker resolves it with Webflow ({@link resolveIdTokenSite}) and it must name
+ * the same site as the request, so only an authorized designer of that site
+ * can read its status/config or write to it — knowing a site id is not enough.
+ * No license key is ever stored or served ({@link storableConfig}).
  */
 
 import type { CookieConsentConfig, DeepPartial } from "@framer-cookie-consent/shared";
 import {
   installWebflowLoader,
   mergeConfig,
+  parse,
   removeWebflowLoader,
   serialize,
 } from "@framer-cookie-consent/shared";
@@ -77,7 +81,7 @@ function corsHeaders(origin: string | undefined): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin ?? "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
 
@@ -90,7 +94,7 @@ function json(data: unknown, status = 200, extra: Record<string, string> = {}): 
  * from `localhost:1337` (dev) or a `*.webflow-ext.com` host (production), so we
  * REFLECT the caller's own `Origin` header rather than pinning one. Falls back to
  * the configured {@link Env.APP_ORIGIN}, then to `*`. Safe because these routes
- * carry no cookies — they authorize via a server-side, site-keyed token.
+ * carry no cookies — each request proves itself with a Webflow ID token.
  */
 function resolveOrigin(request: Request, env: Env): string | undefined {
   return request.headers.get("Origin") ?? env.APP_ORIGIN;
@@ -116,15 +120,15 @@ export default {
         case "/api/remove":
           return await handleApi(request, env, "remove", origin);
         case "/api/status":
-          return await handleStatus(url, env, origin);
+          return await handleStatus(request, url, env, origin);
         case "/api/config":
-          return await handleConfig(url, env, origin);
+          return await handleConfig(request, url, env, origin);
         default:
           return json({ error: "not_found" }, 404, corsHeaders(origin));
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return json({ error: "internal_error", message }, 500, corsHeaders(origin));
+    } catch {
+      // Never echo internals (Webflow responses, stack text) back to the caller.
+      return json({ error: "internal_error" }, 500, corsHeaders(origin));
     }
   },
 };
@@ -205,11 +209,23 @@ function page(title: string, message: string, status: number): Response {
   return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
-/** Report whether we hold a token for a site (drives the Designer's connect UI). */
-async function handleStatus(url: URL, env: Env, origin: string | undefined): Promise<Response> {
+/**
+ * Report whether we hold a token for a site (drives the Designer's connect UI).
+ * Needs an ID token like every other route. A site we hold no token for answers
+ * `connected: false`: there is nothing to verify the ID token against yet, and
+ * the answer is the same for every unknown site, so it reveals nothing.
+ */
+async function handleStatus(request: Request, url: URL, env: Env, origin: string | undefined): Promise<Response> {
+  const cors = corsHeaders(origin);
   const site = url.searchParams.get("site") ?? "";
-  const token = site ? await env.TOKENS.get(`token:${site}`) : null;
-  return json({ connected: Boolean(token) }, 200, corsHeaders(origin));
+  if (!site) return json({ error: "missing_site" }, 400, cors);
+  const idToken = bearerToken(request);
+  if (!idToken) return json({ error: "missing_id_token" }, 401, cors);
+  const token = await env.TOKENS.get(`token:${site}`);
+  if (!token) return json({ connected: false }, 200, cors);
+  const denied = await verifySiteUser(idToken, token, site, env, cors);
+  if (denied) return denied;
+  return json({ connected: true }, 200, cors);
 }
 
 /** Webflow's ID-token resolver (the Designer docs' "Resolve ID Token"). */
@@ -243,14 +259,41 @@ export async function resolveIdTokenSite(
   }
 }
 
+/** The caller's Designer ID token from `Authorization: Bearer <token>`, or null. */
+export function bearerToken(request: Request): string | null {
+  const match = /^Bearer\s+(\S+)$/i.exec(request.headers.get("Authorization") ?? "");
+  return match ? match[1]! : null;
+}
+
+/**
+ * Check that `idToken` belongs to an authorized Designer user of `siteId`.
+ * Returns null when it does, or the 403 response to send when it doesn't.
+ */
+async function verifySiteUser(
+  idToken: string,
+  accessToken: string,
+  siteId: string,
+  env: Env,
+  cors: Record<string, string>,
+): Promise<Response | null> {
+  const fetchImpl = env.fetchImpl ?? fetch.bind(globalThis);
+  const resolvedSite = await resolveIdTokenSite(idToken, accessToken, fetchImpl);
+  return resolvedSite === siteId ? null : json({ error: "invalid_id_token" }, 403, cors);
+}
+
+/**
+ * The copy of a config we keep and serve back: the license key is dropped (the
+ * panel keeps it locally and the live site never needs it); the tier stays so
+ * a paid design reopens intact.
+ */
+export function storableConfig(config: CookieConsentConfig): CookieConsentConfig {
+  return { ...config, license: { ...config.license, key: null } };
+}
+
 /** Body shape for `/api/install` and `/api/remove`. */
 interface ApiBody {
   siteId?: string;
-  /** The Designer user's ID token (`webflow.getIdToken()`). */
-  idToken?: string;
   config?: unknown;
-  /** Optional runtime URL override (self-hosting / staging). */
-  runtimeUrl?: string;
 }
 
 /** Run install/remove against the shared engine using the stored site token. */
@@ -267,17 +310,19 @@ async function handleApi(
   const siteId = body.siteId;
   if (!siteId) return json({ error: "missing_site" }, 400, cors);
 
+  const idToken = bearerToken(request);
+  if (!idToken) return json({ error: "missing_id_token" }, 401, cors);
+
   const token = await env.TOKENS.get(`token:${siteId}`);
   if (!token) return json({ error: "not_connected" }, 401, cors);
 
   // Only an authorized Designer user of THIS site may write: resolve the
   // extension's short-lived ID token with Webflow and require it to name the
-  // same site. Knowing a site id alone is no longer enough.
-  const fetchImpl = env.fetchImpl ?? fetch.bind(globalThis);
-  if (!body.idToken) return json({ error: "missing_id_token" }, 401, cors);
-  const resolvedSite = await resolveIdTokenSite(body.idToken, token, fetchImpl);
-  if (resolvedSite !== siteId) return json({ error: "invalid_id_token" }, 403, cors);
+  // same site. Knowing a site id alone is not enough.
+  const denied = await verifySiteUser(idToken, token, siteId, env, cors);
+  if (denied) return denied;
 
+  const fetchImpl = env.fetchImpl ?? fetch.bind(globalThis);
   const client = new WebflowApiClient({ token, siteId, fetchImpl });
 
   if (action === "remove") {
@@ -286,26 +331,36 @@ async function handleApi(
     return json(result, 200, cors);
   }
 
-  const config: CookieConsentConfig = mergeConfig(
-    (body.config ?? {}) as DeepPartial<CookieConsentConfig>,
+  const config: CookieConsentConfig = storableConfig(
+    mergeConfig((body.config ?? {}) as DeepPartial<CookieConsentConfig>),
   );
-  const result = await installWebflowLoader(
-    client,
-    config,
-    body.runtimeUrl ? { runtimeUrl: body.runtimeUrl } : {},
-  );
+  // Always the pinned, integrity-checked runtime: callers can't choose the script.
+  const result = await installWebflowLoader(client, config);
   // Remember the config so the Designer panel can reopen on it (best-effort).
   if (env.CONFIGS) await env.CONFIGS.put(`config:${siteId}`, serialize(config));
   return json(result, 200, cors);
 }
 
-/** Serve a site's stored config back to the Designer panel (or 404). */
-async function handleConfig(url: URL, env: Env, origin: string | undefined): Promise<Response> {
+/**
+ * Serve a site's stored config back to its own Designer users (or 404). Needs
+ * an ID token that resolves to the same site, like a write.
+ */
+async function handleConfig(request: Request, url: URL, env: Env, origin: string | undefined): Promise<Response> {
   const cors = corsHeaders(origin);
   const site = url.searchParams.get("site") ?? "";
   if (!site) return json({ error: "missing_site" }, 400, cors);
+  const idToken = bearerToken(request);
+  if (!idToken) return json({ error: "missing_id_token" }, 401, cors);
+  const token = await env.TOKENS.get(`token:${site}`);
+  if (!token) return json({ error: "not_connected" }, 401, cors);
+  const denied = await verifySiteUser(idToken, token, site, env, cors);
+  if (denied) return denied;
+
   const stored = env.CONFIGS ? await env.CONFIGS.get(`config:${site}`) : null;
   if (!stored) return json({ error: "not_found" }, 404, cors);
-  // Stored value is already serialized config JSON — serve it verbatim.
-  return new Response(stored, { status: 200, headers: { ...JSON_HEADERS, ...cors } });
+  // Re-strip on the way out so configs stored by older builds never leak a key.
+  return new Response(serialize(storableConfig(parse(stored))), {
+    status: 200,
+    headers: { ...JSON_HEADERS, ...cors },
+  });
 }

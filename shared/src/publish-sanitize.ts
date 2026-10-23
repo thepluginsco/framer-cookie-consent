@@ -40,6 +40,14 @@ export function isSafeLink(value: string): boolean {
   return /^(https?:\/\/[^\s/]+|mailto:[^\s]+)/i.test(v) && !/[\s<>"'`]/.test(v);
 }
 
+/**
+ * True for a template placeholder link such as `https://yoursite.com/privacy`
+ * (the old default) that was never replaced with the site's real page.
+ */
+export function isPlaceholderLink(value: string): boolean {
+  return /^https?:\/\/(www\.)?your-?(site|domain|website)\.com(\/|$)/i.test(value.trim());
+}
+
 /** True for an absolute `https://` URL with a host and no whitespace/markup. */
 export function isSafeScriptUrl(value: string): boolean {
   const v = value.trim();
@@ -195,7 +203,11 @@ export function sanitizeForPublish(config: CookieConsentConfig): CookieConsentCo
     theme: { ...config.theme, accent, fontFamily: cleanFontFamily(config.theme.fontFamily) },
     strings: {
       ...config.strings,
-      privacyPolicyUrl: isSafeLink(config.strings.privacyPolicyUrl) ? config.strings.privacyPolicyUrl.trim() : '',
+      // A placeholder is dropped like an unsafe link: the banner then omits it.
+      privacyPolicyUrl:
+        isSafeLink(config.strings.privacyPolicyUrl) && !isPlaceholderLink(config.strings.privacyPolicyUrl)
+          ? config.strings.privacyPolicyUrl.trim()
+          : '',
     },
     scripts: config.scripts
       .map(sanitizeManagedScript)

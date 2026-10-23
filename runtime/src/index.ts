@@ -123,17 +123,14 @@ function logError(err: unknown, context = 'boot'): void {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Warn (once) that an unlicensed site is running the free fallback. Non-fatal
- * and best-effort — purely a nudge in the console for the site owner.
+ * Tell the site owner why no banner shows: this address isn't activated. Only
+ * logged on preview/staging hosts, where the owner is the one looking, so
+ * visitors of a live site never see it. Plain diagnostics, no promotion.
  */
-function warnUnlicensed(activated: boolean | null): void {
+function noteNotActivated(): void {
   try {
     // eslint-disable-next-line no-console
-    console.warn(
-      '[cookie-consent] ' +
-        (activated === false ? 'Domain not activated: no banner. Get a free key' : 'Free plan: basic banner. Upgrade') +
-        ' at consentful.theplugins.co',
-    );
+    console.info('[consentful] This address is not activated, so the banner is hidden. Activate it in the Consentful app.');
   } catch {
     /* console unavailable */
   }
@@ -297,7 +294,7 @@ export async function boot(): Promise<void> {
 
     // (f) Await the entitlement (started in step b, resolved alongside geo) and
     //     render the banner ONCE with the resolved presentation: full banner when
-    //     a valid domain token verified, basic branded fallback (+ console nudge)
+    //     a valid domain token verified, basic branded fallback
     //     otherwise. Awaiting here — rather than mounting free then re-mounting on
     //     the token — avoids a visible flash; the blocker above already keeps
     //     trackers gated while we wait, and resolveEntitlement is time-bounded.
@@ -305,7 +302,7 @@ export async function boot(): Promise<void> {
     //     paid key) gets no banner at all; compliance above keeps running, so
     //     trackers stay blocked. An unknown verdict (offline) still mounts.
     const { entitlement, activated } = await statusPromise;
-    if (!entitlement && (!preview || activated === false)) warnUnlicensed(activated);
+    if (activated === false && preview) noteNotActivated();
     if (activated === false) return;
     const bannerConfig = resolveBannerConfig(config, entitlement, { preview });
     // The licence gate can drop translations, changing the shown language; only

@@ -94,7 +94,8 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
   /** Activated on a paid plan (Free keys activate too, but unlock nothing). */
   const paid = licensed && lic.tier !== "trial"
   // Hosts where the credit is the owner's opt-in (WordPress) don't promise it here.
-  const creditOptIn = useHost().useCreditVisible !== undefined
+  const host = useHost()
+  const creditOptIn = host.useCreditVisible !== undefined
   const busy = lic.status === "validating"
 
   const [draft, setDraft] = useState(lic.key)
@@ -182,7 +183,7 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
                 : paid
                   ? `Activated for ${lic.domain ?? "this site"} and all its subdomains. Your live site unlocks automatically — the key is never shown on the page.`
                   : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner${creditOptIn ? "" : " with the Consentful credit"}. Upgrade to unlock the full design.`
-              : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here. Platform addresses (*.framer.app, *.webflow.io…) show the full banner once activated, without using a site.`}
+              : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here.${host.platformAddress ? ` Your ${host.platformAddress} address shows the full banner once activated, without using a site.` : ""}`}
           </div>
         )}
 

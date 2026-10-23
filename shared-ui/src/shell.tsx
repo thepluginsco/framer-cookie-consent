@@ -890,11 +890,12 @@ function UpgradeCard({ onClick, addOn = false }: { onClick: () => void; addOn?: 
           Free plan
         </div>
         <div style={{ fontSize: 10.5, color: T.ink3, lineHeight: 1.45, marginTop: 2 }}>
-          {addOn ? "Your own design, wording, languages and categories with the Pro add-on." : "Your own design, wording, languages and categories."}
+          {/* The flag check folds away, so this add-on copy only ships in the free WordPress core. */}
+          {(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) && addOn ? "Your own design, wording, languages and categories with the Pro add-on." : "Your own design, wording, languages and categories."}
         </div>
       </div>
       <Button variant="primary" icon="workspace_premium" onClick={onClick} full>
-        {addOn ? "Get Consentful Pro" : "Upgrade to Pro"}
+        {(typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) && addOn ? "Get Consentful Pro" : "Upgrade to Pro"}
       </Button>
     </div>
   )

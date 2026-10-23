@@ -35,6 +35,11 @@ export interface HostDataStore {
 export interface HostServices {
   /** Short platform name for the header badge, e.g. "Universal embed", "Wix". */
   platformLabel: string
+  /**
+   * The platform's own free address pattern (e.g. "*.webflow.io"), named in the
+   * License tab so each platform only mentions its own. Omit where there is none.
+   */
+  platformAddress?: string
   /** The CDN runtime version shown in the footer / publish checklist. */
   runtimeVersion: string
 

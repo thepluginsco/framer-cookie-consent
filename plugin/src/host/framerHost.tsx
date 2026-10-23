@@ -201,6 +201,7 @@ function FramerPublishAction({ m }: { m: ConsentfulModel }) {
 /** The Framer platform services handed to the shared shell. */
 export const framerHost: HostServices = {
   platformLabel: "Framer",
+  platformAddress: "*.framer.app",
   runtimeVersion: RUNTIME_VERSION,
   getLiveSiteUrl: () => getLiveSiteUrl().catch(() => null),
   getSiteName: () => getProjectInfo().then((info) => info.name || null).catch(() => null),

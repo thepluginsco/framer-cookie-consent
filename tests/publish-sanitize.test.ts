@@ -5,6 +5,7 @@ import {
   cleanCustomCss,
   cleanFontFamily,
   cleanInlineScript,
+  isPlaceholderLink,
   isSafeColor,
   isSafeLink,
   isSafeScriptUrl,
@@ -113,5 +114,18 @@ describe('publish sanitizer', () => {
     const html = buildLoaderHtml(c);
     expect(html).not.toContain('javascript:alert');
     expect(html).not.toContain('</style>');
+  });
+  it('drops a template placeholder privacy link so the banner omits it', () => {
+    expect(isPlaceholderLink('https://yoursite.com/privacy')).toBe(true);
+    expect(isPlaceholderLink('https://www.yourdomain.com')).toBe(true);
+    expect(isPlaceholderLink('https://acme.com/privacy')).toBe(false);
+    const c = paid({ strings: { ...DEFAULT_CONFIG.strings, privacyPolicyUrl: 'https://yoursite.com/privacy' } });
+    expect(toPublishedConfig(c).strings.privacyPolicyUrl).toBe('');
+    const real = paid({ strings: { ...DEFAULT_CONFIG.strings, privacyPolicyUrl: 'https://acme.com/privacy' } });
+    expect(toPublishedConfig(real).strings.privacyPolicyUrl).toBe('https://acme.com/privacy');
+  });
+
+  it('has no placeholder privacy link by default', () => {
+    expect(DEFAULT_CONFIG.strings.privacyPolicyUrl).toBe('');
   });
 });

@@ -424,3 +424,16 @@ test('the "Powered by" credit renders in the preferences modal footer, honouring
   );
   c2.destroy();
 });
+
+test('a modal banner takes its page overlay with it when dismissed', () => {
+  const dom = setupDom();
+  const modal = mergeConfig({ banner: { layout: 'modal' } });
+  const c = mountBanner(modal, { api: recordingApi(modal), autoShow: true });
+  const banner = c.root.querySelector('.cc-banner') as HTMLElement;
+  const overlay = c.root.querySelector('.cc-overlay') as HTMLElement;
+  assert.equal(overlay.hidden, false, 'the overlay dims the page while the modal shows');
+  dom.window.dispatchEvent(new dom.window.CustomEvent('cookieconsent:change'));
+  assert.equal(banner.hidden, true);
+  assert.equal(overlay.hidden, true, 'the overlay must hide once the modal banner is hidden');
+  c.destroy();
+});

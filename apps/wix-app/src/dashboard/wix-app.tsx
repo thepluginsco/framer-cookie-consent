@@ -236,6 +236,7 @@ async function scanUnsupported(): Promise<ScanResult> {
 
 const wixHost: HostServices = {
   platformLabel: "Wix",
+  platformAddress: "*.wixsite.com",
   runtimeVersion: RUNTIME_VERSION,
   scanSite: scanUnsupported,
   getLiveSiteUrl: async () => (await session())?.siteUrl ?? null,

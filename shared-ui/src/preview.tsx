@@ -183,7 +183,7 @@ export function PreviewPane({
               padding: "0 8px",
             }}
           >
-            <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>yoursite.com</span>
+            <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>Your website</span>
           </div>
         </div>
 

@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.1
+Stable tag: 0.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,7 @@ You design the banner in wp-admin. When you publish, the plugin loads the banner
 * **Compliant by default.** Opt-in consent for GDPR, opt-out for CCPA, or Auto to switch by visitor region. Reject all sits next to Accept all, nothing is pre-ticked, and Global Privacy Control and Do Not Track are respected.
 * **Real script blocking.** Trackers such as Google Analytics, Meta Pixel and Hotjar stay off until their category is allowed, then start with no page reload.
 * **Google Consent Mode v2, built in.** Ad and analytics signals are set to denied before Google tags load and updated when a visitor chooses.
+* **Embeds held until consent.** Turn on embed blocking and YouTube, Vimeo, TikTok, Instagram, X, Facebook, Spotify, Google Maps and other embeds show a "Load content" placeholder until the visitor allows their category.
 * **Tracker detection.** The plugin reads your list of active plugins to suggest which trackers to manage.
 * **Private.** Visitors' choices stay in their own browser. They are never sent to Consentful's servers.
 
@@ -28,7 +29,7 @@ Everything in this plugin works without an account, a license key or a time limi
 
 * GDPR and CCPA consent, with opt-in and opt-out models.
 * Google Consent Mode v2.
-* Script blocking by category, with tracker suggestions from your active plugins.
+* Script and embed blocking by category, with tracker suggestions from your active plugins.
 * Bottom-bar banner in the default theme, in English.
 * A "Powered by Consentful" credit only if you turn it on.
 
@@ -81,6 +82,13 @@ In the visitor's own browser. Consentful's servers do not receive them.
 
 Removing the banner takes it off your site straight away. Uninstalling the plugin deletes the options it stored.
 
+== Screenshots ==
+
+1. The banner on a live site. Trackers stay off until the visitor chooses.
+2. Scripts tab: pick the trackers that wait for consent.
+3. Consent Mode tab: Google Consent Mode v2 signals, denied by default.
+4. The consent banner with Reject all next to Accept all.
+
 == Source code ==
 
 The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/runtime/consent.min.js`) are compiled bundles. Their source is at https://github.com/thepluginsco/framer-cookie-consent (`apps/wordpress-plugin`, `shared-ui`, `shared`, `runtime`).
@@ -88,6 +96,13 @@ The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/r
 Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1), Material Symbols (Apache License 2.0).
 
 == Changelog ==
+
+= 0.4.2 =
+* Fix: with the modal layout, the dimmed page overlay now closes together with the banner.
+* The privacy policy link starts empty and is left out of the banner until you add your own page. Sample addresses such as yoursite.com are never published.
+
+= 0.4.1 =
+* New: embed blocking. YouTube, Vimeo, TikTok, Instagram, X, Facebook, Spotify, Google Maps and other embeds can be held behind a "Load content" placeholder until the visitor allows their category (Scripts tab).
 
 = 0.3.1 =
 * No custom CSS or custom JavaScript: managed scripts are chosen from a list of known vendors, and you enter only the tag ID — the plugin builds the tag.

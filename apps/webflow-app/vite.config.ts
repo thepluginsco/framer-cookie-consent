@@ -14,6 +14,15 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "./",
   plugins: [react()],
+  // Fold the shared UI's build flags to constants so code meant for other
+  // platforms (the WordPress free core / Pro add-on, the universal-embed
+  // snippet card) is left out of the Webflow bundle entirely.
+  define: {
+    __CF_NO_CUSTOM_ENDPOINTS__: "false",
+    __CC_FREE_CORE__: "false",
+    __CC_NO_CUSTOM_CODE__: "false",
+    __CC_EMBED_SNIPPET__: "false",
+  },
   // No source static dir — the whole bundle is generated. Leaving Vite's default
   // `publicDir: "public"` on would make it copy the previous build back into the
   // output, so disable it explicitly.
@@ -27,5 +36,8 @@ export default defineConfig({
     emptyOutDir: true,
     // The Worker is bundled by Wrangler, not Vite — keep it out of the SPA build.
     rollupOptions: { input: "index.html" },
+    // Source maps go in the Marketplace review ZIP, never in the uploaded bundle
+    // (scripts/webflow-review-zip.mjs moves them out after the build).
+    sourcemap: true,
   },
 });

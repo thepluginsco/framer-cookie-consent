@@ -296,6 +296,7 @@ async function scanUnsupported(): Promise<ScanResult> {
 
 const shopifyHost: HostServices = {
   platformLabel: "Shopify",
+  platformAddress: "*.myshopify.com",
   runtimeVersion: RUNTIME_VERSION,
   scanSite: scanUnsupported,
   getLiveSiteUrl: async () => {
