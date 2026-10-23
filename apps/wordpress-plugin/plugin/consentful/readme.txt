@@ -81,6 +81,13 @@ In the visitor's own browser. Consentful's servers do not receive them.
 
 Removing the banner takes it off your site straight away. Uninstalling the plugin deletes the options it stored.
 
+== Screenshots ==
+
+1. The banner on a live site. Trackers stay off until the visitor chooses.
+2. Scripts tab: pick the trackers that wait for consent.
+3. Consent Mode tab: Google Consent Mode v2 signals, denied by default.
+4. The consent banner with Reject all next to Accept all.
+
 == Source code ==
 
 The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/runtime/consent.min.js`) are compiled bundles. Their source is at https://github.com/thepluginsco/framer-cookie-consent (`apps/wordpress-plugin`, `shared-ui`, `shared`, `runtime`).
@@ -90,6 +97,7 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 == Changelog ==
 
 = 0.4.2 =
+* WordPress.org now gets the full plugin: license activation (a free key is available), paid plans, custom CSS and custom scripts, and the "Embed on another site" snippet.
 * Fix: with the modal layout, the dimmed page overlay now closes together with the banner.
 * The privacy policy link starts empty and is left out of the banner until you add your own page. Sample addresses such as yoursite.com are never published.
 
@@ -119,3 +127,8 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 
 = 0.1.0 =
 * First release.
+
+== Upgrade Notice ==
+
+= 0.4.2 =
+This version needs a license key. Get a free key at consentful.theplugins.co and activate it on the License tab: until then the banner stays hidden on your live site.

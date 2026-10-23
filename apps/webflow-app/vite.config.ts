@@ -14,14 +14,14 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "./",
   plugins: [react()],
-  // Fold the shared UI's build flags to constants so code meant for other
-  // platforms (the WordPress free core / Pro add-on, the universal-embed
-  // snippet card) is left out of the Webflow bundle entirely.
+  // Fold the shared UI's build flags to constants: the full feature set (as in
+  // Framer, plus the embed-snippet card), with the WordPress-only free core /
+  // Pro add-on code left out of the Webflow bundle entirely.
   define: {
     __CF_NO_CUSTOM_ENDPOINTS__: "false",
     __CC_FREE_CORE__: "false",
     __CC_NO_CUSTOM_CODE__: "false",
-    __CC_EMBED_SNIPPET__: "false",
+    __CC_EMBED_SNIPPET__: "true",
   },
   // No source static dir — the whole bundle is generated. Leaving Vite's default
   // `publicDir: "public"` on would make it copy the previous build back into the
