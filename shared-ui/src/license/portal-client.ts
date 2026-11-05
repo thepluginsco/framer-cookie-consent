@@ -24,6 +24,7 @@ import {
   PORTAL_API_BASE,
   PORTAL_PUBLISHABLE_KEY,
   ACTIVATE_PATH,
+  ENTITLEMENT_PATH,
   type LicenseTier,
 } from "@framer-cookie-consent/shared"
 
@@ -98,14 +99,47 @@ export interface PortalClientDeps {
   publishableKey?: string
 }
 
+/**
+ * The normalized outcome of a READ-ONLY site check: what the portal currently
+ * grants `domain`, without sending the license key or changing any seat.
+ */
+export interface SiteCheckResult {
+  /**
+   * `true` when the domain is activated on a usable key (free or paid), `false`
+   * when it is not, `null` when the answer can't say (a platform address).
+   */
+  activated: boolean | null
+  /** Paid tier when the domain is on a paid plan, `trial` for a Free key, `null` when unknown. */
+  tier: LicenseTier | null
+  /** Whether white-label (hiding the credit) is entitled, when `tier` is known. */
+  whiteLabel: boolean
+  /** Whether the domain is a free preview/platform address (no site slot). */
+  isDev: boolean
+}
+
 /** A typed client for the Consentful licensing portal. */
 export interface PortalClient {
   /**
    * Activate a license key for `domain`, registering the site as a seat.
-   * Returns the normalized verdict (see {@link ActivationResult}).
+   * Only ever called from an explicit user action (Activate / Re-check / Save
+   * domain). Returns the normalized verdict (see {@link ActivationResult}).
    * @throws {PortalNetworkError} on transient failures (offline / 429 / 5xx).
    */
   activate(licenseKey: string, domain: string): Promise<ActivationResult>
+  /**
+   * Read what the portal currently grants `domain` (the published runtime's own
+   * entitlement endpoint). Sends only the domain — never the key — and changes
+   * no state, so it is safe to run when the editor opens.
+   * @throws {PortalNetworkError} on transient failures (offline / 429 / 5xx).
+   */
+  checkSite(domain: string): Promise<SiteCheckResult>
+}
+
+/** The editor tier a paid plan slug maps to (mirrors the portal's `editorTierForPlan`). */
+function tierForPlan(slug: string): LicenseTier {
+  if (slug.startsWith("lifetime")) return "lifetime"
+  if (slug.startsWith("agency")) return "agency"
+  return "pro"
 }
 
 /** Coerce an unknown tier string from the API into a valid {@link LicenseTier}. */
@@ -177,6 +211,56 @@ export function createPortalClient(deps: PortalClientDeps = {}): PortalClient {
         maxSites: ok && typeof body.maxSites === "number" ? body.maxSites : null,
         isDev: ok && body.isDev === true,
       }
+    },
+
+    async checkSite(domain) {
+      let response: Response
+      try {
+        response = await fetchFn(apiBase + ENTITLEMENT_PATH, {
+          method: "POST",
+          headers: {
+            "x-api-key": publishableKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ domain }),
+        })
+      } catch (cause) {
+        throw new PortalNetworkError("Could not reach the licensing server.", 0, { cause })
+      }
+      if (response.status === 429) {
+        throw new PortalNetworkError("Rate limit reached. Try again shortly.", 429)
+      }
+      if (!response.ok) {
+        throw new PortalNetworkError(`Licensing server error (HTTP ${response.status}).`, response.status)
+      }
+
+      let body: {
+        status?: string
+        licensed?: boolean
+        activated?: boolean
+        plan?: PortalPlan | null
+        featureSet?: Record<string, { kind?: string; value?: unknown }> | null
+      }
+      try {
+        body = (await response.json()) as typeof body
+      } catch (cause) {
+        throw new PortalNetworkError("Licensing server returned an unreadable response.", response.status, { cause })
+      }
+
+      if (body.licensed === true && body.plan) {
+        const wl = body.featureSet?.["remove_powered_by"]
+        return {
+          activated: true,
+          tier: tierForPlan(body.plan.slug),
+          whiteLabel: !!wl && wl.kind === "flag" && wl.value === true,
+          isDev: false,
+        }
+      }
+      // A platform address reports `dev` without saying free or paid.
+      if (body.status === "dev") return { activated: body.activated === false ? false : null, tier: null, whiteLabel: false, isDev: true }
+      if (body.activated === true) return { activated: true, tier: "trial", whiteLabel: false, isDev: false }
+      return { activated: body.activated === false ? false : null, tier: null, whiteLabel: false, isDev: false }
     },
   }
 }

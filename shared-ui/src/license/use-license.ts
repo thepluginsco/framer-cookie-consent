@@ -15,7 +15,8 @@
  * - write `{ key, tier, whiteLabel }` into `config.license` so the EDITOR
  *   unlocks its Pro controls (an editor hint; the runtime re-derives entitlement
  *   from the token, and the key is stripped from published HTML);
- * - re-check a saved key when the editor opens, so a lapsed plan relocks;
+ * - read (never change) the site's entitlement when the editor opens, so a
+ *   lapsed plan relocks — activation only ever happens on a click;
  * - never downgrade a paying user on a licensing outage.
  *
  * Seat management across sites (freeing/moving a seat) lives on the portal
@@ -24,14 +25,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import type { LicenseTier } from "@framer-cookie-consent/shared"
+import { isLocalHost, type LicenseTier } from "@framer-cookie-consent/shared"
 
 import { useHost } from "../host"
 import { useSettingsContext } from "../settings-context"
 import { createPortalClient, PortalNetworkError, type ActivationResult } from "./portal-client"
-
-/** Build flag (see shared-ui/src/env.d.ts): true in the Framer build. */
-declare const __CF_NO_CUSTOM_ENDPOINTS__: boolean | undefined
 
 /**
  * The UI-facing license status:
@@ -148,10 +146,9 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
   const [maxSites, setMaxSites] = useState<number | null>(null)
   const [isDev, setIsDev] = useState(false)
 
-  // Same optional per-site API override the runtime honours (staging/dev).
-  // Builds that forbid custom endpoints (Framer) always use the fixed portal.
-  const apiBase = (typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? undefined : config.license.portalApiBaseUrl || undefined
-  const client = useMemo(() => createPortalClient(apiBase ? { apiBase } : {}), [apiBase])
+  // License keys only ever go to the official licensing service: the editor
+  // ignores any per-site API override in the config.
+  const client = useMemo(() => createPortalClient(), [])
   const domain = hostDomain ?? typedDomain
 
   /** Write the resolved license into the shared config — only if it changed. */
@@ -316,10 +313,13 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* ---- autoCheck: re-check a saved key once per key (editor start-up) ------
+  /* ---- autoCheck: read-only re-check of a saved key (editor start-up) ------
    * The shell mounts one auto-checking instance so a lapsed or moved license
    * relocks the Pro controls as soon as the editor opens — including hosts
-   * whose config (and so the key) loads asynchronously. */
+   * whose config (and so the key) loads asynchronously. It only READS what the
+   * portal grants the site's domain: the key is not sent, and no seat is
+   * registered, renewed or moved. Binding a domain always takes a click
+   * (Activate / Re-check now / Save domain). */
   const checkedKey = useRef<string | null>(null)
   useEffect(() => {
     if (!autoCheck || !key || checkedKey.current === key) return
@@ -328,10 +328,22 @@ export function useLicense(opts: { autoCheck?: boolean } = {}): LicenseApi {
     checkedKey.current = key
     void (async () => {
       const d = await resolveDomain()
+      // No known domain (or a local one): nothing to read — keep the saved status.
+      if (!d || isLocalHost(d)) return
       try {
-        const v = await client.activate(key, d ?? KEY_CHECK_HOST)
-        applyActivation(key, v)
-        if (!d && v.ok) setMessage(NO_DOMAIN_NOTE)
+        const v = await client.checkSite(d)
+        setIsDev(v.isDev)
+        if (v.activated === false) {
+          // The domain has no seat now (plan lapsed, site removed on the
+          // dashboard, or a new domain). Relock the Pro controls but keep the
+          // key, so one click on Activate registers this domain again.
+          syncConfig({ key, tier: "trial", whiteLabel: false })
+          setStatus("invalid")
+          setMessage(`${d} isn't activated on your license. Click Activate to register it, or manage your sites on the dashboard.`)
+        } else if (v.tier !== null) {
+          syncConfig({ key, tier: v.tier, whiteLabel: v.whiteLabel })
+          setStatus("active")
+        }
       } catch {
         /* offline — keep the saved status */
       }

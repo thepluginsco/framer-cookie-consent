@@ -6,10 +6,13 @@ import {
   cleanFontFamily,
   cleanInlineScript,
   isPlaceholderLink,
+  isPublicHttpsUrl,
   isSafeColor,
   isSafeLink,
   isSafeScriptUrl,
+  sanitizeEndpoint,
   sanitizeForPublish,
+  upgradeLink,
   toPublishedConfig,
   type CookieConsentConfig,
   type ManagedScript,
@@ -127,5 +130,41 @@ describe('publish sanitizer', () => {
 
   it('has no placeholder privacy link by default', () => {
     expect(DEFAULT_CONFIG.strings.privacyPolicyUrl).toBe('');
+  });
+
+  it('only accepts https:// URLs on a public host', () => {
+    expect(isPublicHttpsUrl('https://consent-analytics.acme.workers.dev')).toBe(true);
+    expect(isPublicHttpsUrl('http://consent-analytics.acme.workers.dev')).toBe(false);
+    expect(isPublicHttpsUrl('https://localhost:8787')).toBe(false);
+    expect(isPublicHttpsUrl('https://127.0.0.1/stats')).toBe(false);
+    expect(isPublicHttpsUrl('https://10.0.0.5')).toBe(false);
+    expect(isPublicHttpsUrl('https://[::1]/')).toBe(false);
+    expect(isPublicHttpsUrl('https://api.acme.local')).toBe(false);
+    expect(isPublicHttpsUrl('https://user:pass@acme.com')).toBe(false);
+    expect(isPublicHttpsUrl('https://intranet')).toBe(false);
+  });
+
+  it('rejects insecure and non-production privacy links, upgrading http to https', () => {
+    expect(isSafeLink('http://acme.com/privacy')).toBe(false);
+    expect(isSafeLink('https://localhost/privacy')).toBe(false);
+    expect(upgradeLink(' http://acme.com/privacy ')).toBe('https://acme.com/privacy');
+    const http = paid({ strings: { ...DEFAULT_CONFIG.strings, privacyPolicyUrl: 'http://acme.com/privacy' } });
+    expect(toPublishedConfig(http).strings.privacyPolicyUrl).toBe('https://acme.com/privacy');
+    const local = paid({ strings: { ...DEFAULT_CONFIG.strings, privacyPolicyUrl: 'https://localhost:3000/privacy' } });
+    expect(toPublishedConfig(local).strings.privacyPolicyUrl).toBe('');
+  });
+
+  it('drops insecure or non-production service endpoints at publish', () => {
+    expect(sanitizeEndpoint('')).toBe('');
+    expect(sanitizeEndpoint(' https://geo.acme.workers.dev ')).toBe('https://geo.acme.workers.dev');
+    const c = paid({
+      geo: { ...DEFAULT_CONFIG.geo, endpoint: 'http://geo.acme.com' },
+      analytics: { ...DEFAULT_CONFIG.analytics, endpoint: 'https://localhost:8787' },
+      receipts: { ...DEFAULT_CONFIG.receipts, endpoint: 'https://receipts.acme.com' },
+    });
+    const out = sanitizeForPublish(c);
+    expect(out.geo.endpoint).toBe('');
+    expect(out.analytics.endpoint).toBe('');
+    expect(out.receipts.endpoint).toBe('https://receipts.acme.com');
   });
 });

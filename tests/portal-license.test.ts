@@ -93,3 +93,38 @@ test('activate: a transport failure throws PortalNetworkError with status 0', as
     return true;
   });
 });
+
+test('checkSite: reads the paid plan for a domain without sending the key', async () => {
+  const { fetchFn, seen } = stub(200, {
+    status: 'active',
+    licensed: true,
+    activated: true,
+    plan: { slug: 'agency-yearly', name: 'Agency' },
+    featureSet: { remove_powered_by: { kind: 'flag', value: true } },
+    token: 'jwt',
+    reason: null,
+  });
+  const client = createPortalClient({ fetchFn, apiBase: BASE, publishableKey: KEY });
+  const res = await client.checkSite('acme.com');
+  assert.deepEqual(res, { activated: true, tier: 'agency', whiteLabel: true, isDev: false });
+
+  const { url, init } = seen();
+  assert.match(url, /\/public\/site-entitlement$/);
+  assert.deepEqual(JSON.parse(String(init!.body)), { domain: 'acme.com' });
+});
+
+test('checkSite: a free key, an unactivated domain and a platform address', async () => {
+  const free = createPortalClient({ fetchFn: stub(200, { status: 'free', licensed: false, activated: true }).fetchFn, apiBase: BASE, publishableKey: KEY });
+  assert.deepEqual(await free.checkSite('acme.com'), { activated: true, tier: 'trial', whiteLabel: false, isDev: false });
+
+  const none = createPortalClient({ fetchFn: stub(200, { status: 'unlicensed', licensed: false, activated: false }).fetchFn, apiBase: BASE, publishableKey: KEY });
+  assert.equal((await none.checkSite('acme.com')).activated, false);
+
+  const dev = createPortalClient({ fetchFn: stub(200, { status: 'dev', licensed: false, activated: true }).fetchFn, apiBase: BASE, publishableKey: KEY });
+  assert.deepEqual(await dev.checkSite('acme.webflow.io'), { activated: null, tier: null, whiteLabel: false, isDev: true });
+});
+
+test('checkSite: a 5xx throws PortalNetworkError', async () => {
+  const client = createPortalClient({ fetchFn: stub(503, {}).fetchFn, apiBase: BASE, publishableKey: KEY });
+  await assert.rejects(() => client.checkSite('acme.com'), PortalNetworkError);
+});

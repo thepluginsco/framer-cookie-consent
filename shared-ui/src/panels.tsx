@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 
-import { WORDPRESS_PRO_URL, isPlaceholderLink, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
+import { WORDPRESS_PRO_URL, isPlaceholderLink, isPublicHttpsUrl, isSafeLink, upgradeLink, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
 import { useSettingsContext } from "./settings-context"
 import { T, focusRing } from "./tokens"
@@ -599,6 +599,11 @@ function GeoEndpointCard({ m }: { m: ConsentfulModel }) {
             <span style={{ fontFamily: T.mono, fontSize: 10.5 }}>runtime/cloudflare-worker/</span> and paste its URL.
             Leave blank to use the free heuristic. Applies to “EU / EEA” and “By region” modes.
           </div>
+          {cfg.geoEndpoint.trim() && !isPublicHttpsUrl(cfg.geoEndpoint) ? (
+            <div style={{ fontSize: 11, color: T.warn, marginTop: 6, lineHeight: 1.5 }}>
+              Use an https:// address on a public domain. Other URLs are left out when you publish.
+            </div>
+          ) : null}
         </>
       ) : null}
     </Card>
@@ -1307,10 +1312,12 @@ export function TextPanel({ m }: { m: ConsentfulModel }) {
         <div>
           <Label>Privacy policy URL</Label>
           <TextInput value={m.cfg.privacyUrl} onChange={(v) => m.set("privacyUrl", v)} placeholder="https://" mono />
-          <div style={{ fontSize: 11, color: isPlaceholderLink(m.cfg.privacyUrl) ? T.warn : T.ink4, lineHeight: 1.5, marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: isPlaceholderLink(m.cfg.privacyUrl) || !isSafeLink(upgradeLink(m.cfg.privacyUrl)) ? T.warn : T.ink4, lineHeight: 1.5, marginTop: 6 }}>
             {isPlaceholderLink(m.cfg.privacyUrl)
               ? "This is a sample address. Replace it with your own privacy page, or clear it: sample links are left out when you publish."
-              : "Link to your own privacy page. Leave it empty to hide the link."}
+              : !isSafeLink(upgradeLink(m.cfg.privacyUrl))
+                ? "Use an https:// page on your public domain (or a path like /privacy). Other links are left out when you publish."
+                : "Link to your own privacy page. Leave it empty to hide the link."}
           </div>
         </div>
       ) : (
@@ -1568,13 +1575,15 @@ export function InsightsPanel({ m }: { m: ConsentfulModel }) {
   const { cfg } = m
   const isPro = cfg.plan === "pro"
   const endpoint = cfg.analyticsEndpoint.trim()
+  // Requests only ever go to a public https:// endpoint (never http, localhost or an IP).
+  const validEndpoint = endpoint !== "" && isPublicHttpsUrl(endpoint)
 
   const [state, setState] = useState<"idle" | "loading" | "error" | "ok">("idle")
   const [totals, setTotals] = useState<Totals | null>(null)
   const [nonce, setNonce] = useState(0)
 
   useEffect(() => {
-    if (!isPro || !endpoint) {
+    if (!isPro || !validEndpoint) {
       setState("idle")
       setTotals(null)
       return
@@ -1595,7 +1604,7 @@ export function InsightsPanel({ m }: { m: ConsentfulModel }) {
     return () => {
       active = false
     }
-  }, [isPro, endpoint, nonce])
+  }, [isPro, endpoint, validEndpoint, nonce])
 
   if (!isPro) {
     return (
@@ -1630,6 +1639,8 @@ export function InsightsPanel({ m }: { m: ConsentfulModel }) {
 
       {!endpoint ? (
         <EmptyState icon="insights" title="No data yet" desc="Add your analytics endpoint above to start collecting anonymous consent rates." />
+      ) : !validEndpoint ? (
+        <EmptyState icon="lock" title="Use a secure public URL" desc="The analytics endpoint must be an https:// address on a public domain (not http, localhost or an IP address). Nothing is sent until it is." />
       ) : state === "loading" ? (
         <Card style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 28, color: T.ink3, fontSize: 13 }}>
           <Spinner size={14} /> Loading last 30 days…

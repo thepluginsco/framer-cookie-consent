@@ -6,7 +6,10 @@
  * This module narrows what that JSON may contain, so an editable field can never
  * become something other than what it is meant to be:
  *
- *   - links: only `http(s):`, `mailto:`, root-relative paths and `#fragments`;
+ *   - links: only `https:` to a public host, `mailto:`, root-relative paths and
+ *     `#fragments` (an `http:` link is upgraded to `https:`);
+ *   - service endpoints (geo, analytics, receipts): only absolute `https://` URLs
+ *     on a public host — localhost, `*.local` / `*.test` and bare IPs are dropped;
  *   - managed `src` scripts: only absolute `https://` URLs (others are dropped);
  *   - managed inline scripts: plain JavaScript only — a pasted `<script>` wrapper
  *     is unwrapped, entries carrying any other markup are dropped, and the body
@@ -31,13 +34,54 @@ export const MAX_INLINE_SCRIPT_LENGTH = 50_000;
 /** Upper bound for the custom CSS block (characters). */
 export const MAX_CUSTOM_CSS_LENGTH = 50_000;
 
+/** Hosts that only exist on a developer's machine or a private network. */
+function isNonProductionHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  if (h === 'localhost' || h === '0.0.0.0' || h.startsWith('[')) return true;
+  if (/\.(localhost|local|test|internal|lan|home\.arpa)$/.test(h)) return true;
+  // Bare IPv4 addresses (loopback, private ranges and public IPs alike): a
+  // production service has a hostname.
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(h);
+}
+
+/**
+ * True for an absolute `https://` URL on a public production host, with no
+ * credentials, whitespace or markup — the only destinations the editor and the
+ * published runtime may send requests to.
+ */
+export function isPublicHttpsUrl(value: string): boolean {
+  const v = value.trim();
+  if (!/^https:\/\/[^\s<>"'`]+$/i.test(v)) return false;
+  let url: URL;
+  try {
+    url = new URL(v);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) return false;
+  return url.hostname.includes('.') && !isNonProductionHost(url.hostname);
+}
+
+/** An `http://` link rewritten to `https://`; any other value is returned trimmed. */
+export function upgradeLink(value: string): string {
+  const v = value.trim();
+  return /^http:\/\//i.test(v) ? `https://${v.slice(7)}` : v;
+}
+
 /** True for a link the banner may render as an `href`. */
 export function isSafeLink(value: string): boolean {
   const v = value.trim();
   if (v === '') return true;
   if (/^#[^\s]*$/.test(v)) return true;
   if (/^\/(?!\/)[^\s]*$/.test(v)) return true;
-  return /^(https?:\/\/[^\s/]+|mailto:[^\s]+)/i.test(v) && !/[\s<>"'`]/.test(v);
+  if (/^mailto:[^\s<>"'`]+$/i.test(v)) return true;
+  return isPublicHttpsUrl(v);
+}
+
+/** A service endpoint that is safe to publish, or `''` (feature off) when not. */
+export function sanitizeEndpoint(value: string): string {
+  const v = value.trim();
+  return v !== '' && isPublicHttpsUrl(v) ? v : '';
 }
 
 /**
@@ -188,6 +232,12 @@ export function cleanCustomCss(value: string): string {
   return scopeStylesheet(css);
 }
 
+/** The privacy link to publish: upgraded to `https:`, or `''` when unsafe or a placeholder. */
+function sanitizePrivacyLink(value: string): string {
+  const v = upgradeLink(value);
+  return isSafeLink(v) && !isPlaceholderLink(v) ? v : '';
+}
+
 /**
  * Validate every editable value that the published config carries. Values that
  * are already valid pass through unchanged, so a correctly configured site
@@ -204,11 +254,11 @@ export function sanitizeForPublish(config: CookieConsentConfig): CookieConsentCo
     strings: {
       ...config.strings,
       // A placeholder is dropped like an unsafe link: the banner then omits it.
-      privacyPolicyUrl:
-        isSafeLink(config.strings.privacyPolicyUrl) && !isPlaceholderLink(config.strings.privacyPolicyUrl)
-          ? config.strings.privacyPolicyUrl.trim()
-          : '',
+      privacyPolicyUrl: sanitizePrivacyLink(config.strings.privacyPolicyUrl),
     },
+    geo: { ...config.geo, endpoint: sanitizeEndpoint(config.geo.endpoint) },
+    analytics: { ...config.analytics, endpoint: sanitizeEndpoint(config.analytics.endpoint) },
+    receipts: { ...config.receipts, endpoint: sanitizeEndpoint(config.receipts.endpoint) },
     scripts: config.scripts
       .map(sanitizeManagedScript)
       .filter((s): s is ManagedScript => s !== null),
