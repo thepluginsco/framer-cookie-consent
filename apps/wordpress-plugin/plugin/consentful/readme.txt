@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.2
+Stable tag: 0.4.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -96,6 +96,9 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 
 == Changelog ==
 
+= 0.4.3 =
+* Fix: reopening Cookie Settings now shows the visitor's saved choices. Before, every optional switch showed its default position, and saving them unchanged could withdraw consent the visitor had given.
+
 = 0.4.2 =
 * WordPress.org now gets the full plugin: license activation (a free key is available), paid plans, custom CSS and custom scripts, and the "Embed on another site" snippet.
 * Fix: with the modal layout, the dimmed page overlay now closes together with the banner.
@@ -129,6 +132,9 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 * First release.
 
 == Upgrade Notice ==
+
+= 0.4.3 =
+Fixes Cookie Settings showing optional categories as off after a visitor accepted them.
 
 = 0.4.2 =
 This version needs a license key. Get a free key at consentful.theplugins.co and activate it on the License tab: until then the banner stays hidden on your live site.
