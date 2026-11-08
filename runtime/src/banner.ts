@@ -801,8 +801,28 @@ export function mountBanner(config: CookieConsentConfig, options: MountOptions =
     syncOverlay();
   }
 
+  /**
+   * Reflect the stored decision on every switch. Without this the modal shows
+   * only the author's defaults, so a visitor who accepted all would see OFF
+   * switches after a reload — and saving them would silently withdraw consent.
+   * With no stored decision, fall back to the defaults the switches were built with.
+   */
+  const syncSwitchesFromState = (): void => {
+    const current = api.getState();
+    for (const cat of config.categories) {
+      const input = checkboxes.get(cat.id);
+      if (!input) continue;
+      input.checked = current ? current.categories[cat.id] === true : cat.defaultEnabled;
+      input.dispatchEvent(new Event('change')); // re-run the vendor enable/disable sync
+    }
+    for (const [id, input] of vendorInputs) {
+      input.checked = current?.vendors?.[id] ?? true;
+    }
+  };
+
   function openPreferences(trigger?: HTMLElement | null): void {
     prefsReturnFocus = trigger ?? (root.ownerDocument.activeElement as HTMLElement | null);
+    syncSwitchesFromState();
     // Reflect whether a downloadable receipt exists right now (a decision may have
     // been recorded — or withdrawn — since the modal was last opened).
     syncReceiptControl();

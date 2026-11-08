@@ -210,3 +210,38 @@ test('a vendor switch is disabled while its category toggle is off', () => {
   marketingCat.dispatchEvent(new dom.window.Event('change'));
   assert.equal(meta.disabled, false, 'enabling the category enables its vendor switch');
 });
+
+test('reopening the preference center reflects the stored decision, not the defaults', () => {
+  const config = vendorConfig();
+  const api = recordingApi();
+  let stored: ConsentState | null = null;
+  api.getState = () => stored as never;
+  const ctrl = mountBanner(config, { api: api as never });
+
+  // Visitor accepted all on a previous page view, but turned the ga4 vendor off.
+  stored = state({ necessary: true, analytics: true, marketing: true, preferences: true }, { ga4: false, meta: true });
+  ctrl.openPreferences(null);
+
+  const marketing = ctrl.root.querySelector('#cc-cat-marketing') as HTMLInputElement;
+  const analytics = ctrl.root.querySelector('#cc-cat-analytics') as HTMLInputElement;
+  const ga4 = ctrl.root.querySelector('#cc-vendor-ga4') as HTMLInputElement;
+  const meta = ctrl.root.querySelector('#cc-vendor-meta') as HTMLInputElement;
+  assert.equal(marketing.checked, true, 'default-off category shows the granted state');
+  assert.equal(analytics.checked, true);
+  assert.equal(ga4.checked, false, 'denied vendor shows OFF');
+  assert.equal(meta.checked, true);
+  assert.equal(meta.disabled, false, 'vendor switch enabled because its category is granted');
+
+  // Saving unchanged choices must preserve consent.
+  const save = Array.from(ctrl.root.querySelectorAll('button')).find((b) => b.textContent === 'Save choices');
+  save!.click();
+  assert.ok(api.calls[0]!.cats.includes('marketing'), 'saving does not withdraw marketing');
+  assert.ok(api.calls[0]!.cats.includes('analytics'));
+
+  // A later rejection is reflected the next time the modal opens.
+  stored = state({ necessary: true, analytics: false, marketing: false, preferences: false });
+  ctrl.openPreferences(null);
+  assert.equal(analytics.checked, false, 'rejected category shows OFF');
+  assert.equal(meta.disabled, true, 'vendor switch disabled under a denied category');
+  ctrl.destroy();
+});
