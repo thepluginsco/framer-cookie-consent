@@ -244,7 +244,28 @@ export async function boot(): Promise<void> {
       logError(err, 'dnt');
     }
 
-    // (d.6) Honour Global Privacy Control as an opt-out of sale/sharing. Unlike
+    // (e) Resolve the visitor's region. When an accurate geo endpoint is
+    //     configured (Pro), ask it for the real country; otherwise use the free,
+    //     offline time-zone heuristic (NO network call). Either way trackers are
+    //     already blocked above, so awaiting an accurate answer is safe — and the
+    //     resolver self-times-out so a slow endpoint never withholds the banner.
+    const region = config.geo.endpoint
+      ? await resolveRegion(createEndpointResolver(config.geo.endpoint))
+      : detectRegion();
+
+    // (e.1) Await the entitlement (started in step b, resolved alongside geo).
+    //     A live domain the API explicitly reports as NOT activated stops HERE:
+    //     no banner, and nothing is ever granted on the visitor's behalf — no
+    //     implied (opt-out) consent and no GPC partial grant — so managed
+    //     scripts stay blocked and Consent Mode stays at its denied defaults.
+    //     A lapsed or moved license can never remove the consent gate.
+    const { entitlement, activated } = await statusPromise;
+    if (activated === false) {
+      if (preview) noteNotActivated();
+      return;
+    }
+
+    // (e.2) Honour Global Privacy Control as an opt-out of sale/sharing. Unlike
     //     DNT (a blanket reject above), GPC targets only the ad/marketing
     //     categories — analytics and other non-ad categories keep the author's
     //     defaults (see gpcGrantedCategories). Only applied when no decision is
@@ -260,15 +281,6 @@ export async function boot(): Promise<void> {
     } catch (err) {
       logError(err, 'gpc');
     }
-
-    // (e) Resolve the visitor's region. When an accurate geo endpoint is
-    //     configured (Pro), ask it for the real country; otherwise use the free,
-    //     offline time-zone heuristic (NO network call). Either way trackers are
-    //     already blocked above, so awaiting an accurate answer is safe — and the
-    //     resolver self-times-out so a slow endpoint never withholds the banner.
-    const region = config.geo.endpoint
-      ? await resolveRegion(createEndpointResolver(config.geo.endpoint))
-      : detectRegion();
 
     // Fill the region dimension so any subsequent consent event (the visitor's
     // actual choice, made after the banner mounts below) is bucketed by region.
@@ -292,18 +304,12 @@ export async function boot(): Promise<void> {
       logError(err, 'implied-consent');
     }
 
-    // (f) Await the entitlement (started in step b, resolved alongside geo) and
-    //     render the banner ONCE with the resolved presentation: full banner when
-    //     a valid domain token verified, basic branded fallback
-    //     otherwise. Awaiting here — rather than mounting free then re-mounting on
-    //     the token — avoids a visible flash; the blocker above already keeps
-    //     trackers gated while we wait, and resolveEntitlement is time-bounded.
-    //     A live domain the API explicitly reports as NOT activated (no free or
-    //     paid key) gets no banner at all; compliance above keeps running, so
-    //     trackers stay blocked. An unknown verdict (offline) still mounts.
-    const { entitlement, activated } = await statusPromise;
-    if (activated === false && preview) noteNotActivated();
-    if (activated === false) return;
+    // (f) Render the banner ONCE with the entitlement awaited in (e.1): full
+    //     banner when a valid domain token verified, basic branded fallback
+    //     otherwise (an unknown/offline verdict still mounts). Awaiting before
+    //     the mount — rather than mounting free then re-mounting on the token —
+    //     avoids a visible flash; the blocker above keeps trackers gated while
+    //     we wait, and resolveEntitlement is time-bounded.
     const bannerConfig = resolveBannerConfig(config, entitlement, { preview });
     // The licence gate can drop translations, changing the shown language; only
     // then fetch a different pack.

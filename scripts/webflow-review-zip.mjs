@@ -102,11 +102,35 @@ execSync('npx webflow extension bundle --no-input --skip-update-check', { cwd: a
 const bundleJs = walk(publicDir)
   .filter((f) => /index-.*\.js$/.test(f))
   .map((f) => relative(publicDir, f).split(sep).join('/'));
+const runtimeVersion = /RUNTIME_VERSION = "([^"]+)"/.exec(readFileSync(resolve(root, 'shared/src/runtime-cdn.ts'), 'utf8'))[1];
+// The Data Client Worker ships as source (Cloudflare runs it from source), with
+// its tests and the reproducible live auth check, so reviewers can read and
+// re-run everything the backend claims.
+const workerSources = [
+  'apps/webflow-app/src/worker.ts',
+  'apps/webflow-app/src/oauth.ts',
+  'apps/webflow-app/src/webflow-api-client.ts',
+  'apps/webflow-app/wrangler.toml',
+  'tests/webflow-worker.test.ts',
+  'tests/webflow-oauth.test.ts',
+  'tests/webflow-api-client.test.ts',
+  'scripts/webflow-auth-check.mjs',
+];
 const readme = `# Consentful for Webflow: review material
 
 Built from https://github.com/thepluginsco/framer-cookie-consent (npm workspaces).
 This ZIP holds the source maps, package.json files and lockfile of the exact build
-that produced the submitted bundle (${bundleJs.join(', ')}).
+that produced the submitted bundle (${bundleJs.join(', ')}), plus the source of
+the Data Client Worker and its tests.
+
+Runtime: ${runtimeVersion}. The bundle, the deployed Worker and the review site
+all register https://cdn.jsdelivr.net/gh/thepluginsco/framer-cookie-consent@${runtimeVersion}/runtime/dist/consent.min.js
+with its SRI hash (shared/src/runtime-cdn.ts, RUNTIME_VERSION + RUNTIME_INTEGRITY).
+
+## Verify the backend yourself
+
+    node scripts/webflow-auth-check.mjs           # live Worker: 401/403/400 matrix
+    npx vitest run tests/webflow-worker.test.ts tests/webflow-oauth.test.ts
 
 ## Rebuild
 
@@ -137,6 +161,7 @@ const reviewFiles = [
   { name: 'apps/webflow-app/webflow.json', data: readFileSync(resolve(appDir, 'webflow.json')) },
   { name: 'shared/package.json', data: readFileSync(resolve(root, 'shared/package.json')) },
   { name: 'shared-ui/package.json', data: readFileSync(resolve(root, 'shared-ui/package.json')) },
+  ...workerSources.map((f) => ({ name: f, data: readFileSync(resolve(root, f)) })),
   { name: 'README.md', data: Buffer.from(readme, 'utf8') },
 ];
 mkdirSync(outDir, { recursive: true });

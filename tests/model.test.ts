@@ -222,3 +222,23 @@ test('trackerAlreadyManaged: matches on value or tag id', () => {
   assert.equal(trackerAlreadyManaged(scripts, { value: 'https://other/b.js', tagId: 'AW-1' }), true);
   assert.equal(trackerAlreadyManaged(scripts, { value: 'https://other/b.js', tagId: '' }), false);
 });
+
+test('opt-in: mergeConfig + applyCategories never pre-tick an optional category', () => {
+  const c = mergeConfig({
+    behavior: { consentModel: 'opt-in' },
+    categories: [{ id: 'necessary' }, { id: 'analytics', defaultEnabled: true }],
+  });
+  assert.equal(c.categories.find((x) => x.id === 'analytics')!.defaultEnabled, false);
+  assert.equal(c.categories.find((x) => x.id === 'necessary')!.defaultEnabled, true);
+  const cats = toCfg(c).categories.map((x) => ({ ...x, enabled: true }));
+  const next = applyCategories(c, cats);
+  assert.equal(next.categories.find((x) => x.id === 'analytics')!.defaultEnabled, false);
+});
+
+test('opt-out keeps the author default (implied consent)', () => {
+  const c = mergeConfig({
+    behavior: { consentModel: 'opt-out' },
+    categories: [{ id: 'necessary' }, { id: 'analytics', defaultEnabled: true }],
+  });
+  assert.equal(c.categories.find((x) => x.id === 'analytics')!.defaultEnabled, true);
+});

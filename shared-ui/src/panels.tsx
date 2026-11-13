@@ -279,7 +279,13 @@ export function CategoriesPanel({ m, onAddCategory }: { m: ConsentfulModel; onAd
                   <Icon name="lock" size={19} color="#c2c6ce" />
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Toggle on={c.enabled} onClick={() => m.toggleCat(c.id)} />
+                    {cfg.consentModel === "opt-in" ? (
+                      <span title="Opt-in: off until the visitor switches it on" style={{ fontSize: 11, color: T.ink3, fontWeight: 600 }}>
+                        Off by default
+                      </span>
+                    ) : (
+                      <Toggle on={c.enabled} onClick={() => m.toggleCat(c.id)} />
+                    )}
                     <HoverButton
                       ariaLabel={`Delete ${c.name}`}
                       onClick={() => m.deleteCat(c.id)}

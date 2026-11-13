@@ -52,6 +52,7 @@ describe("configFromForm", () => {
 
   it("threads an opt-out default into the category", () => {
     const state = defaultFormState();
+    state.consentModel = "opt-out";
     state.categories.marketing.defaultOn = true;
     const config = configFromForm(state);
     expect(config.categories.find((c) => c.id === "marketing")!.defaultEnabled).toBe(true);

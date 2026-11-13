@@ -14,6 +14,7 @@ import { useCallback, useMemo } from "react"
 import { useSettingsContext } from "./settings-context"
 import {
   applyPlanLimits,
+  enforceOptInDefaults,
   TRACKER_CATEGORY_LABEL,
   TRACKER_CATEGORY_SIGNALS,
   type AbVariant,
@@ -370,7 +371,7 @@ export function toCfg(c: CookieConsentConfig): Cfg {
       name: cat.label,
       desc: cat.description,
       signals: [...cat.signals],
-      enabled: cat.required || cat.defaultEnabled,
+      enabled: cat.required || (c.behavior.consentModel !== "opt-in" && cat.defaultEnabled),
       locked: cat.required,
     })),
     scripts: c.scripts.map((s) => ({ name: s.name, id: s.tagId, type: s.type, value: s.value, cat: s.category, purpose: s.purpose })),
@@ -434,7 +435,8 @@ export function applyCategories(prev: CookieConsentConfig, cats: CfgCategory[]):
       label: cat.name,
       description: cat.desc,
       required: cat.locked,
-      defaultEnabled: cat.locked ? true : cat.enabled,
+      // Opt-in: an optional category never starts on (no pre-ticked boxes).
+      defaultEnabled: cat.locked ? true : prev.behavior.consentModel !== "opt-in" && cat.enabled,
       signals: cat.signals as ConsentModeSignal[],
     })),
     strings: { ...prev.strings, categories: strings },
@@ -677,6 +679,7 @@ function applyScalar(prev: CookieConsentConfig, key: ScalarKey, value: unknown):
       break
     case "consentModel":
       next.behavior = { ...prev.behavior, consentModel: value as ConsentModel }
+      next.categories = enforceOptInDefaults(prev.categories, value as ConsentModel)
       break
     case "geoEndpoint":
       next.geo = { ...prev.geo, endpoint: value as string }

@@ -165,6 +165,7 @@ test('impliedConsentGrants: grants the author defaults (required + defaultEnable
 
 test('impliedConsentGrants: honours a default-on marketing category (unlike GPC)', () => {
   const cfg = mergeConfig({
+    behavior: { consentModel: 'opt-out' },
     categories: [
       { id: 'necessary', label: 'N', description: '', required: true, defaultEnabled: true, signals: ['security_storage'] },
       { id: 'marketing', label: 'M', description: '', required: false, defaultEnabled: true, signals: ['ad_storage'] },
@@ -293,6 +294,7 @@ test('gpcGrantedCategories: denies ad categories, keeps author defaults for the 
   // An author who switched analytics on: necessary(req), analytics(on), marketing(on/ad).
   const granted = gpcGrantedCategories(
     mergeConfig({
+      behavior: { consentModel: 'opt-out' },
       categories: [
         { id: 'necessary', label: 'N', description: '', required: true, defaultEnabled: true, signals: ['security_storage'] },
         { id: 'analytics', label: 'A', description: '', required: false, defaultEnabled: true, signals: ['analytics_storage'] },

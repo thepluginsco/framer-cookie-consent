@@ -58,6 +58,7 @@ describe("configFromForm", () => {
 
   it("honours the opt-out default-on flag", () => {
     const s = defaultFormState();
+    s.consentModel = 'opt-out';
     s.categories.marketing.defaultOn = true;
     const cfg = configFromForm(s);
     const marketing = cfg.categories.find((c) => c.id === "marketing");

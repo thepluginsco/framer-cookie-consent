@@ -911,6 +911,18 @@ function normalizeCategory(
   return category;
 }
 
+/**
+ * Under an opt-in consent model no optional category may start switched on: a
+ * pre-ticked box is not valid GDPR consent. Returns the categories with every
+ * non-required `defaultEnabled` forced to `false` when `model` is `'opt-in'`
+ * (unchanged otherwise — opt-out and auto use the defaults as implied consent
+ * in non-opt-in regions). Pure; exported for the editor and tests.
+ */
+export function enforceOptInDefaults(categories: ConsentCategory[], model: ConsentModel): ConsentCategory[] {
+  if (model !== 'opt-in') return categories;
+  return categories.map((c) => (c.required || !c.defaultEnabled ? c : { ...c, defaultEnabled: false }));
+}
+
 /** Merge the categories array; a provided array is authoritative but normalized. */
 function mergeCategories(
   d: ConsentCategory[],
@@ -1242,11 +1254,12 @@ function mergeLicense(d: LicenseConfig, p: DeepPartial<LicenseConfig> | undefine
  */
 export function mergeConfig(partial: DeepPartial<CookieConsentConfig> = {}): CookieConsentConfig {
   const d = DEFAULT_CONFIG;
+  const behavior = mergeBehavior(d.behavior, partial.behavior);
   return {
     meta: { schemaVersion: CONFIG_SCHEMA_VERSION },
-    categories: mergeCategories(d.categories, partial.categories),
+    categories: enforceOptInDefaults(mergeCategories(d.categories, partial.categories), behavior.consentModel),
     consentMode: mergeConsentMode(d.consentMode, partial.consentMode),
-    behavior: mergeBehavior(d.behavior, partial.behavior),
+    behavior,
     geo: mergeGeo(d.geo, partial.geo),
     analytics: mergeAnalytics(d.analytics, partial.analytics),
     receipts: mergeReceipts(d.receipts, partial.receipts),

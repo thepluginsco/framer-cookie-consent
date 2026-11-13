@@ -143,6 +143,32 @@ test('a live domain the API reports NOT activated gets no banner, but trackers s
   expect((def![2] as Record<string, unknown>).analytics_storage).toBe('denied');
 });
 
+test('NOT activated + opt-out model: no implied consent, scripts stay blocked', async () => {
+  stubEntitlement({ status: 'unlicensed', licensed: false, activated: false, token: null });
+  (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = {
+    behavior: { showMode: 'everywhere', consentModel: 'opt-out' },
+    categories: [
+      { id: 'necessary', required: true },
+      { id: 'analytics', defaultEnabled: true, signals: ['analytics_storage'] },
+    ],
+  };
+
+  vi.resetModules();
+  await import('../runtime/src/index.ts');
+  await settle();
+
+  expect(dom.window.document.querySelector('.cc-root')).toBeNull();
+  const dl = (dom.window as unknown as { dataLayer?: unknown[] }).dataLayer ?? [];
+  const calls = dl.map((a) => Array.from(a as ArrayLike<unknown>));
+  // Nothing granted on the visitor's behalf: no Consent Mode update to granted.
+  const granted = calls.filter(
+    (c) => c[0] === 'consent' && c[1] === 'update' && (c[2] as Record<string, unknown>).analytics_storage === 'granted',
+  );
+  expect(granted).toHaveLength(0);
+  const api = (dom.window as unknown as { CookieConsent: { getState: () => unknown } }).CookieConsent;
+  expect(api.getState()).toBeNull();
+});
+
 test('a FREE-activated domain gets the basic bar', async () => {
   stubEntitlement({ status: 'free', licensed: false, activated: true, token: null });
   (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = {

@@ -96,6 +96,16 @@ describe("Worker routing", () => {
       expect(wf.exchanges).toHaveLength(0);
     });
 
+    it("answers 400 (not 500) when Webflow refuses the code, and stores nothing", async () => {
+      const tokens = memoryKV();
+      const impl = (async () => new Response("invalid_grant", { status: 400 })) as unknown as typeof fetch;
+      const env = makeEnv({ TOKENS: tokens, fetchImpl: impl });
+      const res = await worker.fetch(new Request("https://worker.example/callback?code=forged"), env);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid_code" });
+      expect(await tokens.get("token:site_9")).toBeNull();
+    });
+
     it("connects an install started on Webflow's side (no state, no redirect_uri)", async () => {
       const wf = fakeWebflow(["site_9"]);
       const tokens = memoryKV();

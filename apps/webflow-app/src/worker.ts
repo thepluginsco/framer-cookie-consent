@@ -178,14 +178,21 @@ async function handleCallback(url: URL, env: Env): Promise<Response> {
   }
 
   const fetchImpl = env.fetchImpl ?? fetch.bind(globalThis);
-  const token = await exchangeCodeForToken({
-    clientId: env.WEBFLOW_CLIENT_ID,
-    clientSecret: env.WEBFLOW_CLIENT_SECRET,
-    code,
-    // Only our /authorize sends a redirect_uri, and it must then be repeated.
-    ...(state ? { redirectUri: env.WEBFLOW_REDIRECT_URI } : {}),
-    fetchImpl,
-  });
+  let token: Awaited<ReturnType<typeof exchangeCodeForToken>>;
+  try {
+    token = await exchangeCodeForToken({
+      clientId: env.WEBFLOW_CLIENT_ID,
+      clientSecret: env.WEBFLOW_CLIENT_SECRET,
+      code,
+      // Only our /authorize sends a redirect_uri, and it must then be repeated.
+      ...(state ? { redirectUri: env.WEBFLOW_REDIRECT_URI } : {}),
+      fetchImpl,
+    });
+  } catch {
+    // Webflow refused the code (forged, expired or already used): a client
+    // error, not ours. Nothing is stored.
+    return json({ error: "invalid_code" }, 400);
+  }
 
   const authorizedSites = await listAuthorizedSiteIds(token.access_token, fetchImpl);
   if (site && !authorizedSites.includes(site)) return json({ error: "site_not_authorized" }, 403);
