@@ -21,6 +21,7 @@ import {
   markPublished,
   markUnpublished,
   useSettingsContext,
+  useAccount,
   type ConsentfulModel,
   publishFingerprint,
   type HostPublisher,
@@ -99,6 +100,7 @@ const framerPublisher: HostPublisher = {
 function FramerPublishAction({ m }: { m: ConsentfulModel }) {
   void m
   const { config } = useSettingsContext()
+  const account = useAccount()
   const readOnly = useReadOnlyNotice() !== null
   const [installed, setInstalled] = useState<boolean | null>(null)
   const [busy, setBusy] = useState<null | "install" | "remove">(null)
@@ -135,12 +137,15 @@ function FramerPublishAction({ m }: { m: ConsentfulModel }) {
   const install = useCallback(() => {
     void run("install", async () => {
       if (!canWriteSite()) throw new Error(NO_ACCESS)
+      const wasInstalled = installed === true
       await installBanner(config)
       markPublished(config)
       setInstalled(true)
+      // Success moment: first_value, and (live domain on Free) the upgrade sheet.
+      account?.afterSuccess(wasInstalled ? "update_banner" : "install_banner")
       return "Done ✓ The banner is in your site's custom code. Click Publish in Framer (top-right) to make it live."
     })
-  }, [config, run])
+  }, [config, run, account, installed])
 
   const remove = useCallback(() => {
     void run("remove", async () => {
@@ -217,6 +222,12 @@ export const framerHost: HostServices = {
   footerNote: `runtime ${RUNTIME_VERSION} · jsDelivr`,
   publishSubtitle: "Nothing is added to your site until you click Install banner. Review what it adds below.",
   showLicenseTab: true,
+  // Free needs no key: the editor opens straight away and the free plan runs on
+  // the *.framer.app / *.framer.website address. A paid key (License tab) is
+  // only needed for a custom domain.
+  requireActivation: false,
+  // Upgrade, sign-in and checkout inside the plugin; "Go live" prompt; funnel events.
+  inPluginAccount: true,
   PublishAction: FramerPublishAction,
   publisher: framerPublisher,
 }

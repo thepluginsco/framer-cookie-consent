@@ -18,6 +18,8 @@ import type { ConsentfulModel } from "../model"
 import { T } from "../tokens"
 import { Button, Card, Eyebrow, Icon } from "../ui"
 import { useLicense, type LicenseApi, type LicenseStatus } from "./use-license"
+import { useAccount, type AccountApi } from "../account/account-context"
+import { GoLiveNotice } from "../account/GoLiveNotice"
 
 const STATUS_PILL: Record<LicenseStatus, { color: string; bg: string }> = {
   trial: { color: T.ink3, bg: T.sunken },
@@ -95,6 +97,9 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
   const paid = licensed && lic.tier !== "trial"
   // Hosts where the credit is the owner's opt-in (WordPress) don't promise it here.
   const host = useHost()
+  // Hosts that open without a key (Framer) run Free on preview/staging only;
+  // a live custom domain needs a paid seat.
+  const freeOnStagingOnly = host.requireActivation === false
   const creditOptIn = host.useCreditVisible !== undefined
   const busy = lic.status === "validating"
 
@@ -109,13 +114,17 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
   }, [lic.domain])
 
   const pill = STATUS_PILL[lic.status]
+  const account = useAccount()
   const activateNow = () => {
     if (!lic.domainFromHost && domainDraft.trim()) lic.setDomain(domainDraft)
+    account?.track("key_activated", { how: "pasted" })
     void lic.enterKey(draft)
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <GoLiveNotice from="license_tab" />
+      {account ? <AccountCard a={account} /> : null}
       <Card style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, letterSpacing: "-.01em" }}>License key</div>
@@ -182,8 +191,12 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
                 ? `Platform address ${lic.domain ?? ""} activated: it runs the full banner and doesn't use a site. Activate again after connecting your own domain.`
                 : paid
                   ? `Activated for ${lic.domain ?? "this site"} and all its subdomains. Your live site unlocks automatically — the key is never shown on the page.`
-                  : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner${creditOptIn ? "" : " with the Consentful credit"}. Upgrade to unlock the full design.`
-              : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here.${host.platformAddress ? ` Your ${host.platformAddress} address shows the full banner once activated, without using a site.` : ""}`}
+                  : freeOnStagingOnly
+                    ? `This key is on the Free plan. Free runs on preview and staging addresses only, so ${lic.domain ?? "your live domain"} shows no banner (trackers stay blocked). Upgrade to go live.`
+                    : `Free plan activated for ${lic.domain ?? "this site"}: your live site shows the basic banner${creditOptIn ? "" : " with the Consentful credit"}. Upgrade to unlock the full design.`
+              : freeOnStagingOnly
+                ? `Free needs no key: it runs on ${host.platformAddress ? `your ${host.platformAddress} address and ` : ""}staging addresses. To show the banner on your custom domain, buy a plan and paste its key here.`
+                : `Your live site shows no banner until its domain is activated — get a free key at consentful.theplugins.co and paste it here.${host.platformAddress ? ` Your ${host.platformAddress} address shows the full banner once activated, without using a site.` : ""}`}
           </div>
         )}
 
@@ -209,23 +222,70 @@ function LicenseBody({ lic }: { lic: LicenseApi }) {
           <Icon name="devices" size={16} color={T.ink4} />
           {paid && lic.maxSites !== null
             ? `${lic.maxSites} ${lic.maxSites === 1 ? "site" : "sites"} on your plan · any platform`
-            : "Free 1 site · Solo 1 · Studio 5 · Agency 25 · Lifetime 3 — any platform"}
+            : freeOnStagingOnly
+              ? "Free: preview & staging only · Solo 1 · Studio 5 · Agency 25 · Lifetime 3 — any platform"
+              : "Free 1 site · Solo 1 · Studio 5 · Agency 25 · Lifetime 3 — any platform"}
         </div>
       </Card>
 
+      {account && !paid ? (
+        <Button variant="primary" icon="workspace_premium" full onClick={() => account.openUpgrade("license_tab")}>
+          {account.liveDomain ? `Go live on ${account.liveDomain}` : "See plans"}
+        </Button>
+      ) : (
       <a
-        href={paid ? `${PORTAL_DASHBOARD_URL}/licenses` : licensed ? `${PORTAL_DASHBOARD_URL}/pricing` : `${PORTAL_DASHBOARD_URL}/signup`}
+        href={paid ? `${PORTAL_DASHBOARD_URL}/licenses` : licensed || freeOnStagingOnly ? `${PORTAL_DASHBOARD_URL}/pricing` : `${PORTAL_DASHBOARD_URL}/signup`}
         target="_blank"
         rel="noopener noreferrer"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: T.control, borderRadius: T.rLg, background: paid ? T.surface : "linear-gradient(150deg,#6a3cf0,#4b23d3)", color: paid ? T.ink : "#fff", border: paid ? `1px solid ${T.border}` : "none", fontSize: 13.5, fontWeight: 700, textDecoration: "none", boxShadow: paid ? "none" : `0 6px 16px ${T.accent}44` }}
       >
         <Icon name={paid ? "settings" : licensed ? "shopping_bag" : "key"} size={18} color={paid ? T.ink3 : "#fff"} />
-        {paid ? "Manage your sites" : licensed ? "Upgrade to Pro" : "Get a free key"}
+        {paid ? "Manage your sites" : licensed ? "Upgrade to Pro" : freeOnStagingOnly ? "See plans to go live" : "Get a free key"}
       </a>
+      )}
       <div style={{ fontSize: 11, color: T.ink4, lineHeight: 1.5, textAlign: "center" }}>
         Activation sends only your license key and this site's domain to Consentful's licensing service (
-        {new URL(PORTAL_API_BASE).host}) when you click Activate, and again to re-check it when the editor opens. No site content leaves the editor.
+        {new URL(PORTAL_API_BASE).host}) when you click Activate, and again to re-check it when the editor opens.
+        {account ? " Signing in sends your email. The plugin also sends anonymous usage events (screens opened, upgrade steps) with a random install id." : ""} No site content leaves the editor.
       </div>
     </div>
+  )
+}
+
+/** Signed-in account (in-plugin accounts only): email, plan, dashboard, sign in / out. */
+function AccountCard({ a }: { a: AccountApi }) {
+  const s = a.status
+  return (
+    <Card style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+      <Icon name="account_circle" size={22} color={a.signedIn ? T.accent : T.ink4} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {a.signedIn && s ? (
+          <>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.account?.email}</div>
+            <div style={{ fontSize: 11, color: T.ink3, marginTop: 1 }}>
+              {s.plan.paid ? `${s.plan.name}${s.maxSites ? ` · ${s.maxSites} live ${s.maxSites === 1 ? "site" : "sites"}` : ""}` : "Free plan"}
+              {" · "}
+              <button type="button" onClick={a.signOut} style={{ border: "none", background: "transparent", color: T.ink3, textDecoration: "underline", cursor: "pointer", padding: 0, fontSize: 11 }}>
+                Sign out
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink }}>Already a customer?</div>
+            <div style={{ fontSize: 11, color: T.ink3, marginTop: 1 }}>Sign in with your email and your plan is applied here. No key to copy.</div>
+          </>
+        )}
+      </div>
+      {a.signedIn ? (
+        <Button variant="secondary" icon="open_in_new" onClick={() => void a.openPortal("/licenses")}>
+          Dashboard
+        </Button>
+      ) : (
+        <Button variant="secondary" onClick={() => a.openUpgrade("license_signin", "email")}>
+          Sign in
+        </Button>
+      )}
+    </Card>
   )
 }

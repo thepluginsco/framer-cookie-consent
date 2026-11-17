@@ -9,6 +9,8 @@ import type { CSSProperties } from "react"
 
 import { WORDPRESS_PRO_URL, isPlaceholderLink, isPublicHttpsUrl, isSafeLink, upgradeLink, packCategory, packText, buildEmbedSnippet, generateCookiePolicy, generatePrivacyPolicy, auditAccessibility, generateAccessibilityReport, buildAccessibilityBadge, type EmbedForm, type A11yStatus, type ShowRegion } from "@framer-cookie-consent/shared"
 import { useHost } from "./host"
+import { useAccount } from "./account/account-context"
+import { GoLiveNotice } from "./account/GoLiveNotice"
 import { useSettingsContext } from "./settings-context"
 import { T, focusRing } from "./tokens"
 import { Button, Card, Eyebrow, Icon, Segmented, Stepper, Toggle, HoverButton, Spinner } from "./ui"
@@ -1486,12 +1488,28 @@ function ProLock({ locked, note, children }: { locked: boolean; note: string; ch
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, borderRadius: T.rLg, padding: "10px 12px" }}>
         <ProChip />
-        <div style={{ fontSize: 11.5, color: T.ink2, lineHeight: 1.45 }}>{note}</div>
+        <div style={{ fontSize: 11.5, color: T.ink2, lineHeight: 1.45, flex: 1 }}>{note}</div>
+        <ProLockUpgrade />
       </div>
       <div aria-disabled {...({ inert: "" } as object)} style={{ display: "flex", flexDirection: "column", gap: 14, opacity: 0.5, pointerEvents: "none", userSelect: "none" }}>
         {children}
       </div>
     </div>
+  )
+}
+
+/** "Upgrade" on a locked Pro control (hosts with in-plugin accounts only). */
+function ProLockUpgrade() {
+  const a = useAccount()
+  if (!a) return null
+  return (
+    <button
+      type="button"
+      onClick={() => a.openUpgrade("pro_lock")}
+      style={{ flexShrink: 0, border: "none", background: "transparent", color: T.accentText, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+    >
+      Upgrade
+    </button>
   )
 }
 
@@ -2202,6 +2220,8 @@ export function PublishPanel({ m }: { m: ConsentfulModel }) {
       </div>
 
       <host.PublishAction m={m} />
+
+      <GoLiveNotice from="publish_tab" />
 
       <Card>
         <Eyebrow style={{ marginBottom: 8 }}>What gets added to your site</Eyebrow>

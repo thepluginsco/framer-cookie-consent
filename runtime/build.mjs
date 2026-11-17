@@ -43,9 +43,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * fetched on demand (one JSON per visitor) rather than bundled; the loader plus
  * the language resolver add ~0.6 KB, so the ceiling became 69 KB. Embed blocking
  * (provider detection + click-to-load placeholder, ~1.5 KB gzipped) brings it
- * to 73 KB.
+ * to 73 KB. Free on preview/staging only (staging./demo. sub-domain match) plus
+ * keeping grandfathered free live sites on the basic bar (v0.1.25) add ~0.2 KB
+ * raw, so the ceiling became 74 KB.
  */
-const MAX_BYTES = 73 * 1024; // 73 KB (≈23 KB gzipped)
+const MAX_BYTES = 74 * 1024; // 74 KB (≈23 KB gzipped)
 
 const OUTFILE = join(__dirname, 'dist', 'consent.min.js');
 

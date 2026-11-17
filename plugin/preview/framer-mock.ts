@@ -32,7 +32,8 @@ export const framer = {
     staging: { url: string; currentPageUrl: string; deploymentTime: number; optimizationStatus: null } | null
   }> => ({
     production: {
-      url: "https://consentful-demo.framer.website",
+      // `?live=acme.com` previews a site on a custom domain (the "Go live" prompt).
+      url: new URLSearchParams(location.search).get("live") ? `https://${new URLSearchParams(location.search).get("live")}` : "https://consentful-demo.framer.website",
       currentPageUrl: "https://consentful-demo.framer.website",
       deploymentTime: Date.now(),
       optimizationStatus: null,

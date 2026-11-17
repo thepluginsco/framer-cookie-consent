@@ -16,10 +16,10 @@ import { JSDOM } from 'jsdom';
 const g = globalThis as Record<string, unknown>;
 let dom: InstanceType<typeof JSDOM>;
 
-function installDom(): void {
+function installDom(url = 'https://acme.com/'): void {
   dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
     runScripts: 'dangerously',
-    url: 'https://acme.com/',
+    url,
   });
   const w = dom.window;
   g.window = w;
@@ -59,6 +59,7 @@ afterEach(() => {
   for (const k of [
     'window',
     'document',
+    'location',
     'localStorage',
     'fetch',
     'MutationObserver',
@@ -169,8 +170,25 @@ test('NOT activated + opt-out model: no implied consent, scripts stay blocked', 
   expect(api.getState()).toBeNull();
 });
 
-test('a FREE-activated domain gets the basic bar', async () => {
+test('a FREE-activated LIVE domain gets no banner (free runs on preview/staging only)', async () => {
   stubEntitlement({ status: 'free', licensed: false, activated: true, token: null });
+  (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = {
+    behavior: { showMode: 'everywhere' },
+    banner: { layout: 'card' },
+  };
+
+  vi.resetModules();
+  await import('../runtime/src/index.ts');
+  await settle();
+
+  expect(dom.window.document.querySelector('.cc-root')).toBeNull();
+  const dl = (dom.window as unknown as { dataLayer?: unknown[] }).dataLayer ?? [];
+  const def = dl.map((a) => Array.from(a as ArrayLike<unknown>)).find((c) => c[0] === 'consent' && c[1] === 'default');
+  expect((def![2] as Record<string, unknown>).analytics_storage).toBe('denied');
+});
+
+test('a GRANDFATHERED free live domain (activated before the change) keeps the basic bar', async () => {
+  stubEntitlement({ status: 'free', licensed: false, activated: true, grandfathered: true, token: null });
   (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = {
     behavior: { showMode: 'everywhere' },
     banner: { layout: 'card' },
@@ -182,3 +200,27 @@ test('a FREE-activated domain gets the basic bar', async () => {
 
   expect(dom.window.document.querySelector('.cc-banner--bar')).toBeTruthy();
 });
+
+for (const url of ['https://acme.framer.website/', 'https://staging.acme.com/', 'https://demo2.acme.co.uk/']) {
+  test(`free runs with NO key and no licensing call on preview/staging host ${url}`, async () => {
+    dom.window.close();
+    installDom(url);
+    g.location = dom.window.location;
+    let calls = 0;
+    g.fetch = async (url: string) => {
+      if (/site-entitlement|jwks/.test(String(url))) calls++;
+      return new Response('{}', { status: 200 });
+    };
+    (dom.window as unknown as { __CC_CONFIG__: unknown }).__CC_CONFIG__ = {
+      behavior: { showMode: 'everywhere' },
+      banner: { layout: 'card' },
+    };
+
+    vi.resetModules();
+    await import('../runtime/src/index.ts');
+    await settle();
+
+    expect(dom.window.document.querySelector('.cc-root')).toBeTruthy();
+    expect(calls).toBe(0);
+  });
+}

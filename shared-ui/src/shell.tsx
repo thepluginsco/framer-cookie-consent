@@ -18,6 +18,8 @@ import { useConsentful } from "./model"
 import { LicensePanel } from "./license/LicensePanel"
 import { useLicense } from "./license/use-license"
 import { ActivationGate } from "./license/ActivationGate"
+import { AccountProvider, useAccount } from "./account/account-context"
+import { UpgradeSheet } from "./account/UpgradeSheet"
 import { useSettingsContext } from "./settings-context"
 import { WORDPRESS_PRO_URL } from "@framer-cookie-consent/shared"
 import { markPublished, setPublishedSnapshot, usePublishState, type HostPublisher } from "./publish-state"
@@ -85,7 +87,7 @@ const TITLES: Record<TabId, [string, string]> = {
   insights: ["Insights", "See how visitors respond to your banner — accept, reject and grant rates."],
   license: (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__)
     ? ["License", ""]
-    : ["License", "Activate this site with your free or paid key — the live banner only shows once activated."],
+    : ["License", "Free runs on preview and staging addresses with no key. Your live custom domain needs a paid plan: paste its key here."],
   preview: ["Publish", "Review what's added to your site — it stays in sync automatically."],
 }
 
@@ -223,7 +225,7 @@ export function ConsentfulShell() {
     )
   }
 
-  return (
+  const app = (
     <div
       className="cf-app"
       style={{
@@ -368,7 +370,7 @@ export function ConsentfulShell() {
           ) : (typeof __CC_FREE_CORE__ !== "undefined" && __CC_FREE_CORE__) ? (
             <UpgradeCard addOn onClick={() => window.open(WORDPRESS_PRO_URL, "_blank", "noopener,noreferrer")} />
           ) : (
-            <UpgradeCard onClick={() => setTab("license")} />
+            <SidebarUpgrade onFallback={() => setTab("license")} />
           )}
         </nav>
 
@@ -507,8 +509,17 @@ export function ConsentfulShell() {
       {modal === "category" && <AddCategoryModal m={m} onClose={() => setModal(null)} />}
       {modal === "script" && <AddScriptModal m={m} onClose={() => setModal(null)} />}
       {(typeof __CF_NO_CUSTOM_ENDPOINTS__ !== "undefined" && __CF_NO_CUSTOM_ENDPOINTS__) ? null : modal === "scan" && <ScanTrackersModal m={m} onClose={() => setModal(null)} />}
+      {host.inPluginAccount ? <UpgradeSheet /> : null}
     </div>
   )
+  // `host` is fixed for the app's lifetime, so the provider never mounts/unmounts.
+  return host.inPluginAccount ? <AccountProvider lic={lic}>{app}</AccountProvider> : app
+}
+
+/** Sidebar upgrade card: opens the in-plugin upgrade sheet where there is one. */
+function SidebarUpgrade({ onFallback }: { onFallback: () => void }) {
+  const a = useAccount()
+  return <UpgradeCard onClick={() => (a ? a.openUpgrade("sidebar") : onFallback())} />
 }
 
 /* -------------------------------------------------------------------------- */

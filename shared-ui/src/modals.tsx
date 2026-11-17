@@ -23,7 +23,7 @@ const SWATCHES = ["#2F6FED", "#6366F1", "#16A34A", "#0EA5E9", "#F97316", "#11182
 /* Shared modal shell + inputs                                                */
 /* -------------------------------------------------------------------------- */
 
-function Backdrop({
+export function Backdrop({
   z = 70,
   onClose,
   closeOnBackdrop = true,
@@ -73,7 +73,7 @@ function Backdrop({
   )
 }
 
-function Dialog({ width = 424, children }: { width?: number; children: ReactNode }) {
+export function Dialog({ width = 424, children }: { width?: number; children: ReactNode }) {
   return (
     <div
       style={{
@@ -94,7 +94,7 @@ function Dialog({ width = 424, children }: { width?: number; children: ReactNode
   )
 }
 
-function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+export function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 16px 18px", borderBottom: `1px solid ${T.hairline}`, flex: "0 0 auto" }}>
       <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-.02em", color: T.ink }}>{title}</div>

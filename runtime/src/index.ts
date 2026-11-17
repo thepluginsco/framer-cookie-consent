@@ -123,14 +123,13 @@ function logError(err: unknown, context = 'boot'): void {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Tell the site owner why no banner shows: this address isn't activated. Only
- * logged on preview/staging hosts, where the owner is the one looking, so
- * visitors of a live site never see it. Plain diagnostics, no promotion.
+ * Tell the site owner why no banner shows on this live domain. Plain console
+ * diagnostics (never shown on the page), no promotion.
  */
-function noteNotActivated(): void {
+function noteNeedsPaidPlan(): void {
   try {
     // eslint-disable-next-line no-console
-    console.info('[consentful] This address is not activated, so the banner is hidden. Activate it in the Consentful app.');
+    console.info('[consentful] Live domain needs a paid plan.');
   } catch {
     /* console unavailable */
   }
@@ -184,10 +183,9 @@ export async function boot(): Promise<void> {
     //     only affects the *banner presentation*; the compliance machinery below
     //     runs regardless of the verdict, so an unlicensed site is never *less*
     //     safe. Fails closed (→ free banner) on any error/timeout.
-    //     Platform addresses (*.framer.app, *.webflow.io, …) run the full design
-    //     without using a site slot, but still need the address activated on a
-    //     key (free or paid) like any site. Only local development hosts
-    //     (localhost, *.local, *.test, IPs) skip the network entirely.
+    //     Preview / staging addresses (*.framer.app, *.webflow.io, staging.*,
+    //     localhost, …) run the FREE plan with no key and no network call. A live
+    //     domain needs a PAID seat: only a verified paid token mounts there.
     //     The self-hosted (WordPress) build makes NO licensing call at all: the
     //     plugin is fully functional on its own, so it renders the published
     //     config as-is, exactly like a preview host (the admin screen already
@@ -195,7 +193,7 @@ export async function boot(): Promise<void> {
     const host = typeof location !== 'undefined' ? location.hostname : '';
     const preview = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || isPreviewHost(host);
     const apiBaseOverride = config.license.portalApiBaseUrl;
-    const statusPromise: Promise<SiteStatus> = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || isLocalHost(host)
+    const statusPromise: Promise<SiteStatus> = (typeof __CC_SELF_HOSTED__ !== 'undefined' && __CC_SELF_HOSTED__) || isLocalHost(host) || preview
       ? Promise.resolve({ entitlement: null, activated: true })
       : resolveSiteStatus(host, apiBaseOverride ? { apiBase: apiBaseOverride } : {});
 
@@ -259,9 +257,15 @@ export async function boot(): Promise<void> {
     //     implied (opt-out) consent and no GPC partial grant — so managed
     //     scripts stay blocked and Consent Mode stays at its denied defaults.
     //     A lapsed or moved license can never remove the consent gate.
-    const { entitlement, activated } = await statusPromise;
-    if (activated === false) {
-      if (preview) noteNotActivated();
+    //     A live domain on the FREE plan (activated on a free key, so no paid
+    //     token) stops here too: free runs on preview/staging addresses only.
+    //     An unknown/offline verdict (`null`) still mounts the basic bar so a
+    //     paying site never loses its banner to a network blip. A free live
+    //     domain activated before the change (`grandfathered`) keeps its basic
+    //     bar too, so existing free sites don't lose their banner on republish.
+    const { entitlement, activated, grandfathered } = await statusPromise;
+    if (!preview && (activated === false || (activated === true && !entitlement && !grandfathered))) {
+      noteNeedsPaidPlan();
       return;
     }
 

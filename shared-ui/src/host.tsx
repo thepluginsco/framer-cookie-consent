@@ -96,6 +96,13 @@ export interface HostServices {
    * a key, so only the Pro controls stay locked.
    */
   requireActivation?: boolean
+  /**
+   * In-plugin accounts (plan §15 N4/N5): upgrade, sign-in and checkout inside
+   * the editor, the "Go live" prompt for a live domain on Free, and funnel
+   * events. Framer only for now (it opens without a key, `requireActivation:
+   * false`); other hosts keep the paste-a-key flow.
+   */
+  inPluginAccount?: boolean
   /** Override the shared License panel (rarely needed; defaults to `LicensePanel`). */
   LicensePanel?: ComponentType<{ m: ConsentfulModel }>
 

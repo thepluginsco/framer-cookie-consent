@@ -31,6 +31,10 @@ export {
   getPublishState,
 } from "./publish-state"
 export { LicensePanel } from "./license/LicensePanel"
+export { AccountProvider, useAccount, type AccountApi } from "./account/account-context"
+export { createAccountClient, AccountApiError, type AccountStatus } from "./account/account-client"
+export { UpgradeSheet } from "./account/UpgradeSheet"
+export { GoLiveNotice } from "./account/GoLiveNotice"
 export { useLicense, hostnameOf, type LicenseApi, type LicenseStatus } from "./license/use-license"
 export {
   createPortalClient,

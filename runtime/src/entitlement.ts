@@ -210,6 +210,12 @@ async function verify(
 export type SiteStatus = {
   entitlement: VerifiedEntitlement | null;
   activated: boolean | null;
+  /**
+   * A FREE live domain activated before the Free-on-staging change: it keeps
+   * the basic banner (runtime v0.1.25+ shows nothing on other free live
+   * domains). Only ever `true` together with `activated: true` and no token.
+   */
+  grandfathered?: boolean;
 };
 
 /** Cache of a FREE activation (no token to cache), so repeat visits skip the API. */
@@ -262,9 +268,9 @@ export async function resolveSiteStatus(
     const ent = await verify(cached.token, host, resolveKey, opts.issuer);
     if (ent) return { entitlement: ent, activated: true };
   }
-  const free = readCache<{ host: string; at: number }>(FREE_KEY);
+  const free = readCache<{ host: string; at: number; g?: boolean }>(FREE_KEY);
   if (free && free.host === host && Date.now() - free.at < FREE_TTL_MS) {
-    return { entitlement: null, activated: true };
+    return { entitlement: null, activated: true, grandfathered: free.g === true };
   }
 
   // 2. Fresh token from the licensing API (bounded). Domains without a seat get
@@ -287,7 +293,7 @@ export async function resolveSiteStatus(
   );
   if (!res || !res.ok) return unknown;
 
-  let body: { token?: string | null; activated?: boolean; status?: string };
+  let body: { token?: string | null; activated?: boolean; status?: string; grandfathered?: boolean };
   try {
     body = (await res.json()) as typeof body;
   } catch {
@@ -299,7 +305,8 @@ export async function resolveSiteStatus(
     body.activated === true ? true : body.activated === false && body.status !== 'dev' ? false : null;
   const token = typeof body.token === 'string' ? body.token : null;
   const ent = token ? await verify(token, host, resolveKey, opts.issuer) : null;
+  const g = !ent && activated === true && body.grandfathered === true;
   if (ent) writeCache(TOKEN_KEY, { token, host });
-  else if (activated) writeCache(FREE_KEY, { host, at: Date.now() });
-  return { entitlement: ent, activated: ent ? true : activated };
+  else if (activated) writeCache(FREE_KEY, { host, at: Date.now(), g });
+  return { entitlement: ent, activated: ent ? true : activated, grandfathered: g };
 }

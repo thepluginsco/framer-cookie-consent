@@ -61,10 +61,15 @@ test('isPreviewHost: platform staging + local hosts, not production', () => {
     'wp.local',
     'site.test',
     '192.168.1.20',
+    'staging.acme.com',
+    'stage.acme.co.uk',
+    'demo.acme.com',
+    'dev2.acme.com',
+    'demo1.client.io',
   ]) {
     assert.equal(isPreviewHost(h), true, h);
   }
-  for (const h of ['acme.com', 'www.acme.co.uk', 'shop.acme.com', 'framer.com', 'webflow.com', '']) {
+  for (const h of ['acme.com', 'www.acme.co.uk', 'shop.acme.com', 'framer.com', 'webflow.com', 'staging.com', 'demo.io', 'developers.acme.com', '']) {
     assert.equal(isPreviewHost(h), false, h);
   }
 });

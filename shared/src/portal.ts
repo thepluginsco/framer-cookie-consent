@@ -60,9 +60,10 @@ export const JWKS_PATH = '/.well-known/jwks.json';
 export const ACTIVATE_PATH = '/public/site-activate';
 
 /**
- * Free preview / staging / local hosts. They run the FULL banner without a
- * license token and never use a site slot — so customers can build before their
- * real domain is live. Mirrors the portal's `normalizeDomain` dev list
+ * Free preview / staging / local hosts. The FREE plan runs here with no key and
+ * no activation (and never uses a site slot), so anyone can build and test the
+ * banner before paying. A live/custom domain needs a paid plan. Mirrors the
+ * portal's `normalizeDomain` dev list
  * (`consentful-portal/packages/utils/src/domain.ts`); keep the two in sync.
  */
 const PREVIEW_SUFFIXES = [
@@ -82,6 +83,13 @@ const PREVIEW_SUFFIXES = [
   '.localhost',
 ];
 const PREVIEW_EXACT = ['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'];
+
+/**
+ * Staging / demo sub-domains of a real domain, e.g. `staging.example.com`,
+ * `demo.client.co.uk`. Matched on the FIRST label only, and only when there are
+ * at least three labels, so `staging.com` itself is not a preview host.
+ */
+const PREVIEW_SUBDOMAIN_LABELS = ['staging', 'stage', 'demo', 'dev', 'test', 'preview', 'sandbox'];
 
 /** Local development suffixes (a subset of {@link PREVIEW_SUFFIXES}). */
 const LOCAL_SUFFIXES = ['.local', '.test', '.localhost'];
@@ -119,5 +127,7 @@ export function isPreviewHost(host: string): boolean {
   for (const s of PREVIEW_SUFFIXES) {
     if (h === s.slice(1) || h.endsWith(s)) return true;
   }
-  return false;
+  // `staging.example.com`, `dev2.example.com` (3+ labels, first label only)
+  const m = /^([a-z]+)\d*\.[^.]+\.[^.]+/.exec(h);
+  return !!m && PREVIEW_SUBDOMAIN_LABELS.indexOf(m[1] as string) !== -1;
 }

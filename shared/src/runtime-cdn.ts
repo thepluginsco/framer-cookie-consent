@@ -31,7 +31,7 @@ export const RUNTIME_GH_REPO = "framer-cookie-consent";
  * never `latest`, so jsDelivr can cache the response forever and existing sites
  * keep booting the exact runtime they were tested against.
  */
-export const RUNTIME_VERSION = "v0.1.24";
+export const RUNTIME_VERSION = "v0.1.25";
 
 /**
  * Subresource Integrity hash of the runtime bundle at {@link RUNTIME_VERSION}.
@@ -44,7 +44,7 @@ export const RUNTIME_VERSION = "v0.1.24";
  * against `runtime/dist/consent.min.js`.
  */
 export const RUNTIME_INTEGRITY =
-  "sha384-8/ZgHZL1IsmcrIxqXQZ7tNrjbZqm/QefHqcD/PAycy8Q+PwhjEwOZqpvnhotS1QL";
+  "sha384-K9y8aP78vaxUG2VBJWBWxad/ztkQ60vofdjMHO/oCTYI3a3AW/3N/1XgyUPTB4h8";
 
 /** Path to the built runtime bundle within the repo, relative to its root. */
 export const RUNTIME_BUNDLE_PATH = "runtime/dist/consent.min.js";
