@@ -4,7 +4,7 @@ Tags: cookie consent, gdpr, ccpa, cookie banner, consent mode
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.3
+Stable tag: 0.4.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,9 +25,9 @@ You design the banner in wp-admin. When you publish, the plugin loads the banner
 
 = Free and paid plans =
 
-Activate the plugin with a license key from [consentful.theplugins.co](https://consentful.theplugins.co). A free key is available, with no card needed.
+Consentful is free on preview and staging sites (localhost, *.local and *.test, WP Engine staging addresses, staging., dev., demo., test. and preview. subdomains, and bare IP addresses), with no key. A live domain needs a plan: activate a license key from [consentful.theplugins.co](https://consentful.theplugins.co) to show the banner there. Sites activated with a free key before 21 November 2026 keep the free banner on their live domain.
 
-* **Free:** GDPR and CCPA consent, Google Consent Mode v2, script and embed blocking by category, and a Consentful-branded bottom bar with the standard English wording and the four standard categories.
+* **Free (preview and staging sites):** GDPR and CCPA consent, Google Consent Mode v2, script and embed blocking by category, and a Consentful-branded bottom bar with the standard English wording and the four standard categories.
 * **Paid plans:** every layout and theme, your own wording in 29 languages, custom categories, custom CSS (scoped to the banner; it can't load anything from other sites), geo-targeting (automatic opt-in or opt-out by region), a preference center with per-service toggles, multiple languages, A/B consent-rate testing, consent insights, a cookie- and privacy-policy generator, a WCAG 2.1 AA accessibility check, plus extra sites on any paid plan ($5/month or $49/year each). Every plan shows a small "Powered by Consentful" credit.
 
 Consentful is an independent product of The Plugins Company. It is not affiliated with, endorsed by or sponsored by Google, Meta or Hotjar.
@@ -63,7 +63,7 @@ Consentful blocks and unblocks the third-party scripts **you** list in the plugi
 
 = Is it free? =
 
-There is a free plan: get a free key on consentful.theplugins.co and activate it in the plugin. Paid plans unlock the extra layouts, themes and features.
+It is free on preview and staging sites, with no key. A live domain needs a plan from consentful.theplugins.co. Sites activated with a free key before 21 November 2026 keep the free banner on their live domain.
 
 = Do I need to set anything up in Google Tag Manager? =
 
@@ -95,6 +95,11 @@ The admin screen (`assets/consentful-admin.js`) and the banner script (`assets/r
 Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1), Material Symbols (Apache License 2.0).
 
 == Changelog ==
+
+= 0.4.4 =
+* Free on preview and staging sites with no key; a live domain needs a plan. Sites activated with a free key before 21 November 2026 keep the free banner on their live domain.
+* Fix: optional categories in opt-in mode can never be published pre-ticked.
+* Fix: on a site that is not activated, the banner no longer applies implied consent or Global Privacy Control on the visitor's behalf.
 
 = 0.4.3 =
 * Fix: reopening Cookie Settings now shows the visitor's saved choices. Before, every optional switch showed its default position, and saving them unchanged could withdraw consent the visitor had given.
@@ -132,6 +137,9 @@ Bundled fonts: Plus Jakarta Sans and JetBrains Mono (SIL Open Font License 1.1),
 * First release.
 
 == Upgrade Notice ==
+
+= 0.4.4 =
+A live domain now needs a plan; preview and staging sites stay free. Sites activated with a free key before 21 November 2026 are not affected.
 
 = 0.4.3 =
 Fixes Cookie Settings showing optional categories as off after a visitor accepted them.
